@@ -23,9 +23,14 @@ const PALETTE = {
 // ============================================================
 // Dessin des avatars
 // ============================================================
-// Accessoires choisis sur l'écran de connexion
-const DECOS = ['metal', 'unicorn', 'cap', 'shades', 'glasses', 'tophat', 'headphones', 'crown', 'scarf'];
-const cleanDeco = (d) => (DECOS.includes(d) ? d : null);
+// Accessoires choisis sur l'écran de connexion : un pour la tête, un pour le corps
+const HEADS = ['unicorn', 'cap', 'shades', 'glasses', 'tophat', 'headphones', 'crown', 'beanie', 'partyhat', 'catears', 'flower'];
+const BODIES = ['metal', 'scarf', 'tie', 'bowtie', 'backpack', 'cape', 'medal'];
+const cleanHead = (d) => (HEADS.includes(d) ? d : null);
+const cleanBody = (d) => (BODIES.includes(d) ? d : null);
+// Ancien format (un seul accessoire « deco ») : rangé dans la bonne catégorie
+const lookHead = (l) => cleanHead(l?.head) ?? cleanHead(l?.deco);
+const lookBody = (l) => cleanBody(l?.body) ?? cleanBody(l?.deco);
 
 // 🤘 imprimé sur le t-shirt (vue de face). X = main, K = doigts repliés,
 // '.' = vide avec contour, ' ' = vide sans contour (entre les cornes)
@@ -57,13 +62,13 @@ function drawMetalPrint(r, look, o) {
   }));
 }
 
-// Serre-tête licorne : bandeau, oreilles, fleurs et corne dorée torsadée
-// Autres accessoires. top = haut des cheveux, o = décalage vertical (assis, accroupi…)
+// Accessoires de tête. top = haut des cheveux, o = décalage vertical (assis, accroupi…)
 // Repères : tête de x -7 à 6, yeux à y -24+o (face : x -4 et 2 ; profil : x -6 ou 4).
 const frame = (r, x, y, w, h, c) => { r(x, y, w, 1, c); r(x, y + h - 1, w, 1, c); r(x, y, 1, h, c); r(x + w - 1, y, 1, h, c); };
 // Accessoires qui dépassent au-dessus de la tête : on remonte l'étiquette du nom d'autant
-const HAT_HEIGHT = { tophat: 8, crown: 5, unicorn: 6 };
-const ACCESSORIES = {
+const HAT_HEIGHT = { tophat: 8, crown: 5, unicorn: 6, partyhat: 10, beanie: 3, catears: 3 };
+const HEAD_ACC = {
+  unicorn: (r, dir, top) => drawUnicornHeadband(r, dir, top),
   cap(r, dir, top) {
     const c = '#e63946', d = '#a4161a';
     r(-8, top - 1, 16, 5, c);
@@ -107,16 +112,103 @@ const ACCESSORIES = {
     r(-6, top, 12, 1, d);
     if (dir !== 'up') { r(-1, top - 1, 2, 1, '#ef476f'); r(-4, top - 1, 1, 1, '#118ab2'); r(3, top - 1, 1, 1, '#06d6a0'); }
   },
-  scarf(r, dir, top, o) {
-    const c = '#ef476f', w = '#fff3f5', y = -19 + o;
-    r(-8, y, 16, 3, c);
-    r(-8, y + 1, 16, 1, w);
-    if (dir === 'down') { r(2, y + 3, 3, 6, c); r(2, y + 5, 3, 1, w); }
-    if (dir === 'left') { r(1, y + 3, 3, 5, c); r(1, y + 5, 3, 1, w); }
-    if (dir === 'right') { r(-4, y + 3, 3, 5, c); r(-4, y + 5, 3, 1, w); }
+  beanie(r, dir, top) {
+    const c = '#2a9d8f', l = '#52b69a';
+    r(-8, top - 1, 16, 5, c);
+    r(-8, top + 3, 16, 2, l);
+    r(-4, top - 1, 1, 4, l); r(3, top - 1, 1, 4, l);
+    r(-2, top - 4, 4, 3, '#ffffff'); r(-1, top - 5, 2, 1, '#ffffff');
+  },
+  partyhat(r, dir, top) {
+    [2, 2, 4, 4, 6, 6, 8, 8].forEach((w, i) => r(-w / 2, top - 8 + i, w, 1, Math.floor(i / 2) % 2 ? '#ffd166' : '#ef476f'));
+    r(-1, top - 10, 2, 2, '#06d6a0');
+  },
+  catears(r, dir, top) {
+    const k = '#f4f4f6', p = '#f9a8d4';
+    r(-7, top - 3, 1, 1, k); r(-7, top - 2, 2, 1, k); r(-7, top - 1, 3, 2, k); r(-6, top - 1, 1, 1, p);
+    r(6, top - 3, 1, 1, k); r(5, top - 2, 2, 1, k); r(4, top - 1, 3, 2, k); r(5, top - 1, 1, 1, p);
+  },
+  flower(r, dir, top) {
+    const x = dir === 'right' ? -5 : 4, p = '#f78fb3';
+    r(x - 1, top + 1, 3, 1, p); r(x, top, 1, 3, p);
+    r(x, top + 1, 1, 1, '#ffd166');
+    r(x + 2, top + 2, 1, 1, '#3fa95a');
   },
 };
 
+// Accessoires du corps : `back` est dessiné derrière le personnage, `front` devant
+const BODY_ACC = {
+  metal: { front: (r, dir, o, look) => dir === 'down' && drawMetalPrint(r, look, o) },
+  scarf: {
+    front(r, dir, o) {
+      const c = '#ef476f', w = '#fff3f5', y = -19 + o;
+      r(-8, y, 16, 3, c);
+      r(-8, y + 1, 16, 1, w);
+      if (dir === 'down') { r(2, y + 3, 3, 6, c); r(2, y + 5, 3, 1, w); }
+      if (dir === 'left') { r(1, y + 3, 3, 5, c); r(1, y + 5, 3, 1, w); }
+      if (dir === 'right') { r(-4, y + 3, 3, 5, c); r(-4, y + 5, 3, 1, w); }
+    },
+  },
+  tie: {
+    front(r, dir, o, look) {
+      const reddish = parseInt(look.shirt.slice(1, 3), 16) > 200 && parseInt(look.shirt.slice(3, 5), 16) < 120;
+      const c = reddish ? '#1d3557' : '#e63946';
+      if (dir === 'down') { r(-1, -18 + o, 2, 2, shade(c, -35)); r(-1, -16 + o, 2, 3, c); r(-2, -13 + o, 4, 3, c); r(-1, -10 + o, 2, 1, c); }
+      if (dir === 'left') r(-7, -17 + o, 1, 6, c);
+      if (dir === 'right') r(6, -17 + o, 1, 6, c);
+    },
+  },
+  bowtie: {
+    front(r, dir, o) {
+      const c = '#7b2cbf';
+      if (dir === 'down') { r(-4, -18 + o, 3, 3, c); r(1, -18 + o, 3, 3, c); r(-1, -17 + o, 2, 2, shade(c, -35)); }
+      if (dir === 'left') r(-7, -18 + o, 2, 3, c);
+      if (dir === 'right') r(5, -18 + o, 2, 3, c);
+    },
+  },
+  medal: {
+    front(r, dir, o) {
+      const blue = '#118ab2', gold = '#ffcf5c';
+      if (dir === 'down') {
+        r(-3, -18 + o, 1, 2, blue); r(-2, -16 + o, 1, 2, blue); r(2, -18 + o, 1, 2, blue); r(1, -16 + o, 1, 2, blue);
+        r(-2, -14 + o, 4, 4, gold); r(-1, -13 + o, 2, 2, '#d9a21b');
+      }
+      if (dir === 'left') r(-7, -14 + o, 2, 3, gold);
+      if (dir === 'right') r(5, -14 + o, 2, 3, gold);
+    },
+  },
+  backpack: {
+    back(r, dir, o) {
+      const pack = '#f4a261', d = '#c97a3d';
+      if (dir === 'left') { r(5, -17 + o, 4, 9, pack); r(5, -17 + o, 4, 2, d); }
+      if (dir === 'right') { r(-9, -17 + o, 4, 9, pack); r(-9, -17 + o, 4, 2, d); }
+    },
+    front(r, dir, o) {
+      const pack = '#f4a261', d = '#c97a3d', strap = '#6b4423';
+      if (dir === 'down') { r(-6, -18 + o, 2, 8, strap); r(4, -18 + o, 2, 8, strap); }
+      if (dir === 'up') { r(-6, -17 + o, 12, 9, pack); r(-6, -17 + o, 12, 3, d); r(-3, -12 + o, 6, 3, d); r(-1, -11 + o, 2, 1, '#ffd166'); }
+      if (dir === 'left') r(1, -17 + o, 1, 7, strap);
+      if (dir === 'right') r(-2, -17 + o, 1, 7, strap);
+    },
+  },
+  cape: {
+    back(r, dir, o) {
+      const c = '#c1121f';
+      if (dir === 'down') { r(-10, -18 + o, 3, 15, c); r(7, -18 + o, 3, 15, c); }
+      if (dir === 'left') r(2, -18 + o, 7, 15, c);
+      if (dir === 'right') r(-9, -18 + o, 7, 15, c);
+    },
+    front(r, dir, o) {
+      const c = '#c1121f', d = '#8d0b16', gold = '#ffcf5c';
+      if (dir === 'up') { r(-8, -18 + o, 16, 15, c); r(-4, -16 + o, 1, 12, d); r(3, -16 + o, 1, 12, d); }
+      if (dir === 'down') { r(-2, -18 + o, 1, 1, gold); r(1, -18 + o, 1, 1, gold); }
+      if (dir === 'left') r(-6, -18 + o, 1, 1, gold);
+      if (dir === 'right') r(5, -18 + o, 1, 1, gold);
+    },
+  },
+};
+
+// Serre-tête licorne : bandeau, oreilles, fleurs et corne dorée torsadée
 function drawUnicornHeadband(r, dir, top) {
   const hx = dir === 'left' ? -3 : dir === 'right' ? 2 : 0;
   r(-7, top + 2, 14, 2, '#f9a8d4');
@@ -146,6 +238,7 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
     r(-5, -2 - l, 4, 2, '#1b1c2e'); r(1, -2 - rr, 4, 2, '#1b1c2e');
     if (girl) { r(-6, -9, 12, 2, dark); r(-7, -7, 14, 2, dark); } // jupe
   }
+  BODY_ACC[look.body]?.back?.(r, dir, o, look);
   r(-7, -18 + o, 14, 11, look.shirt);
   r(-7, -9 + o, 14, 2, dark);
   if (crouch) { // genoux pliés devant le corps
@@ -188,9 +281,8 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
       r(-1, -21 + o, 2, 2, '#8a4a3a');
     }
   }
-  if (look.deco === 'metal' && dir === 'down') drawMetalPrint(r, look, o);
-  if (look.deco === 'unicorn') drawUnicornHeadband(r, dir, -31 + o);
-  if (ACCESSORIES[look.deco]) ACCESSORIES[look.deco](r, dir, -31 + o, o);
+  BODY_ACC[look.body]?.front?.(r, dir, o, look);
+  HEAD_ACC[look.head]?.(r, dir, -31 + o, o);
 }
 
 // ============================================================
@@ -431,7 +523,8 @@ const look = {
   shirt: prefs.look?.shirt || PALETTE.shirt[Math.floor(Math.random() * PALETTE.shirt.length)],
   hair: prefs.look?.hair || PALETTE.hair[0],
   skin: prefs.look?.skin || PALETTE.skin[1],
-  deco: cleanDeco(prefs.look?.deco),
+  head: lookHead(prefs.look),
+  body: lookBody(prefs.look),
   style: prefs.look?.style === 'girl' ? 'girl' : 'boy',
 };
 
@@ -513,15 +606,17 @@ document.querySelectorAll('#styleChips button').forEach((b) => {
     savePrefs();
   };
 });
-document.querySelectorAll('#decoChips button').forEach((b) => {
-  b.classList.toggle('sel', (b.dataset.deco || null) === look.deco);
-  b.onclick = () => {
-    look.deco = cleanDeco(b.dataset.deco);
-    document.querySelectorAll('#decoChips button').forEach((x) => x.classList.toggle('sel', x === b));
-    drawPreview();
-    savePrefs();
-  };
-});
+for (const [part, clean] of [['head', cleanHead], ['body', cleanBody]]) {
+  document.querySelectorAll(`#${part}Chips button`).forEach((b) => {
+    b.classList.toggle('sel', (b.dataset.v || null) === look[part]);
+    b.onclick = () => {
+      look[part] = clean(b.dataset.v);
+      document.querySelectorAll(`#${part}Chips button`).forEach((x) => x.classList.toggle('sel', x === b));
+      drawPreview();
+      savePrefs();
+    };
+  });
+}
 drawPreview();
 document.fonts?.ready.then(drawPreview);
 savePrefs(); // garde la couleur tirée au hasard dès la première visite
@@ -534,7 +629,9 @@ function syncPickers() {
     box.querySelectorAll('button').forEach((b) => b.classList.toggle('sel', b.title === look[box.dataset.part]));
   });
   document.querySelectorAll('#styleChips button').forEach((b) => b.classList.toggle('sel', b.dataset.style === look.style));
-  document.querySelectorAll('#decoChips button').forEach((b) => b.classList.toggle('sel', (b.dataset.deco || null) === look.deco));
+  for (const part of ['head', 'body']) {
+    document.querySelectorAll(`#${part}Chips button`).forEach((b) => b.classList.toggle('sel', (b.dataset.v || null) === look[part]));
+  }
   drawPreview();
 }
 
@@ -824,7 +921,8 @@ function onHello(d, { peerId }) {
     shirt: COLOR.test(d?.look?.shirt) ? d.look.shirt : '#6c63ff',
     hair: COLOR.test(d?.look?.hair) ? d.look.hair : '#3b2a20',
     skin: COLOR.test(d?.look?.skin) ? d.look.skin : '#f1c7a4',
-    deco: cleanDeco(d?.look?.deco),
+    head: lookHead(d?.look),
+    body: lookBody(d?.look),
     style: d?.look?.style === 'girl' ? 'girl' : 'boy',
   };
   if (!setPos(u, d) && !known) setPos(u, { x: MAP.spawns[0][0], y: MAP.spawns[0][1] });
@@ -973,11 +1071,23 @@ function notifyBeside() {
   besideIds = now;
 }
 
+// Volume d'une voix : progressif pour le N (plein à 1 case, 25 % au bord de la portée),
+// plein pour toutes les autres raisons (micro de pièce, pupitre, côte à côte)
+function voiceVolume(u) {
+  if (!me || sendsAudio({ ...u, ptt: false }, me)) return 1;
+  const d = Math.hypot(u.x - me.x, u.y - me.y);
+  return Math.max(0.25, Math.min(1, 1 - ((d - 1) / (PROX_RADIUS - 1)) * 0.75));
+}
+
 function updateRouting() {
   if (!me) return;
   notifyBeside();
   for (const u of users.values()) if (!u.isMe) applySenders(u);
-  for (const [id, L] of links) setSpeakerFx(L, isOnAir(users.get(id)));
+  for (const [id, L] of links) {
+    const u = users.get(id);
+    setSpeakerFx(L, isOnAir(u));
+    if (L.audioEl && u) L.audioEl.volume = voiceVolume(u);
+  }
   renderVideos();
   updateUI();
 }
@@ -1296,6 +1406,12 @@ function goToUser(id) {
   else toast(`En route vers ${u.name}`);
 }
 
+// Depuis le chat ou la liste : sur téléphone, le panneau recouvre la carte, on le ferme
+function joinFromPanel(id) {
+  if (innerWidth <= 560) { $('#sidebar').classList.add('closed'); renderChat(); }
+  goToUser(id);
+}
+
 function faceUser(id) {
   joinTarget = null;
   const u = users.get(id);
@@ -1454,6 +1570,10 @@ function renderChat() {
     const body = document.createElement('div'); body.className = 'msg-body';
     const head = document.createElement('div'); head.className = 'msg-head';
     const b = document.createElement('b'); b.textContent = myIds.has(m.from) ? `${m.name} (vous)` : m.name;
+    if (!myIds.has(m.from) && users.has(m.from)) {
+      b.className = 'join-link'; b.title = `Rejoindre ${m.name}`;
+      b.onclick = () => joinFromPanel(m.from);
+    }
     const t = document.createElement('time'); t.textContent = fmtTime(m.ts);
     head.append(b, t);
     const text = document.createElement('div'); text.className = 'msg-text'; text.textContent = m.text;
@@ -1530,6 +1650,7 @@ function renderPeople() {
     icons.innerHTML = (u.hand ? '<span class="p-hand">✋</span>' : '') + (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
     li.append(c, info, icons);
     if (u.isMe) { li.className = 'me-row'; li.title = 'Modifier mon personnage'; li.onclick = openProfile; }
+    else { li.className = 'join-row'; li.title = `Rejoindre ${u.name}`; li.onclick = () => joinFromPanel(u.id); }
     ul.append(li);
   }
   $('#peopleCount').textContent = users.size;
@@ -2070,7 +2191,7 @@ function draw() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const u of list) {
     const sx = (u.rx * TILE + TILE / 2 - cam.x) * zoom;
-    const sy = (u.ry * TILE - cam.y) * zoom - (6 + (HAT_HEIGHT[u.look?.deco] || 0)) * zoom;
+    const sy = (u.ry * TILE - cam.y) * zoom - (6 + (HAT_HEIGHT[u.look?.head] || 0)) * zoom;
     const tx = isTransmitting(u);
     const inRange = !u.isMe && ((pttHeld && sendsAudio(me, u)) || (sideBySide(me, u) && sendsAudio(me, u)));
     const onAir = isOnAir(u);
