@@ -17,7 +17,7 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 - **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
 - **Tableau blanc** (salle de classe et bureau principal) : il s'ouvre uniquement depuis le **bureau du prof** (derrière le bureau de l'enseignant dans la classe, derrière le pupitre dans le bureau principal), avec le bouton tableau de la barre. La personne qui l'ouvre le pilote : elle seule dessine (couleurs, épaisseurs, gomme, tout effacer) et le ferme. Il s'affiche chez toutes les personnes de la pièce, y compris celles qui arrivent ensuite ; chacune peut le passer en **mode PiP** (petite fenêtre flottante, toujours à jour) tant qu'il est ouvert. Il se ferme quand le prof quitte la pièce.
 - **Projection** : dans ces deux pièces, un partage d'écran s'ouvre automatiquement en grand chez les personnes présentes.
-- **Couloir** : ni micro ni partage, seulement le « N pour parler ».
+- **Couloir** : pas de partage d'écran ; on parle avec `N` (à proximité) ou, micro ouvert, aux personnes juste à côté.
 
 Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans la même zone** (les murs bloquent le son) ; le volume baisse avec la distance. Dans le couloir, avec le micro ouvert (`M`), les personnes **côte à côte** (cases voisines) vous entendent directement, sans `N`. Micro coupé, personne ne vous entend. Pas dans les pièces, où `M` parle à toute la pièce.
 
@@ -35,7 +35,7 @@ Deux onglets : **la zone où vous êtes** (seules les personnes présentes le re
 
 ## Attente et reconnexion
 
-Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le départ d'une personne ne coupe pas les autres. Quand on se retrouve seul, un bandeau « En attente des autres participants… » s'affiche, et on retrouve automatiquement les autres dès leur retour. Si la connexion saute (réseau, onglet en veille), l'app rejoint la salle d'elle-même ; le bandeau propose aussi d'inviter ou de recharger.
+Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le départ d'une personne ne coupe pas les autres. Quand on se retrouve seul, un bandeau « En attente des autres participants… » s'affiche, et on retrouve automatiquement les autres dès leur retour. Si la connexion saute (réseau, onglet en veille), l'app rejoint la salle d'elle-même ; le bandeau propose aussi d'inviter ou de relancer la connexion.
 
 ## Commandes
 
@@ -56,21 +56,56 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 
 - La mise en relation WebRTC passe par des relais [Nostr](https://nostr.com) publics grâce à [Trystero](https://github.com/dmotz/trystero) (embarqué dans `public/vendor/`). Les relais ne voient que les messages de mise en relation (chiffrés), jamais l'audio, la vidéo ou le chat.
 - Chaque participant est connecté à tous les autres (maillage). Ça tient pour quelques dizaines de personnes.
-- Pour chaque pair, on envoie une copie de son micro et de son écran, activée ou coupée selon les règles de zone (`public/shared.js`). Il n'y a pas de renégociation, donc `N` répond tout de suite.
+- Pour chaque pair, on envoie une copie de son micro et de son écran, activée ou coupée selon les règles de zone (`public/js/world.js`). Il n'y a pas de renégociation, donc `N` répond tout de suite.
 - Les règles sont appliquées par le navigateur de chacun : c'est fait pour une équipe de confiance, pas pour un espace public.
-- Derrière certains réseaux d'entreprise (NAT strict), un serveur TURN est nécessaire : à configurer via `turnConfig` dans l'appel `joinRoom` de `public/app.js`.
+- Derrière certains réseaux d'entreprise (NAT strict), un serveur TURN est nécessaire : à configurer via `turnConfig` dans l'appel `joinRoom` de `public/js/net.js`.
 
-## Développement local
+## Développement
 
 ```bash
-npm start   # http://localhost:3000 (serveur statique, aucune dépendance)
+npm start          # http://localhost:3000 (serveur statique, aucune dépendance)
+npm run check      # vérifie la syntaxe de tous les modules
+npm test           # tests unitaires des règles du monde (Node, sans dépendance)
+npm install        # une fois, pour les tests de bout en bout (puppeteer-core)
+npm run test:e2e   # scénarios à plusieurs navigateurs Chrome (nécessite Chrome et Internet)
+npm run test:e2e -- pupitre   # un seul scénario
 ```
 
-Le déploiement sur GitHub Pages se fait automatiquement à chaque push sur `main` (`.github/workflows/pages.yml` publie le dossier `public/`).
+Ouvrir la page avec `?debug` expose `window.rt` dans la console (participants, position, `rt.walkTo(x, y)`, `rt.place(x, y)`, `rt.relaunch()`…), utilisé par les tests de bout en bout.
+
+Le déploiement sur GitHub Pages se fait automatiquement à chaque push sur `main` (`.github/workflows/pages.yml`) : vérification de la syntaxe, tests unitaires, puis publication du dossier `public/`.
 
 ## Structure
 
-- `public/shared.js` : la carte, les zones et les règles de qui entend qui
-- `public/app.js` : rendu canvas, déplacements, WebRTC, chat, interface
-- `public/vendor/trystero-nostr.js` : Trystero 0.25.4 (licence MIT)
-- `server.js` : petit serveur statique pour le développement local
+```
+public/
+  index.html, style.css
+  vendor/trystero-nostr.js   Trystero 0.25.4 (licence MIT), réseau pair-à-pair
+  js/
+    main.js        point d'entrée : branche les modules, accès ?debug
+    state.js       état partagé (S, users, keys, myIds)
+    config.js      constantes (vitesses, palettes, relais, clavier)
+    world.js       carte, zones, règles « qui entend / voit qui » (module pur)
+    dom.js         utilitaires d'interface ($, toast…)
+    avatar.js      dessin des personnages et accessoires
+    map-render.js  dessin de la carte
+    render.js      boucle et rendu de la scène
+    movement.js    déplacements, chaises, pupitre, dash, rejoindre quelqu'un
+    input.js       clavier et souris
+    net.js         connexion, messages reçus, présence, reconnexion
+    media.js       flux micro / écran par pair, micro, N, partage
+    audio.js       micro, niveaux, bips, effet haut-parleur
+    profile.js     écran du personnage
+    rooms.js       salles et liens d'invitation
+    hud.js         démarrage, changement de zone, barre du bas, aide
+    panel.js       panneau latéral et participants
+    chat.js        chat de zone et global
+    social.js      réactions, main levée, bulles
+    board.js       tableau blanc
+    videos.js      partages d'écran reçus, projection
+tests/
+  world.test.js    tests unitaires (npm test)
+  e2e/             tests de bout en bout (npm run test:e2e)
+server.js          serveur statique de développement
+AGENTS.md          guide pour faire évoluer le projet
+```

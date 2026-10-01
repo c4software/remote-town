@@ -22,6 +22,14 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Aucune dépendance n'est nécessaire pour ces vérifications (pas de npm install)
+      - name: Vérification de la syntaxe
+        run: npm run check
+      - name: Tests unitaires
+        run: npm test
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

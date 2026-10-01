@@ -1,5 +1,5 @@
-// Code partagé entre le serveur (Node) et le client (navigateur) :
-// la carte, les zones et les règles de diffusion audio / vidéo.
+// Monde : carte, zones et règles « qui entend / voit qui ». Module pur (ni DOM ni état),
+// testable seul avec Node.
 
 export const TILE = 32;
 export const MAP_W = 77;

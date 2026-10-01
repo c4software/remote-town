@@ -1,0 +1,231 @@
+// Réseau pair-à-pair (Trystero) : connexion à la salle, messages reçus des autres,
+// présence, attente et reconnexion. Il n'y a pas d'hôte : chacun est relié à tous.
+import { pttReaches, walkieBeep } from './audio.js';
+import { lookBody, lookHead } from './avatar.js';
+import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
+import { chatStore, fetchHistory, onChat } from './chat.js';
+import { APP_ID, COLOR, DIR_NAMES, RELAYS } from './config.js';
+import { $, toast } from './dom.js';
+import { startApp } from './hud.js';
+import { closeLink, onPeerStream, updateRouting } from './media.js';
+import { resolveOverlap, startDash } from './movement.js';
+import { renderPeople } from './panel.js';
+import { look } from './profile.js';
+import { shareLink } from './rooms.js';
+import { REACTIONS, addReaction } from './social.js';
+import { S, myIds, users } from './state.js';
+import { MAP, isBlocked, zoneAt } from './world.js';
+
+export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
+
+export function connect(name) {
+  const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
+  S.myId = S.tr.selfId;
+  myIds.add(S.myId);
+  S.me = {
+    id: S.myId, isMe: true, name, look: { ...look }, x, y, rx: x, ry: y, dir: 'down',
+    zone: zoneAt(x, y), seated: false, mic: false, ptt: false, sharing: false, walk: 0, level: 0,
+  };
+  users.set(S.myId, S.me);
+  S.joinedAt = performance.now();
+  joinNet();
+  addEventListener('pagehide', () => S.room?.leave());
+  watchConnection();
+  startApp();
+}
+
+function joinNet() {
+  S.room = S.tr.joinRoom({ appId: APP_ID, relayConfig: { urls: RELAYS } }, S.roomId);
+  S.net = {
+    hello: S.room.makeAction('hello', { onMessage: onHello }),
+    move: S.room.makeAction('move', { onMessage: onRemoteMove }),
+    state: S.room.makeAction('state', { onMessage: onRemoteState }),
+    chat: S.room.makeAction('chat', { onMessage: (d, { peerId }) => users.has(peerId) && onChat(d?.channel, d?.msg, peerId) }),
+    wb: S.room.makeAction('wb', { onMessage: onBoardMsg }),
+    react: S.room.makeAction('react', {
+      onMessage: (d, { peerId }) => { const u = users.get(peerId); if (u && REACTIONS.includes(d?.e)) addReaction(u, d.e); },
+    }),
+    history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => chatStore.get(String(d?.channel)) || [] }),
+  };
+  S.room.onPeerJoin = (id) => { helloAsked.set(id, performance.now()); S.net.hello.send(profile(), { target: id }).catch(() => {}); };
+  S.room.onPeerLeave = onPeerLeave;
+  S.room.onPeerStream = onPeerStream;
+}
+
+// ============================================================
+// Attente et reconnexion. Il n'y a pas d'hôte : chacun est relié à tous.
+// Si on se retrouve seul (tout le monde est parti, ou notre connexion a
+// sauté), on attend et on rejoint la salle à nouveau automatiquement.
+// ============================================================
+let rejoining = false;
+let lastRejoin = 0;
+let aloneSince = 0; // 0 = pas seul
+const helloAsked = new Map(); // id du pair -> dernière présentation envoyée
+let connected = true;
+let relaysDownSince = 0;
+
+const relaysUp = () => {
+  try { return Object.values(S.tr.getRelaySockets()).some((s) => s.readyState === 1); } catch { return true; }
+};
+
+export async function relaunch() {
+  if (rejoining) return;
+  rejoining = true;
+  lastRejoin = performance.now();
+  const btn = $('#waitRetry');
+  btn.disabled = true; btn.textContent = 'Reconnexion…';
+  for (const id of [...users.keys()]) if (id !== S.myId) onPeerLeave(id, true);
+  S.room?.leave().catch(() => {});
+  S.room = null; S.net = null;
+  try {
+    S.tr = await import(`../vendor/trystero-nostr.js?instance=${Date.now()}`);
+  } catch {
+    toast('Impossible de relancer la connexion : vérifiez votre réseau.');
+  }
+  if (S.tr.selfId !== S.myId) {
+    dropBoardsOf(S.myId);
+    users.delete(S.myId);
+    S.myId = S.me.id = S.tr.selfId;
+    myIds.add(S.myId);
+    users.set(S.myId, S.me);
+    helloAsked.clear();
+  }
+  relaysDownSince = 0;
+  connected = true;
+  joinNet();
+  rejoining = false;
+  btn.disabled = false;
+  renderPeople(); updatePresence();
+}
+
+export async function rejoin() {
+  if (rejoining || !S.room) return;
+  rejoining = true;
+  lastRejoin = performance.now();
+  for (const id of [...users.keys()]) if (id !== S.myId) onPeerLeave(id, true);
+  const old = S.room;
+  S.room = null; S.net = null;
+  await Promise.race([old.leave().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+  joinNet();
+  rejoining = false;
+  updatePresence();
+}
+
+function updatePresence() {
+  const alone = users.size <= 1;
+  if (!alone) aloneSince = 0;
+  else if (!aloneSince) aloneSince = performance.now();
+  const box = $('#waiting');
+  // On laisse quelques secondes aux connexions pour s'établir avant d'afficher l'attente
+  const show = !connected || (alone && performance.now() - aloneSince > 3000);
+  box.hidden = !show;
+  box.classList.toggle('offline', !connected);
+  $('#waiting .w-text').textContent = !connected
+    ? 'Connexion aux relais perdue.'
+    : 'En attente des autres participants… Vous serez reconnecté·e dès leur retour.';
+  if (!rejoining) $('#waitRetry').textContent = connected ? 'Relancer' : 'Relancer la connexion';
+}
+
+function watchConnection() {
+  setInterval(() => {
+    // Relais tous injoignables depuis plus de 8 s (le temps qu'ils s'ouvrent au démarrage)
+    if (relaysUp()) relaysDownSince = 0;
+    else if (!relaysDownSince) relaysDownSince = performance.now();
+    connected = navigator.onLine && (!relaysDownSince || performance.now() - relaysDownSince < 8000);
+    updatePresence();
+    // Seul depuis un moment : on rejoint la salle (sans effet si elle est vraiment vide)
+    if (users.size <= 1 && aloneSince && performance.now() - aloneSince > 8000 && performance.now() - lastRejoin > 30000) rejoin();
+    // Pair connecté mais jamais présenté (message perdu) : on se représente et on lui demande de faire pareil
+    for (const id of Object.keys(S.room?.getPeers?.() || {})) {
+      if (users.has(id) || performance.now() - (helloAsked.get(id) || 0) < 2000) continue;
+      helloAsked.set(id, performance.now());
+      S.net?.hello.send({ ...profile(), ask: true }, { target: id }).catch(() => {});
+    }
+  }, 1000);
+  addEventListener('online', () => setTimeout(rejoin, 1000));
+  addEventListener('offline', () => { connected = false; updatePresence(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && users.size <= 1 && performance.now() - lastRejoin > 5000) rejoin();
+  });
+  $('#waitInvite').onclick = () => shareLink(S.roomId);
+  $('#waitRetry').onclick = relaunch;
+}
+
+export function broadcast(action, data) { S.net?.[action].send(data).catch(() => {}); }
+
+// Applique une position reçue ; refuse les cases bloquées ou hors carte
+function setPos(u, d) {
+  const x = d?.x | 0, y = d?.y | 0;
+  if (isBlocked(x, y)) return false;
+  u.x = x; u.y = y;
+  u.dir = DIR_NAMES.includes(d.dir) ? d.dir : u.dir || 'down';
+  u.zone = zoneAt(x, y);
+  return true;
+}
+
+function onHello(d, { peerId }) {
+  const known = users.get(peerId);
+  const u = known || { id: peerId, walk: 0, level: 0 };
+  u.name = String(d?.name || '').trim().slice(0, 24) || 'Invité';
+  u.look = {
+    shirt: COLOR.test(d?.look?.shirt) ? d.look.shirt : '#6c63ff',
+    hair: COLOR.test(d?.look?.hair) ? d.look.hair : '#3b2a20',
+    skin: COLOR.test(d?.look?.skin) ? d.look.skin : '#f1c7a4',
+    head: lookHead(d?.look),
+    body: lookBody(d?.look),
+    style: d?.look?.style === 'girl' ? 'girl' : 'boy',
+  };
+  if (!setPos(u, d) && !known) setPos(u, { x: MAP.spawns[0][0], y: MAP.spawns[0][1] });
+  u.rx = u.x; u.ry = u.y;
+  u.seated = !!d?.seated;
+  u.sitAt = Number(d?.sitAt) || 0;
+  u.crouch = !!d?.crouch;
+  if (d?.ask) S.net?.hello.send(profile(), { target: peerId }).catch(() => {});
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand });
+  users.set(peerId, u);
+  resolveOverlap(u);
+  if (!known) {
+    syncBoardsTo(peerId);
+    if (performance.now() - S.joinedAt > 5000) toast(`${u.name} a rejoint l'espace`);
+    if (!S.globalHistoryLoaded) { S.globalHistoryLoaded = true; fetchHistory('global', [peerId]); }
+    if (u.zone === S.me.zone) fetchHistory(S.me.zone, [peerId]);
+  }
+  renderPeople(); updateRouting(); updatePresence();
+}
+
+function onRemoteMove(d, { peerId }) {
+  const u = users.get(peerId);
+  if (!u) return;
+  const prevZone = u.zone;
+  if (!setPos(u, d)) return;
+  u.seated = !!d.seated;
+  u.sitAt = Number(d.sitAt) || 0;
+  u.crouch = !!d.crouch;
+  if (d.dash) startDash(u);
+  if (Math.abs(u.rx - u.x) > 3 || Math.abs(u.ry - u.y) > 3) { u.rx = u.x; u.ry = u.y; }
+  resolveOverlap(u);
+  updateRouting();
+  if (u.zone !== prevZone) renderPeople();
+}
+
+function onRemoteState(d, { peerId }) {
+  const u = users.get(peerId);
+  if (!u) return;
+  const wasTalking = pttReaches(u);
+  if (d?.ptt && !u.ptt) u.pttAt = performance.now();
+  if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand });
+  const talking = pttReaches(u);
+  if (talking && !wasTalking) walkieBeep('start', 0.12);
+  if (wasTalking && !talking) walkieBeep('end', 0.12);
+  updateRouting(); renderPeople();
+}
+
+function onPeerLeave(id, silent = false) {
+  const u = users.get(id);
+  users.delete(id);
+  dropBoardsOf(id);
+  closeLink(id);
+  if (u && !silent) toast(`${u.name} est parti·e`);
+  renderPeople(); updateRouting(); updatePresence();
+}

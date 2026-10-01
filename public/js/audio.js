@@ -1,0 +1,134 @@
+// Audio local : micro, mesure du niveau, bips du talkie-walkie, effet « haut-parleur » du pupitre.
+import { toast } from './dom.js';
+import { S } from './state.js';
+import { PROX_RADIUS } from './world.js';
+
+export async function initMic() {
+  if (S.micTrack) return true;
+  try {
+    S.micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    S.micTrack = S.micStream.getAudioTracks()[0];
+    S.localAnalyser = makeAnalyser(S.micStream);
+    return true;
+  } catch (err) {
+    console.warn('Micro indisponible', err);
+    toast('Micro indisponible : vous pourrez écouter mais pas parler.');
+    return false;
+  }
+}
+
+export function makeAnalyser(stream) {
+  if (!S.audioCtx) return null;
+  try {
+    const src = S.audioCtx.createMediaStreamSource(stream);
+    const an = S.audioCtx.createAnalyser();
+    an.fftSize = 512;
+    src.connect(an);
+    return { an, buf: new Uint8Array(an.fftSize), level: 0 };
+  } catch { return null; }
+}
+export function sampleLevel(a) {
+  if (!a) return 0;
+  a.an.getByteTimeDomainData(a.buf);
+  let sum = 0;
+  for (const v of a.buf) { const d = (v - 128) / 128; sum += d * d; }
+  a.level = Math.sqrt(sum / a.buf.length);
+  return a.level;
+}
+
+// ============================================================
+// Talkie-walkie : bips d'ouverture / fin de N et dessin de l'appareil
+// ============================================================
+// N d'un autre participant qui nous parvient (indépendamment du micro de pièce ou du côte à côte)
+export const pttReaches = (u) => !!S.me && !!u.ptt && u.zone === S.me.zone && Math.hypot(u.x - S.me.x, u.y - S.me.y) <= PROX_RADIUS;
+
+export function walkieBeep(kind, volume) {
+  if (!S.audioCtx) return;
+  S.audioCtx.resume?.();
+  const t0 = S.audioCtx.currentTime + 0.01;
+  const out = S.audioCtx.createGain();
+  out.gain.value = volume;
+  out.connect(S.audioCtx.destination);
+  // Deux tons courts : montant à l'ouverture, descendant à la fin
+  const notes = kind === 'start' ? [[1300, 0, 0.06], [1850, 0.075, 0.08]] : [[1850, 0, 0.05], [1150, 0.065, 0.09]];
+  for (const [freq, at, dur] of notes) {
+    const osc = S.audioCtx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    const env = S.audioCtx.createGain();
+    env.gain.setValueAtTime(0, t0 + at);
+    env.gain.linearRampToValueAtTime(0.3, t0 + at + 0.005);
+    env.gain.setValueAtTime(0.3, t0 + at + dur - 0.01);
+    env.gain.linearRampToValueAtTime(0, t0 + at + dur);
+    osc.connect(env).connect(out);
+    osc.start(t0 + at);
+    osc.stop(t0 + at + dur + 0.02);
+  }
+  if (kind === 'end') {
+    // Petit souffle radio (squelch) après le bip de fin
+    const len = Math.floor(S.audioCtx.sampleRate * 0.14);
+    const buf = S.audioCtx.createBuffer(1, len, S.audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const noise = S.audioCtx.createBufferSource();
+    noise.buffer = buf;
+    const band = S.audioCtx.createBiquadFilter();
+    band.type = 'bandpass'; band.frequency.value = 2200; band.Q.value = 0.8;
+    const ng = S.audioCtx.createGain();
+    ng.gain.value = 0.18;
+    noise.connect(band).connect(ng).connect(out);
+    noise.start(t0 + 0.17);
+  }
+}
+
+// ============================================================
+// Pupitre : effet « haut-parleur » sur la voix diffusée à tout le monde.
+// Seulement pendant la diffusion : la voix passe alors par Web Audio (filtre
+// de sonorisation, légère saturation, écho de salle) et l'élément <audio> est coupé.
+// Si Web Audio n'est pas disponible, on garde le son normal.
+// ============================================================
+let roomImpulse = null;
+function getRoomImpulse() {
+  if (roomImpulse) return roomImpulse;
+  const len = Math.floor(S.audioCtx.sampleRate * 0.7);
+  roomImpulse = S.audioCtx.createBuffer(2, len, S.audioCtx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = roomImpulse.getChannelData(c);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  return roomImpulse;
+}
+
+export function setSpeakerFx(L, on) {
+  if (!L?.audioEl) return;
+  const ready = S.audioCtx && S.audioCtx.state === 'running' && L.audioStream;
+  if (on && ready && !L.fx) {
+    try {
+      const src = S.audioCtx.createMediaStreamSource(L.audioStream);
+      const hp = S.audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 350;
+      const lp = S.audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3800;
+      const mid = S.audioCtx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 1800; mid.gain.value = 6; mid.Q.value = 0.9;
+      const shaper = S.audioCtx.createWaveShaper();
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < curve.length; i++) { const x = (i / (curve.length - 1)) * 2 - 1; curve[i] = Math.tanh(2.2 * x) / Math.tanh(2.2); }
+      shaper.curve = curve;
+      const dry = S.audioCtx.createGain(); dry.gain.value = 0.7;
+      const verb = S.audioCtx.createConvolver(); verb.buffer = getRoomImpulse();
+      const wet = S.audioCtx.createGain(); wet.gain.value = 0.22;
+      src.connect(hp).connect(lp).connect(mid).connect(shaper);
+      shaper.connect(dry).connect(S.audioCtx.destination);
+      shaper.connect(verb).connect(wet).connect(S.audioCtx.destination);
+      L.fx = { src, out: [dry, wet] };
+      L.audioEl.muted = true;
+    } catch {
+      L.fx = null;
+      L.audioEl.muted = false;
+    }
+  } else if (!on && L.fx) {
+    try { L.fx.src.disconnect(); L.fx.out.forEach((n) => n.disconnect()); } catch {}
+    L.fx = null;
+    L.audioEl.muted = false;
+  }
+}
