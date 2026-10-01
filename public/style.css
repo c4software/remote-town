@@ -88,6 +88,10 @@ kbd {
 }
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--green-dark); }
+.me-pill:hover { background: var(--panel-2); }
+.profile-actions { display: flex; gap: 8px; }
+.profile-actions .btn-ghost { flex: 1; justify-content: center; padding: 10px; }
+#people li.me-row { cursor: pointer; }
 .join-note { font-size: 12px; color: var(--muted); margin: 0; }
 
 /* ---------- Monde ---------- */
@@ -166,7 +170,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   background: var(--bg); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
   max-width: calc(100vw - 20px); z-index: 10;
 }
-.me-pill { display: flex; align-items: center; gap: 10px; padding: 4px 12px 4px 6px; background: var(--panel); border-radius: 12px; min-width: 0; }
+.me-pill { cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 10px; padding: 4px 12px 4px 6px; background: var(--panel); border-radius: 12px; min-width: 0; }
 #meAvatar { width: 32px; height: 40px; image-rendering: pixelated; }
 #meName { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 #meZone { font-size: 12px; white-space: nowrap; }
@@ -260,7 +264,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @media (max-width: 900px) {
   #videos { max-width: calc(100vw - 28px); }
   .ptt span { display: none; }
-  #help { display: none; }
+  #help:not(.forced) { display: none; }
 }
 @media (max-width: 420px) {
   #bar .round, #bar .ptt { width: 36px; height: 36px; border-radius: 10px; }

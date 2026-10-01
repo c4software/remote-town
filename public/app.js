@@ -522,8 +522,70 @@ drawPreview();
 document.fonts?.ready.then(drawPreview);
 savePrefs(); // garde la couleur tirée au hasard dès la première visite
 
+// L'écran de connexion sert aussi à modifier son personnage une fois dans l'espace
+let editingProfile = false;
+
+function syncPickers() {
+  document.querySelectorAll('.swatches').forEach((box) => {
+    box.querySelectorAll('button').forEach((b) => b.classList.toggle('sel', b.title === look[box.dataset.part]));
+  });
+  document.querySelectorAll('#styleChips button').forEach((b) => b.classList.toggle('sel', b.dataset.style === look.style));
+  document.querySelectorAll('#decoChips button').forEach((b) => b.classList.toggle('sel', (b.dataset.deco || null) === look.deco));
+  drawPreview();
+}
+
+function openProfile() {
+  if (!me) return;
+  editingProfile = true;
+  Object.assign(look, me.look);
+  nameInput.value = me.name;
+  syncPickers();
+  $('#joinSub').textContent = 'Modifiez votre personnage : les autres verront le changement tout de suite.';
+  $('#roomField').hidden = true;
+  $('#joinNote').hidden = true;
+  $('#joinSubmit').textContent = 'Enregistrer';
+  $('#profileActions').hidden = false;
+  $('#join').hidden = false;
+  $('#reactMenu').hidden = true;
+  keys.clear();
+}
+
+function closeProfile(restore = true) {
+  if (restore) { Object.assign(look, me.look); nameInput.value = me.name; savePrefs(); }
+  editingProfile = false;
+  $('#join').hidden = true;
+  canvas.focus?.();
+}
+
+function applyProfile() {
+  const name = nameInput.value.trim();
+  if (!name) return nameInput.focus();
+  me.name = name;
+  me.look = { ...look };
+  savePrefs();
+  $('#meName').textContent = me.name;
+  const mc = $('#meAvatar').getContext('2d');
+  mc.clearRect(0, 0, mc.canvas.width, mc.canvas.height);
+  drawAvatar(mc, me.look, 16, 37, 'down');
+  net?.hello.send(profile()).catch(() => {}); // les autres mettent à jour nom et apparence
+  renderPeople();
+  closeProfile(false);
+}
+
+function showHelp() {
+  try { localStorage.removeItem('rt-help'); } catch {}
+  $('#help').hidden = false;
+  $('#help').classList.add('forced');
+}
+
+$('#profileCancel').onclick = () => closeProfile();
+$('#profileHelp').onclick = () => { closeProfile(); showHelp(); };
+$('#mePill').onclick = openProfile;
+$('#mePill').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(); } };
+
 $('#joinForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (editingProfile) return applyProfile();
   const name = nameInput.value.trim();
   if (!name) return;
   savePrefs();
@@ -1361,6 +1423,7 @@ function renderPeople() {
     const icons = document.createElement('div'); icons.className = 'p-icons';
     icons.innerHTML = (u.hand ? '<span class="p-hand">✋</span>' : '') + (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
     li.append(c, info, icons);
+    if (u.isMe) { li.className = 'me-row'; li.title = 'Modifier mon personnage'; li.onclick = openProfile; }
     ul.append(li);
   }
   $('#peopleCount').textContent = users.size;
@@ -1438,7 +1501,7 @@ const pttBtn = $('#pttBtn');
 pttBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); pttBtn.setPointerCapture(e.pointerId); setPtt(true); });
 pttBtn.addEventListener('pointerup', () => setPtt(false));
 pttBtn.addEventListener('pointercancel', () => setPtt(false));
-$('.help-close').onclick = () => { $('#help').hidden = true; try { localStorage.setItem('rt-help', '1'); } catch {} };
+$('.help-close').onclick = () => { $('#help').hidden = true; $('#help').classList.remove('forced'); try { localStorage.setItem('rt-help', '1'); } catch {} };
 try { if (localStorage.getItem('rt-help')) $('#help').hidden = true; } catch {}
 
 // ============================================================
@@ -1457,6 +1520,7 @@ const typing = () => ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagN
 addEventListener('keydown', (e) => {
   if (e.key === 'Shift') sprinting = true;
   if (!me) return;
+  if (editingProfile) { if (e.key === 'Escape') closeProfile(); return; }
   if (e.key === 'Escape') {
     if (focusKey) closeFocus();
     document.activeElement?.blur();

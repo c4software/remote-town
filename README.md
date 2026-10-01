@@ -19,7 +19,7 @@ Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans 
 
 ## Personnage
 
-À la connexion, on choisit le style (gars ou fille), les couleurs du haut, des cheveux et de la peau, et un accessoire : 🤘 t-shirt metal, 🦄 serre-tête licorne, 🧢 casquette, 🕶️ lunettes de soleil, 👓 lunettes, 🎩 haut-de-forme, 🎧 casque audio, 👑 couronne ou 🧣 écharpe. Tout est mémorisé dans le navigateur.
+À la connexion, on choisit le style (gars ou fille), les couleurs du haut, des cheveux et de la peau, et un accessoire : 🤘 t-shirt metal, 🦄 serre-tête licorne, 🧢 casquette, 🕶️ lunettes de soleil, 👓 lunettes, 🎩 haut-de-forme, 🎧 casque audio, 👑 couronne ou 🧣 écharpe. Tout est mémorisé dans le navigateur. Une fois dans l'espace, un clic sur son identité (en bas à gauche, ou sur sa ligne dans la liste des participants sur mobile) rouvre cet écran pour changer de nom ou d'apparence, ou réafficher l'aide.
 
 On peut traverser les autres personnages, mais une chaise occupée est réservée : impossible de s'y asseoir à deux.
 

@@ -15,7 +15,7 @@
   <section id="join">
     <div class="join-card">
       <div class="brand"><span class="brand-dot"></span>Remote Town</div>
-      <p class="join-sub">Votre bureau virtuel. Pas de compte, choisissez un nom et entrez.</p>
+      <p class="join-sub" id="joinSub">Votre bureau virtuel. Pas de compte, choisissez un nom et entrez.</p>
       <div class="join-body">
         <div class="preview-wrap"><canvas id="preview" width="96" height="120"></canvas></div>
         <form id="joinForm" autocomplete="off">
@@ -23,7 +23,7 @@
             <span>Votre nom</span>
             <input id="nameInput" maxlength="24" placeholder="ex. Camille" required>
           </label>
-          <div class="field">
+          <div class="field" id="roomField">
             <label for="roomInput">Salle <small>(vide = espace principal)</small></label>
             <div class="room-row">
               <input id="roomInput" maxlength="40" placeholder="lobby" autocapitalize="off" spellcheck="false">
@@ -57,8 +57,12 @@
               <button type="button" data-deco="scarf">🧣 Écharpe</button>
             </div>
           </div>
-          <button class="btn-primary" type="submit">Rejoindre l'espace</button>
-          <p class="join-note">Le micro vous sera demandé : il reste coupé tant que vous ne parlez pas. Tout passe en pair-à-pair, sans serveur.</p>
+          <button class="btn-primary" type="submit" id="joinSubmit">Rejoindre l'espace</button>
+          <div class="profile-actions" id="profileActions" hidden>
+            <button type="button" class="btn-ghost" id="profileCancel">Annuler</button>
+            <button type="button" class="btn-ghost" id="profileHelp">❔ Afficher l'aide</button>
+          </div>
+          <p class="join-note" id="joinNote">Le micro vous sera demandé : il reste coupé tant que vous ne parlez pas. Tout passe en pair-à-pair, sans serveur.</p>
         </form>
       </div>
     </div>
@@ -116,7 +120,7 @@
     </aside>
 
     <nav id="bar">
-      <div class="me-pill">
+      <div class="me-pill" id="mePill" role="button" tabindex="0" title="Modifier mon personnage">
         <canvas id="meAvatar" width="32" height="40"></canvas>
         <div>
           <div id="meName"></div>
