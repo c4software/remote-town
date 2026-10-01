@@ -6,7 +6,10 @@ import {
 
 const $ = (s) => document.querySelector(s);
 const STEP_MS = 140;
-const DASH_MS = 65; // Maj maintenu : sprint
+const SPRINT_MS = 65; // Maj maintenu : courir
+const DASH_TILES = 3; // Espace : bond de 3 cases
+const DASH_COOLDOWN = 450;
+const TRAIL_MS = 260;
 const WORLD_W = MAP_W * TILE;
 const WORLD_H = MAP_H * TILE;
 
@@ -272,7 +275,8 @@ let localAnalyser = null;
 let path = null;
 let nextStepAt = 0;
 const keys = new Set();
-let dashing = false;
+let nextDashAt = 0;
+let sprinting = false;
 
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('rt-prefs')) || {}; } catch { return {}; } })();
 const look = {
@@ -282,10 +286,54 @@ const look = {
 };
 
 // ============================================================
+// Salles : chaque nom de salle est un espace séparé, partagé par lien
+// ============================================================
+const cleanRoom = (v) => String(v).toLowerCase().trim()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'lobby';
+
+function roomUrl(id) {
+  const url = new URL(location.href);
+  url.hash = '';
+  if (id === 'lobby') url.searchParams.delete('room'); else url.searchParams.set('room', id);
+  return url.toString();
+}
+
+async function shareLink(id) {
+  const url = roomUrl(id);
+  const label = id === 'lobby' ? 'l\'espace principal' : `la salle « ${id} »`;
+  if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+    try { await navigator.share({ title: 'Remote Town', text: `Rejoins-moi dans ${label}`, url }); return; } catch (err) { if (err.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    if (!$('#app').hidden) return toast(`Lien de ${label} copié`);
+    const btn = $('#copyLinkJoin');
+    btn.classList.add('done');
+    setTimeout(() => btn.classList.remove('done'), 1800);
+  } catch {
+    prompt('Copiez ce lien :', url);
+  }
+}
+
+// ============================================================
 // Écran d'accueil
 // ============================================================
+// Profil (nom, apparence, dernière salle) mémorisé dans le navigateur à chaque modification
 const nameInput = $('#nameInput');
 nameInput.value = prefs.name || '';
+const roomInput = $('#roomInput');
+roomInput.value = new URLSearchParams(location.search).get('room') ?? prefs.room ?? '';
+function savePrefs() {
+  try {
+    localStorage.setItem('rt-prefs', JSON.stringify({ name: nameInput.value.trim(), look, room: roomInput.value.trim() }));
+  } catch {}
+}
+const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
+nameInput.addEventListener('input', savePrefs);
+roomInput.addEventListener('input', () => { showRoomLink(); savePrefs(); });
+$('#copyLinkJoin').onclick = () => shareLink(cleanRoom(roomInput.value));
+showRoomLink();
 function drawPreview() {
   const c = $('#preview'), g = c.getContext('2d');
   g.clearRect(0, 0, c.width, c.height);
@@ -301,18 +349,22 @@ document.querySelectorAll('.swatches').forEach((box) => {
       look[part] = col;
       box.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
       drawPreview();
+      savePrefs();
     };
     box.append(b);
   }
 });
 drawPreview();
 document.fonts?.ready.then(drawPreview);
+savePrefs(); // garde la couleur tirée au hasard dès la première visite
 
 $('#joinForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = nameInput.value.trim();
   if (!name) return;
-  try { localStorage.setItem('rt-prefs', JSON.stringify({ name, look })); } catch {}
+  savePrefs();
+  ROOM_ID = cleanRoom(roomInput.value);
+  history.replaceState(null, '', roomUrl(ROOM_ID));
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   await initMic();
   connect(name);
@@ -358,7 +410,7 @@ function sampleLevel(a) {
 // (Trystero : la signalisation WebRTC passe par des relais Nostr publics)
 // ============================================================
 const APP_ID = 'remote-town-c4software';
-const ROOM_ID = new URLSearchParams(location.search).get('room') || 'lobby';
+let ROOM_ID = 'lobby';
 const COLOR = /^#[0-9a-f]{6}$/i;
 const DIR_NAMES = ['up', 'down', 'left', 'right'];
 let room = null;
@@ -430,6 +482,7 @@ function onRemoteMove(d, { peerId }) {
   if (!u) return;
   const prevZone = u.zone;
   if (!setPos(u, d)) return;
+  if (d.dash) startDash(u);
   if (Math.abs(u.rx - u.x) > 3 || Math.abs(u.ry - u.y) > 3) { u.rx = u.x; u.ry = u.y; }
   updateRouting();
   if (u.zone !== prevZone) renderPeople();
@@ -859,6 +912,9 @@ function toast(text) {
 }
 
 $('#micBtn').onclick = toggleMic;
+$('#inviteBtn').onclick = () => shareLink(ROOM_ID);
+$('#dashBtn').onclick = () => dash();
+if (!navigator.mediaDevices?.getDisplayMedia) $('#shareBtn').hidden = true; // mobiles : pas de partage d'écran
 $('#shareBtn').onclick = toggleShare;
 const pttBtn = $('#pttBtn');
 pttBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); pttBtn.setPointerCapture(e.pointerId); setPtt(true); });
@@ -881,7 +937,7 @@ const DELTA = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const typing = () => ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
 
 addEventListener('keydown', (e) => {
-  if (e.key === 'Shift') dashing = true;
+  if (e.key === 'Shift') sprinting = true;
   if (!me) return;
   if (e.key === 'Escape') {
     if (focusKey) closeFocus();
@@ -891,15 +947,21 @@ addEventListener('keydown', (e) => {
   if (typing()) return;
   if (e.code === 'Enter') { e.preventDefault(); if ($('#sidebar').classList.contains('closed') || activePanel !== 'chat') showPanel('chat'); else $('#chatInput').focus(); return; }
   if (e.code === 'KeyN') { e.preventDefault(); if (!e.repeat) setPtt(true); return; }
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
   if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }
-  if (DIRS[e.code]) { e.preventDefault(); keys.add(DIRS[e.code]); path = null; }
+  if (DIRS[e.code]) {
+    e.preventDefault();
+    keys.add(DIRS[e.code]); path = null;
+    if (!e.repeat && me.dir !== DIRS[e.code]) { me.dir = DIRS[e.code]; broadcast('move', { x: me.x, y: me.y, dir: me.dir }); }
+  }
 });
 addEventListener('keyup', (e) => {
-  if (e.key === 'Shift') dashing = false;
+  if (e.key === 'Shift') sprinting = false;
+  if (e.code === 'Space' && !typing()) e.preventDefault(); // évite d'« appuyer » sur le bouton qui a le focus
   if (e.code === 'KeyN') setPtt(false);
   if (DIRS[e.code]) keys.delete(DIRS[e.code]);
 });
-addEventListener('blur', () => { keys.clear(); dashing = false; if (me) setPtt(false); });
+addEventListener('blur', () => { keys.clear(); sprinting = false; if (me) setPtt(false); });
 $('#chatInput').addEventListener('focus', () => keys.clear());
 
 function heldDir() {
@@ -944,6 +1006,58 @@ canvas.addEventListener('click', (e) => {
   path = bfs(me.x, me.y, tx, ty);
 });
 
+// Espace : bond de quelques cases dans la direction regardée (ou tenue)
+function dash() {
+  const now = performance.now();
+  if (now < nextDashAt || typing()) return;
+  const dir = heldDir() || me.dir;
+  const [dx, dy] = DELTA[dir];
+  let n = 0;
+  while (n < DASH_TILES && !isBlocked(me.x + dx * (n + 1), me.y + dy * (n + 1))) n++;
+  me.dir = dir;
+  if (!n) return;
+  nextDashAt = now + DASH_COOLDOWN;
+  path = null;
+  startDash(me);
+  me.x += dx * n; me.y += dy * n;
+  nextStepAt = now + 120;
+  broadcast('move', { x: me.x, y: me.y, dir, dash: true });
+  onMyMove();
+}
+
+function startDash(u) {
+  u.dashing = true;
+  u.trail = u.trail || [];
+  u.dust = { x: u.rx, y: u.ry, dir: u.dir, t: performance.now() };
+}
+
+// Images fantômes derrière l'avatar + petit nuage de poussière au départ
+function drawDashFx(u, now) {
+  if (u.dust) {
+    const k = (now - u.dust.t) / 350;
+    if (k >= 1) u.dust = null;
+    else {
+      const [dx, dy] = DELTA[u.dust.dir];
+      const cx = u.dust.x * TILE + TILE / 2, cy = u.dust.y * TILE + TILE - 4;
+      ctx.fillStyle = `rgba(255,255,255,${0.55 * (1 - k)})`;
+      for (const [ox, oy, r] of [[-6, 0, 4], [6, 0, 4], [0, -3, 5]]) {
+        ctx.beginPath();
+        ctx.arc(cx + ox * (1 + k) - dx * 10 * k, cy + oy * (1 + k) - dy * 10 * k, r * (0.6 + k), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  if (!u.trail?.length) return;
+  for (let i = 0; i < u.trail.length; i += 2) {
+    const g = u.trail[i];
+    const a = 0.4 * (1 - (now - g.t) / TRAIL_MS);
+    if (a <= 0) continue;
+    ctx.globalAlpha = a;
+    drawAvatar(ctx, u.look, g.x * TILE + TILE / 2, g.y * TILE + TILE - 2, g.dir, 1, false);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function onMyMove() {
   const prevZone = me.zone;
   me.zone = zoneAt(me.x, me.y);
@@ -971,7 +1085,7 @@ function step(now) {
   }
   me.x = nx; me.y = ny;
   if (path) path.shift();
-  nextStepAt = now + (dashing ? DASH_MS : STEP_MS);
+  nextStepAt = now + (sprinting ? SPRINT_MS : STEP_MS);
   broadcast('move', { x: nx, y: ny, dir });
   onMyMove();
 }
@@ -987,12 +1101,17 @@ function loop(now) {
   step(now);
   for (const u of users.values()) {
     const moving = u.rx !== u.x || u.ry !== u.y;
-    // Les autres peuvent sprinter : on accélère l'interpolation quand on prend du retard
+    // Rattrape plus vite si on a pris du retard ; très vite pendant un dash
     const lag = Math.max(Math.abs(u.x - u.rx), Math.abs(u.y - u.ry));
-    const speed = (dt / STEP_MS) * (u.isMe ? (dashing ? STEP_MS / DASH_MS : 1) : Math.max(1, lag * 1.8));
+    const speed = u.dashing ? dt / 30 : (dt / STEP_MS) * (u.isMe ? (sprinting ? STEP_MS / SPRINT_MS : 1) : Math.max(1, lag * 1.8));
     u.rx += Math.sign(u.x - u.rx) * Math.min(speed, Math.abs(u.x - u.rx));
     u.ry += Math.sign(u.y - u.ry) * Math.min(speed, Math.abs(u.y - u.ry));
     u.walk = moving ? u.walk + dt : 0;
+    if (u.dashing) {
+      u.trail.push({ x: u.rx, y: u.ry, dir: u.dir, t: now });
+      if (u.rx === u.x && u.ry === u.y) u.dashing = false;
+    }
+    if (u.trail?.length) u.trail = u.trail.filter((g) => now - g.t < TRAIL_MS);
   }
   if (now - lastLevels > 80) {
     lastLevels = now;
@@ -1012,7 +1131,7 @@ function draw() {
   if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   }
-  const zoom = Math.max(1, Math.min(2.5, Math.round((H / (13 * TILE)) * 4) / 4));
+  const zoom = Math.max(1, Math.min(2.5, Math.round(Math.min(H / (13 * TILE), W / (11 * TILE)) * 4) / 4));
   const vw = W / zoom, vh = H / zoom;
   const fx = me.rx * TILE + TILE / 2, fy = me.ry * TILE + TILE / 2;
   cam = {
@@ -1056,6 +1175,8 @@ function draw() {
   }
 
   const list = [...users.values()].sort((a, b) => a.ry - b.ry || (a.isMe ? 1 : -1));
+  const now = performance.now();
+  for (const u of list) drawDashFx(u, now);
   for (const u of list) {
     const cx = u.rx * TILE + TILE / 2, by = u.ry * TILE + TILE - 2;
     const moving = u.walk > 0;

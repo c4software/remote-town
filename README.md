@@ -4,7 +4,9 @@ Un bureau virtuel façon Gather Town, en plus simple : pas de compte, pas de ser
 
 **Démo : https://c4software.github.io/remote-town/**
 
-Pour un espace séparé (une équipe, un test), ajoutez `?room=nom` à l'adresse : seules les personnes avec le même nom de salle se retrouvent.
+Choisissez une **salle** sur l'écran de connexion (ou ouvrez un lien `?room=nom`) : seules les personnes dans la même salle se retrouvent. Le bouton lien (sur l'écran de connexion et dans la barre du bas) copie le lien d'invitation, ou ouvre le partage natif sur mobile. Le nom, l'apparence et la dernière salle sont mémorisés dans le navigateur.
+
+Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des boutons pour le dash et « parler à proximité ». Le partage d'écran n'existe pas sur les navigateurs mobiles.
 
 ## La carte
 
@@ -25,6 +27,7 @@ Deux onglets : **la zone où vous êtes** (seules les personnes présentes le re
 | --- | --- |
 | Flèches / WASD (ZQSD en AZERTY), clic | Se déplacer |
 | `Maj` maintenu | Courir |
+| `Espace` | Dash : bond de 3 cases, avec traînée |
 | `N` maintenu | Parler à proximité |
 | `M` | Couper ou ouvrir le micro |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
