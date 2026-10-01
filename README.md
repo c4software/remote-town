@@ -15,6 +15,8 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 - **Bureau principal** (à gauche) : le micro (`M`) et le partage d'écran sont partagés avec les personnes présentes dans la salle. Pour parler **à tout le monde**, où que les gens soient, on se place au **pupitre** avec `E` (ou un clic dessus) : la voix et le partage d'écran sont alors diffusés à tous, avec un effet « haut-parleur » de sonorisation. `E` à nouveau ou s'éloigner du pupitre rend la parole.
 - **10 bureaux de 4 places** (table, 4 chaises) : le micro (`M`) et le partage d'écran (fonction native de Chrome) ne sont reçus que par les personnes **dans le même bureau**.
 - **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
+- **Tableau blanc** (salle de classe et bureau principal) : le bouton tableau de la barre ouvre un tableau blanc qui s'affiche chez toutes les personnes de la pièce, y compris celles qui arrivent ensuite. Seule la personne qui l'a ouvert dessine (couleurs, épaisseurs, gomme, tout effacer) ; chacun peut le réduire. Il se ferme quand elle quitte la pièce.
+- **Projection** : dans ces deux pièces, un partage d'écran s'ouvre automatiquement en grand chez les personnes présentes.
 - **Couloir** : ni micro ni partage, seulement le « N pour parler ».
 
 Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans la même zone** (les murs bloquent le son) ; le volume baisse avec la distance. Dans le couloir, avec le micro ouvert (`M`), les personnes **côte à côte** (cases voisines) vous entendent directement, sans `N`. Micro coupé, personne ne vous entend. Pas dans les pièces, où `M` parle à toute la pièce.

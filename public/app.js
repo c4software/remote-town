@@ -789,6 +789,7 @@ function joinNet() {
     move: room.makeAction('move', { onMessage: onRemoteMove }),
     state: room.makeAction('state', { onMessage: onRemoteState }),
     chat: room.makeAction('chat', { onMessage: (d, { peerId }) => users.has(peerId) && onChat(d?.channel, d?.msg, peerId) }),
+    wb: room.makeAction('wb', { onMessage: onBoardMsg }),
     react: room.makeAction('react', {
       onMessage: (d, { peerId }) => { const u = users.get(peerId); if (u && REACTIONS.includes(d?.e)) addReaction(u, d.e); },
     }),
@@ -834,6 +835,7 @@ async function relaunch() {
     toast('Impossible de relancer la connexion : vérifiez votre réseau.');
   }
   if (tr.selfId !== myId) {
+    dropBoardsOf(myId);
     users.delete(myId);
     myId = me.id = tr.selfId;
     myIds.add(myId);
@@ -935,6 +937,7 @@ function onHello(d, { peerId }) {
   users.set(peerId, u);
   resolveOverlap(u);
   if (!known) {
+    syncBoardsTo(peerId);
     if (performance.now() - joinedAt > 5000) toast(`${u.name} a rejoint l'espace`);
     if (!globalHistoryLoaded) { globalHistoryLoaded = true; fetchHistory('global', [peerId]); }
     if (u.zone === me.zone) fetchHistory(me.zone, [peerId]);
@@ -973,6 +976,7 @@ function onRemoteState(d, { peerId }) {
 function onPeerLeave(id, silent = false) {
   const u = users.get(id);
   users.delete(id);
+  dropBoardsOf(id);
   closeLink(id);
   if (u && !silent) toast(`${u.name} est parti·e`);
   renderPeople(); updateRouting(); updatePresence();
@@ -1423,9 +1427,210 @@ function faceUser(id) {
 }
 
 // ============================================================
+// Tableau blanc (salle de classe et bureau principal)
+// La personne qui l'ouvre dessine ; il s'affiche chez tous ceux de la pièce.
+// Chacun garde l'état des tableaux ; le propriétaire l'envoie aux nouveaux venus.
+// ============================================================
+const BOARD_W = 1600, BOARD_H = 900;
+const BOARD_COLORS = ['#1d1e30', '#e63946', '#118ab2', '#2a9d8f', '#f4a261'];
+const BOARD_SIZES = [4, 9, 18];
+const ERASER = { c: '#ffffff', w: 40 };
+const boards = new Map(); // zone -> { owner, strokes: Map(id -> { c, w, pts: [x, y, x, y…] }) }
+const boardZone = (z) => ['class', 'main'].includes(zoneType(z));
+const boardMinimized = new Set(); // pièces dont on a réduit le tableau
+let boardShown = null;            // pièce dont le tableau est affiché en grand
+const pen = { c: BOARD_COLORS[0], w: BOARD_SIZES[1], eraser: false };
+let drawingStroke = null, pendingPts = [], strokeSeq = 0, flushTimer = null, boardDrawQueued = false;
+const bcanvas = $('#boardCanvas');
+const bctx = bcanvas.getContext('2d');
+const clampN = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
+
+function addSeg(b, d) {
+  const id = String(d?.id || '').slice(0, 80);
+  if (!b || !id) return;
+  let st = b.strokes.get(id);
+  if (!st) {
+    const c = BOARD_COLORS.includes(d.c) || d.c === ERASER.c ? d.c : BOARD_COLORS[0];
+    st = { c, w: Math.max(1, Math.min(60, Number(d.w) || 4)), pts: [] };
+    b.strokes.set(id, st);
+  }
+  const p = Array.isArray(d.p) ? d.p : [];
+  for (let i = 0; i + 1 < p.length && st.pts.length < 40000; i += 2) st.pts.push(clampN(p[i], BOARD_W), clampN(p[i + 1], BOARD_H));
+}
+
+function onBoardMsg(d, { peerId }) {
+  const z = String(d?.z || '');
+  if (!boardZone(z) || !users.has(peerId)) return;
+  const b = boards.get(z);
+  if (d.t === 'open') { boards.set(z, { owner: peerId, strokes: new Map() }); boardMinimized.delete(z); }
+  else if (d.t === 'sync' && Array.isArray(d.strokes)) {
+    const nb = { owner: peerId, strokes: new Map() };
+    for (const st of d.strokes.slice(-5000)) addSeg(nb, st);
+    boards.set(z, nb);
+  } else if (b?.owner !== peerId) return; // seul le propriétaire modifie son tableau
+  else if (d.t === 'seg') addSeg(b, d);
+  else if (d.t === 'clear') b.strokes.clear();
+  else if (d.t === 'close') boards.delete(z);
+  refreshBoard();
+}
+
+function syncBoardsTo(peerId) {
+  for (const [z, b] of boards) {
+    if (b.owner !== myId) continue;
+    const strokes = [...b.strokes].map(([id, st]) => ({ id, c: st.c, w: st.w, p: st.pts }));
+    net?.wb.send({ t: 'sync', z, strokes }, { target: peerId }).catch(() => {});
+  }
+}
+
+function dropBoardsOf(id) {
+  let changed = false;
+  for (const [z, b] of boards) if (b.owner === id) { boards.delete(z); changed = true; }
+  if (changed) refreshBoard();
+}
+
+function openBoard() {
+  if (!me || !boardZone(me.zone)) return;
+  if (!boards.has(me.zone)) {
+    boards.set(me.zone, { owner: myId, strokes: new Map() });
+    broadcast('wb', { t: 'open', z: me.zone });
+  }
+  boardMinimized.delete(me.zone);
+  refreshBoard();
+}
+
+function closeMyBoard(z) {
+  if (boards.get(z)?.owner !== myId) return;
+  boards.delete(z);
+  broadcast('wb', { t: 'close', z });
+  refreshBoard();
+}
+
+function minimizeBoard() {
+  if (boardShown) boardMinimized.add(boardShown);
+  refreshBoard();
+}
+
+// Affiche le tableau de ma pièce (sauf si je l'ai réduit), met à jour la barre d'outils
+function refreshBoard() {
+  if (!me) return;
+  const b = boards.get(me.zone);
+  boardShown = b && !boardMinimized.has(me.zone) ? me.zone : null;
+  const ov = $('#board');
+  ov.hidden = !boardShown;
+  const pill = $('#boardPill');
+  pill.hidden = !(b && !boardShown);
+  if (b) {
+    const owner = users.get(b.owner);
+    const mine = b.owner === myId;
+    $('#boardTitle').textContent = mine ? 'Votre tableau blanc' : `Tableau blanc ${ofName(owner?.name || '…')}`;
+    pill.textContent = `📋 Tableau blanc${mine ? '' : ` ${ofName(owner?.name || '')}`} — afficher`;
+    ov.classList.toggle('owner', mine);
+    renderPenTools();
+  }
+  if (boardShown) { if (focusKey) closeFocus(); fitBoard(); scheduleBoardDraw(); }
+  updateUI();
+}
+
+function fitBoard() {
+  const wrap = $('#boardWrap');
+  const k = Math.min(wrap.clientWidth / BOARD_W, wrap.clientHeight / BOARD_H);
+  bcanvas.style.width = `${Math.floor(BOARD_W * k)}px`;
+  bcanvas.style.height = `${Math.floor(BOARD_H * k)}px`;
+}
+
+function scheduleBoardDraw() {
+  if (boardDrawQueued) return;
+  boardDrawQueued = true;
+  requestAnimationFrame(() => { boardDrawQueued = false; drawBoard(); });
+}
+
+function drawBoard() {
+  bctx.fillStyle = '#ffffff';
+  bctx.fillRect(0, 0, BOARD_W, BOARD_H);
+  const b = boards.get(boardShown);
+  if (!b) return;
+  bctx.lineCap = 'round'; bctx.lineJoin = 'round';
+  for (const st of b.strokes.values()) {
+    if (!st.pts.length) continue;
+    bctx.strokeStyle = st.c; bctx.fillStyle = st.c; bctx.lineWidth = st.w;
+    if (st.pts.length === 2) { bctx.beginPath(); bctx.arc(st.pts[0], st.pts[1], st.w / 2, 0, Math.PI * 2); bctx.fill(); continue; }
+    bctx.beginPath();
+    bctx.moveTo(st.pts[0], st.pts[1]);
+    for (let i = 2; i < st.pts.length; i += 2) bctx.lineTo(st.pts[i], st.pts[i + 1]);
+    bctx.stroke();
+  }
+}
+
+// --- Dessin (propriétaire uniquement) ---
+function boardPoint(e) {
+  const r = bcanvas.getBoundingClientRect();
+  return [clampN(((e.clientX - r.left) / r.width) * BOARD_W, BOARD_W), clampN(((e.clientY - r.top) / r.height) * BOARD_H, BOARD_H)];
+}
+function addBoardPoint(e) {
+  const [x, y] = boardPoint(e);
+  addSeg(boards.get(boardShown), { ...drawingStroke, p: [x, y] });
+  pendingPts.push(x, y);
+  scheduleBoardDraw();
+  flushTimer ??= setTimeout(flushStroke, 60);
+}
+function flushStroke() {
+  clearTimeout(flushTimer); flushTimer = null;
+  if (!drawingStroke || !pendingPts.length) return;
+  broadcast('wb', { t: 'seg', z: boardShown, ...drawingStroke, p: pendingPts });
+  pendingPts = [];
+}
+bcanvas.addEventListener('pointerdown', (e) => {
+  if (boards.get(boardShown)?.owner !== myId) return;
+  e.preventDefault();
+  bcanvas.setPointerCapture(e.pointerId);
+  drawingStroke = { id: `${myId}-${strokeSeq++}`, c: pen.eraser ? ERASER.c : pen.c, w: pen.eraser ? ERASER.w : pen.w };
+  addBoardPoint(e);
+});
+bcanvas.addEventListener('pointermove', (e) => { if (drawingStroke) addBoardPoint(e); });
+for (const ev of ['pointerup', 'pointercancel']) bcanvas.addEventListener(ev, () => { if (!drawingStroke) return; flushStroke(); drawingStroke = null; });
+
+function renderPenTools() {
+  const box = $('#penTools');
+  if (box.childElementCount) {
+    box.querySelectorAll('[data-c]').forEach((b) => b.classList.toggle('sel', !pen.eraser && b.dataset.c === pen.c));
+    box.querySelectorAll('[data-w]').forEach((b) => b.classList.toggle('sel', Number(b.dataset.w) === pen.w));
+    box.querySelector('.eraser').classList.toggle('sel', pen.eraser);
+    return;
+  }
+  for (const c of BOARD_COLORS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.c = c; b.className = 'pen-color'; b.style.background = c; b.title = 'Couleur';
+    b.onclick = () => { pen.c = c; pen.eraser = false; renderPenTools(); };
+    box.append(b);
+  }
+  BOARD_SIZES.forEach((w, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.w = w; b.className = 'pen-size'; b.title = ['Fin', 'Moyen', 'Épais'][i];
+    b.innerHTML = `<i style="width:${4 + i * 4}px;height:${4 + i * 4}px"></i>`;
+    b.onclick = () => { pen.w = w; pen.eraser = false; renderPenTools(); };
+    box.append(b);
+  });
+  const er = document.createElement('button');
+  er.type = 'button'; er.className = 'eraser'; er.textContent = 'Gomme';
+  er.onclick = () => { pen.eraser = !pen.eraser; renderPenTools(); };
+  const clr = document.createElement('button');
+  clr.type = 'button'; clr.className = 'clear'; clr.textContent = 'Tout effacer';
+  clr.onclick = () => { const b = boards.get(boardShown); if (b?.owner !== myId) return; b.strokes.clear(); broadcast('wb', { t: 'clear', z: boardShown }); scheduleBoardDraw(); };
+  box.append(er, clr);
+  renderPenTools();
+}
+
+$('#boardBtn').onclick = () => (boardShown ? minimizeBoard() : openBoard());
+$('#boardPill').onclick = openBoard;
+$('#boardMin').onclick = minimizeBoard;
+$('#boardClose').onclick = () => closeMyBoard(boardShown);
+addEventListener('resize', () => { if (boardShown) fitBoard(); });
+
+// ============================================================
 // Vidéos des partages d'écran
 // ============================================================
 let focusKey = null;
+const projected = new Set(); // partages déjà projetés automatiquement
 function renderVideos() {
   if (!me) return;
   const box = $('#videos');
@@ -1452,6 +1657,13 @@ function renderVideos() {
     const video = el.querySelector('video');
     if (video.srcObject !== v.stream) video.srcObject = v.stream;
     el.querySelector('span').textContent = v.name;
+  }
+  // Projection : dans la classe et le bureau principal, un nouveau partage s'ouvre en grand
+  for (const key of projected) if (!want.has(key)) projected.delete(key);
+  for (const key of want.keys()) {
+    if (key === 'me' || projected.has(key)) continue;
+    projected.add(key);
+    if (boardZone(me.zone) && users.get(key)?.zone === me.zone && !focusKey && $('#board').hidden) openFocus(key);
   }
   if (focusKey && !want.has(focusKey)) closeFocus();
   else if (focusKey) {
@@ -1667,6 +1879,8 @@ function onZoneChange(initial = false) {
   chat.unread.zone = 0;
   if (!initial) fetchHistory(me.zone, [...users.values()].filter((u) => !u.isMe && u.zone === me.zone).map((u) => u.id));
   if (sharing && !canShareIn(me.zone)) stopShare();
+  for (const [z, b] of boards) if (b.owner === myId && z !== me.zone) closeMyBoard(z);
+  refreshBoard();
   const tag = $('#zoneTag');
   tag.className = z.type;
   const hint = z.type === 'desk' ? 'micro & écran partagés avec le bureau'
@@ -1683,6 +1897,10 @@ function onZoneChange(initial = false) {
 
 function updateUI() {
   if (!me) return;
+  const bb = $('#boardBtn');
+  bb.hidden = !boardZone(me.zone);
+  bb.classList.toggle('active', boards.has(me.zone));
+  bb.title = boards.has(me.zone) ? 'Afficher le tableau blanc' : 'Ouvrir un tableau blanc pour la pièce';
   const zt = zoneType(me.zone);
   const mic = $('#micBtn');
   mic.classList.toggle('active', micOn && zt !== 'open');

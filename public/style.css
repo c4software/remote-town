@@ -214,6 +214,38 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .r-emojis button:hover { background: var(--panel-2); transform: scale(1.12); }
 #people .p-hand { font-size: 15px; line-height: 16px; }
 
+/* ---------- Tableau blanc ---------- */
+#boardBtn.active { background: var(--green); color: #10213a; }
+#board {
+  position: absolute; top: 60px; left: 14px; right: 14px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 30;
+  display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 18px;
+  background: rgba(20, 23, 45, .94); border: 1px solid var(--border); box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
+}
+.board-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.board-head b { font-size: 15px; margin-right: auto; }
+#board:not(.owner) .owner-only { display: none !important; }
+#penTools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+#penTools button { height: 32px; min-width: 32px; border-radius: 8px; background: var(--panel-2); display: grid; place-items: center; border: 2px solid transparent; }
+#penTools .pen-color { width: 28px; min-width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .25); }
+#penTools .sel { border-color: var(--green) !important; }
+#penTools .pen-size i { display: block; border-radius: 50%; background: #fff; }
+#penTools .eraser, #penTools .clear { padding: 0 10px; font-size: 13px; font-weight: 700; }
+.board-actions { display: flex; gap: 6px; }
+.board-actions button { height: 32px; padding: 0 12px; border-radius: 8px; background: var(--panel-3); font-weight: 700; font-size: 13px; }
+#boardClose { background: var(--red); color: #fff; }
+#boardWrap { flex: 1; min-height: 0; display: grid; place-items: center; }
+#boardCanvas { background: #fff; border-radius: 8px; touch-action: none; box-shadow: 0 4px 14px rgba(0, 0, 0, .3); }
+#board.owner #boardCanvas { cursor: crosshair; }
+#boardPill {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 6;
+  background: var(--green); color: #10213a; font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .3);
+}
+@media (max-width: 560px) {
+  #board { top: calc(54px + env(safe-area-inset-top)); left: 6px; right: 6px; bottom: calc(68px + env(safe-area-inset-bottom)); padding: 6px; }
+  #boardPill { top: calc(100px + env(safe-area-inset-top)); font-size: 13px; }
+}
+
 /* ---------- Mains levées ---------- */
 #hands {
   position: absolute; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 8;
