@@ -183,6 +183,10 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
       if (dir === 'left') r(-7, -25 + o, 1, 1, eye);
       if (dir === 'right') r(6, -25 + o, 1, 1, eye);
     }
+    if (look.face === 'question' && dir === 'down') { // air interrogatif : sourcil levé, bouche en « o »
+      r(-5, -26 + o, 3, 1, eye); r(2, -25 + o, 3, 1, eye);
+      r(-1, -21 + o, 2, 2, '#8a4a3a');
+    }
   }
   if (look.deco === 'metal' && dir === 'down') drawMetalPrint(r, look, o);
   if (look.deco === 'unicorn') drawUnicornHeadband(r, dir, -31 + o);
@@ -1203,6 +1207,77 @@ function renderHandBtn() {
 }
 
 // ============================================================
+// Mains levées : bulles en bas à droite ; un clic emmène auprès de la personne
+// ============================================================
+const MAX_HANDS = 6;
+let joinTarget = null; // id de la personne qu'on rejoint
+
+function headPortrait(u) {
+  const c = document.createElement('canvas');
+  c.width = 26 * 3; c.height = 26 * 3;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.scale(3, 3);
+  drawAvatar(g, { ...u.look, face: 'question' }, 13, 41, 'down');
+  return c;
+}
+
+function renderHands() {
+  const box = $('#hands');
+  if (!box || !me) return;
+  const raised = [...users.values()].filter((u) => !u.isMe && u.hand).sort((a, b) => (a.handAt || 0) - (b.handAt || 0));
+  box.replaceChildren();
+  box.hidden = !raised.length;
+  for (const u of raised.slice(0, MAX_HANDS)) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'hand-bubble';
+    b.title = `${u.name} lève la main · ${MAP.zoneById[u.zone]?.name || ''} — cliquer pour le rejoindre`;
+    const q = document.createElement('span'); q.className = 'hb-q'; q.textContent = '?';
+    const n = document.createElement('span'); n.className = 'hb-name'; n.textContent = u.name;
+    b.append(headPortrait(u), q, n);
+    b.onclick = () => goToUser(u.id);
+    box.append(b);
+  }
+  if (raised.length > MAX_HANDS) {
+    const more = document.createElement('div');
+    more.className = 'hand-bubble more';
+    more.textContent = `+${raised.length - MAX_HANDS}`;
+    more.title = raised.slice(MAX_HANDS).map((u) => u.name).join(', ');
+    box.append(more);
+  }
+}
+
+// Marche jusqu'à la case libre la plus proche de la personne (à côté d'elle)
+function goToUser(id) {
+  const u = users.get(id);
+  if (!u || !me) return;
+  let best = null;
+  for (const [dx, dy] of Object.values(DELTA)) {
+    const x = u.x + dx, y = u.y + dy;
+    if (!canWalk(x, y) || (chairAt(x, y) && chairBusy(x, y))) continue;
+    const p = x === me.x && y === me.y ? [] : bfs(me.x, me.y, x, y);
+    if (p && (!best || p.length < best.length)) best = p;
+  }
+  if (me.seated) { me.seated = false; sendMove(); }
+  sitTarget = null; airTarget = false;
+  joinTarget = id;
+  path = best ?? bfs(me.x, me.y, u.x, u.y);
+  if (!path?.length) faceUser(id);
+  else toast(`En route vers ${u.name}`);
+}
+
+function faceUser(id) {
+  joinTarget = null;
+  const u = users.get(id);
+  if (!u) return;
+  const dx = u.x - me.x, dy = u.y - me.y;
+  if (!dx && !dy) return;
+  me.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  sendMove();
+}
+
+// ============================================================
 // Vidéos des partages d'écran
 // ============================================================
 let focusKey = null;
@@ -1427,6 +1502,7 @@ function renderPeople() {
     ul.append(li);
   }
   $('#peopleCount').textContent = users.size;
+  renderHands();
 }
 
 // ============================================================
@@ -1805,7 +1881,7 @@ function step(now) {
     dir = nx > me.x ? 'right' : nx < me.x ? 'left' : ny > me.y ? 'down' : 'up';
   }
   if (!dir) return;
-  if (heldDir()) { sitTarget = null; airTarget = false; }
+  if (heldDir()) { sitTarget = null; airTarget = false; joinTarget = null; }
   const [dx, dy] = DELTA[dir];
   const nx = me.x + dx, ny = me.y + dy;
   const changed = me.dir !== dir || me.seated;
@@ -1829,6 +1905,7 @@ function step(now) {
   }
   sendMove();
   onMyMove();
+  if (joinTarget && !path?.length) faceUser(joinTarget);
   if (airTarget && !path?.length) { airTarget = false; if (LECTERN_SPOTS.some(([x, y]) => x === nx && y === ny)) startOnAir(); }
 }
 
