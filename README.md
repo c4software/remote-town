@@ -10,12 +10,18 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 
 ## La carte
 
-- **Bureau principal** (à gauche) : micro et partage d'écran diffusés **à tout le monde**, où que les gens soient.
+- **Bureau principal** (à gauche) : micro et partage d'écran diffusés **à tout le monde**, où que les gens soient. Chaque prise de parole commence par une annonce : bandeau « Votre attention s'il vous plaît ! », carillon, voix de synthèse « Annonce de… », puis la voix de l'orateur. Un carillon descendant marque la fin.
 - **10 bureaux de 4 places** (table, 4 chaises) : le micro (`M`) et le partage d'écran (fonction native de Chrome) ne sont reçus que par les personnes **dans le même bureau**.
 - **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
 - **Couloir** : ni micro ni partage, seulement le « N pour parler ».
 
 Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans la même zone** (les murs bloquent le son).
+
+## Personnage
+
+À la connexion, on choisit le style (gars ou fille), les couleurs du haut, des cheveux et de la peau, et un accessoire : 🤘 t-shirt metal ou 🦄 serre-tête licorne. Tout est mémorisé dans le navigateur.
+
+Une case ne peut accueillir qu'une personne : on ne passe pas à travers les autres, et une chaise occupée est réservée.
 
 ## Chat
 

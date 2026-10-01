@@ -22,10 +22,9 @@ const PALETTE = {
 // ============================================================
 // Dessin des avatars
 // ============================================================
-// Petits clins d'œil selon le prénom (premier mot, sans accents ni majuscules)
-const DECOS = { valentin: 'metal', carine: 'unicorn' };
-const decoFor = (name) => DECOS[String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .trim().toLowerCase().split(/\s+/)[0]] || null;
+// Accessoires choisis sur l'écran de connexion
+const DECOS = ['metal', 'unicorn'];
+const cleanDeco = (d) => (DECOS.includes(d) ? d : null);
 
 // 🤘 imprimé sur le t-shirt (vue de face). X = main, K = doigts repliés,
 // '.' = vide avec contour, ' ' = vide sans contour (entre les cornes)
@@ -79,12 +78,14 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
   ctx.beginPath(); ctx.ellipse(cx, by - 1, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
   by -= lift;
 
+  const girl = look.style === 'girl';
+  const dark = shade(look.shirt, -35);
   if (!seated) {
     const l = walkFrame === 1 ? 2 : 0, rr = walkFrame === 2 ? 2 : 0;
     r(-5, -8, 4, 7 - l, '#2f3150'); r(1, -8, 4, 7 - rr, '#2f3150');
     r(-5, -2 - l, 4, 2, '#1b1c2e'); r(1, -2 - rr, 4, 2, '#1b1c2e');
+    if (girl) { r(-6, -9, 12, 2, dark); r(-7, -7, 14, 2, dark); } // jupe
   }
-  const dark = shade(look.shirt, -35);
   r(-7, -18 + o, 14, 11, look.shirt);
   r(-7, -9 + o, 14, 2, dark);
   if (dir === 'left' || dir === 'right') {
@@ -94,9 +95,16 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
     r(-9, -17 + o, 2, 8, dark); r(7, -17 + o, 2, 8, dark);
     r(-9, -10 + o, 2, 2, look.skin); r(7, -10 + o, 2, 2, look.skin);
   }
+  // Cheveux longs (fille) : dans le dos et sur les épaules, dessinés avant la tête
+  if (girl) {
+    if (dir === 'down') { r(-8, -27 + o, 3, 10, look.hair); r(5, -27 + o, 3, 10, look.hair); }
+    if (dir === 'left') r(1, -27 + o, 7, 11, look.hair);
+    if (dir === 'right') r(-8, -27 + o, 7, 11, look.hair);
+  }
   r(-7, -30 + o, 14, 12, look.skin);
   if (dir === 'up') {
-    r(-7, -31 + o, 14, 11, look.hair);
+    r(-7, -31 + o, 14, girl ? 15 : 11, look.hair);
+    if (girl) r(-8, -27 + o, 16, 10, look.hair);
   } else {
     r(-7, -31 + o, 14, 5, look.hair);
     if (dir === 'down') { r(-7, -27 + o, 2, 4, look.hair); r(5, -27 + o, 2, 4, look.hair); }
@@ -106,6 +114,11 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
     if (dir === 'down') { r(-4, -24 + o, 2, 3, eye); r(2, -24 + o, 2, 3, eye); }
     if (dir === 'left') r(-6, -24 + o, 2, 3, eye);
     if (dir === 'right') r(4, -24 + o, 2, 3, eye);
+    if (girl) { // cils
+      if (dir === 'down') { r(-5, -25 + o, 1, 1, eye); r(4, -25 + o, 1, 1, eye); }
+      if (dir === 'left') r(-7, -25 + o, 1, 1, eye);
+      if (dir === 'right') r(6, -25 + o, 1, 1, eye);
+    }
   }
   if (look.deco === 'metal' && dir === 'down') drawMetalPrint(r, look, o);
   if (look.deco === 'unicorn') drawUnicornHeadband(r, dir, -31 + o);
@@ -345,6 +358,8 @@ const look = {
   shirt: prefs.look?.shirt || PALETTE.shirt[Math.floor(Math.random() * PALETTE.shirt.length)],
   hair: prefs.look?.hair || PALETTE.hair[0],
   skin: prefs.look?.skin || PALETTE.skin[1],
+  deco: cleanDeco(prefs.look?.deco),
+  style: prefs.look?.style === 'girl' ? 'girl' : 'boy',
 };
 
 // ============================================================
@@ -392,7 +407,7 @@ function savePrefs() {
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
-nameInput.addEventListener('input', () => { savePrefs(); look.deco = decoFor(nameInput.value); drawPreview(); });
+nameInput.addEventListener('input', savePrefs);
 roomInput.addEventListener('input', () => { showRoomLink(); savePrefs(); });
 $('#copyLinkJoin').onclick = () => shareLink(cleanRoom(roomInput.value));
 showRoomLink();
@@ -416,7 +431,24 @@ document.querySelectorAll('.swatches').forEach((box) => {
     box.append(b);
   }
 });
-look.deco = decoFor(nameInput.value);
+document.querySelectorAll('#styleChips button').forEach((b) => {
+  b.classList.toggle('sel', b.dataset.style === look.style);
+  b.onclick = () => {
+    look.style = b.dataset.style;
+    document.querySelectorAll('#styleChips button').forEach((x) => x.classList.toggle('sel', x === b));
+    drawPreview();
+    savePrefs();
+  };
+});
+document.querySelectorAll('#decoChips button').forEach((b) => {
+  b.classList.toggle('sel', (b.dataset.deco || null) === look.deco);
+  b.onclick = () => {
+    look.deco = cleanDeco(b.dataset.deco);
+    document.querySelectorAll('#decoChips button').forEach((x) => x.classList.toggle('sel', x === b));
+    drawPreview();
+    savePrefs();
+  };
+});
 drawPreview();
 document.fonts?.ready.then(drawPreview);
 savePrefs(); // garde la couleur tirée au hasard dès la première visite
@@ -486,7 +518,7 @@ function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
   myId = selfId;
   me = {
-    id: myId, isMe: true, name, look: { ...look, deco: decoFor(name) }, x, y, rx: x, ry: y, dir: 'down',
+    id: myId, isMe: true, name, look: { ...look }, x, y, rx: x, ry: y, dir: 'down',
     zone: zoneAt(x, y), seated: false, mic: false, ptt: false, sharing: false, walk: 0, level: 0,
   };
   users.set(myId, me);
@@ -527,13 +559,16 @@ function onHello(d, { peerId }) {
     shirt: COLOR.test(d?.look?.shirt) ? d.look.shirt : '#6c63ff',
     hair: COLOR.test(d?.look?.hair) ? d.look.hair : '#3b2a20',
     skin: COLOR.test(d?.look?.skin) ? d.look.skin : '#f1c7a4',
-    deco: decoFor(u.name),
+    deco: cleanDeco(d?.look?.deco),
+    style: d?.look?.style === 'girl' ? 'girl' : 'boy',
   };
   if (!setPos(u, d) && !known) setPos(u, { x: MAP.spawns[0][0], y: MAP.spawns[0][1] });
   u.rx = u.x; u.ry = u.y;
   u.seated = !!d?.seated;
+  u.sitAt = Number(d?.sitAt) || 0;
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
   users.set(peerId, u);
+  resolveOverlap(u);
   if (!known) {
     if (performance.now() - joinedAt > 5000) toast(`${u.name} a rejoint l'espace`);
     if (!globalHistoryLoaded) { globalHistoryLoaded = true; fetchHistory('global', [peerId]); }
@@ -546,10 +581,14 @@ function onRemoteMove(d, { peerId }) {
   const u = users.get(peerId);
   if (!u) return;
   const prevZone = u.zone;
+  const wasLive = isBroadcasting(u);
   if (!setPos(u, d)) return;
+  if (u.zone !== prevZone) onBroadcastChange(u, wasLive);
   u.seated = !!d.seated;
+  u.sitAt = Number(d.sitAt) || 0;
   if (d.dash) startDash(u);
   if (Math.abs(u.rx - u.x) > 3 || Math.abs(u.ry - u.y) > 3) { u.rx = u.x; u.ry = u.y; }
+  resolveOverlap(u);
   updateRouting();
   if (u.zone !== prevZone) renderPeople();
 }
@@ -558,8 +597,10 @@ function onRemoteState(d, { peerId }) {
   const u = users.get(peerId);
   if (!u) return;
   const wasTalking = pttReaches(u);
+  const wasLive = isBroadcasting(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
+  onBroadcastChange(u, wasLive);
   const talking = pttReaches(u);
   if (talking && !wasTalking) walkieBeep('start', 0.12);
   if (wasTalking && !talking) walkieBeep('end', 0.12);
@@ -633,7 +674,10 @@ function addOut(track, kind, peerId) {
 // Choisit, pour un pair, si on lui envoie notre micro / écran
 function applySenders(u) {
   const L = link(u.id);
-  const a = !!micTrack && sendsAudio(me, u);
+  // Pendant l'annonce (carillon + voix de synthèse), la diffusion générale attend ;
+  // le N à proximité, lui, reste immédiat
+  const announcing = performance.now() < (me.announceUntil || 0);
+  const a = !!micTrack && sendsAudio(me, u) && !(announcing && !sendsAudio({ ...me, mic: false }, u));
   if (a && !L.micOut) L.micOut = addOut(micTrack.clone(), 'mic', u.id);
   if (L.micOut) L.micOut.getTracks()[0].enabled = a;
   const v = !!screenTrack && sendsVideo(me, u);
@@ -656,7 +700,9 @@ function updateRouting() {
 // Micro, N pour parler, partage d'écran
 // ============================================================
 function pushState() {
+  const wasLive = isBroadcasting(me);
   me.mic = micOn; me.ptt = pttHeld; me.sharing = sharing;
+  onBroadcastChange(me, wasLive);
   broadcast('state', { mic: micOn, ptt: pttHeld, sharing });
   updateRouting();
   renderPeople();
@@ -776,6 +822,60 @@ function drawWalkie(u, cx, by, dir, now) {
     ctx.arc(ax + 0.5, dy - 5, 3 + phase * 9, a0, a0 + (2 * Math.PI) / 3);
     ctx.stroke();
   }
+}
+
+// ============================================================
+// Annonces du bureau principal : carillon, voix de synthèse, puis en direct
+// ============================================================
+const ANNOUNCE_MS = 3400;
+const isBroadcasting = (u) => !!u?.mic && zoneType(u.zone) === 'main';
+
+function onBroadcastChange(u, wasLive) {
+  const live = isBroadcasting(u);
+  if (live && !wasLive) startAnnouncement(u);
+  if (!live && wasLive) { u.announceUntil = 0; chime([783.99, 523.25], 0.18); updateUI(); }
+}
+
+function startAnnouncement(u) {
+  u.announceUntil = performance.now() + ANNOUNCE_MS;
+  chime([523.25, 659.25, 783.99, 1046.5], 0.2);
+  const of = /^[aeiouyhàâéèêëîïôöùûü]/i.test(u.name) ? 'd\'' : 'de ';
+  setTimeout(() => speak(u.isMe ? 'Vous êtes en direct' : `Annonce ${of}${u.name}`), 1500);
+  setTimeout(() => { updateRouting(); updateUI(); }, ANNOUNCE_MS + 50);
+  updateUI();
+}
+
+// Carillon « ding-dong » façon gare : notes douces qui résonnent
+function chime(notes, volume) {
+  if (!audioCtx) return;
+  audioCtx.resume?.();
+  const t0 = audioCtx.currentTime + 0.02;
+  notes.forEach((freq, i) => {
+    const at = t0 + i * 0.32;
+    for (const [mult, amp] of [[1, 1], [2, 0.25], [3, 0.08]]) {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq * mult;
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0, at);
+      env.gain.linearRampToValueAtTime(volume * amp, at + 0.01);
+      env.gain.exponentialRampToValueAtTime(0.0001, at + 1.3);
+      osc.connect(env).connect(audioCtx.destination);
+      osc.start(at);
+      osc.stop(at + 1.35);
+    }
+  });
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  const say = new SpeechSynthesisUtterance(text);
+  say.lang = 'fr-FR';
+  say.rate = 1.05;
+  const voice = speechSynthesis.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr'));
+  if (voice) say.voice = voice;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(say);
 }
 
 // ============================================================
@@ -1040,10 +1140,16 @@ function updateUI() {
   share.title = sharing ? 'Arrêter le partage' : canShareIn(me.zone) ? "Partager l'écran" : "Partage d'écran : dans un bureau, la classe ou le bureau principal";
   $('#pttBtn').classList.toggle('active', pttHeld);
 
-  const speakers = [...users.values()].filter((u) => u.mic && zoneType(u.zone) === 'main');
+  const speakers = [...users.values()].filter(isBroadcasting);
   const bc = $('#broadcast');
   bc.hidden = !speakers.length;
-  if (speakers.length) {
+  const intro = speakers.find((u) => performance.now() < (u.announceUntil || 0));
+  bc.classList.toggle('announcing', !!intro);
+  if (intro) {
+    bc.textContent = intro.isMe
+      ? '🔔 Votre attention s\'il vous plaît ! Vous êtes en direct dans un instant…'
+      : `🔔 Votre attention s'il vous plaît ! ${intro.name} prend la parole`;
+  } else if (speakers.length) {
     const names = speakers.map((u) => (u.isMe ? 'Vous' : u.name)).join(', ');
     bc.textContent = `📢 ${names} — en direct du bureau principal`;
   }
@@ -1117,7 +1223,7 @@ function heldDir() {
 }
 
 function bfs(sx, sy, tx, ty) {
-  if (isBlocked(tx, ty)) return null;
+  if (!canWalk(tx, ty)) return null;
   const prev = new Int32Array(MAP_W * MAP_H).fill(-1);
   const start = sy * MAP_W + sx, goal = ty * MAP_W + tx;
   prev[start] = start;
@@ -1128,7 +1234,7 @@ function bfs(sx, sy, tx, ty) {
     const cx = cur % MAP_W, cy = (cur / MAP_W) | 0;
     for (const [dx, dy] of Object.values(DELTA)) {
       const nx = cx + dx, ny = cy + dy;
-      if (isBlocked(nx, ny)) continue;
+      if (!canWalk(nx, ny)) continue;
       const k = ny * MAP_W + nx;
       if (prev[k] !== -1) continue;
       prev[k] = cur; q.push(k);
@@ -1150,7 +1256,8 @@ canvas.addEventListener('click', (e) => {
   document.activeElement?.blur();
   const tx = Math.floor((e.clientX / cam.zoom + cam.x) / TILE);
   const ty = Math.floor((e.clientY / cam.zoom + cam.y) / TILE);
-  sitTarget = chairAt(tx, ty) && !chairTaken(tx, ty) ? [tx, ty] : null;
+  if (chairAt(tx, ty) && chairBusy(tx, ty)) { path = sitTarget = null; return toast('Cette chaise est déjà prise'); }
+  sitTarget = chairAt(tx, ty) ? [tx, ty] : null;
   if (sitTarget && tx === me.x && ty === me.y) { sitTarget = null; return sitOn(tx, ty); }
   path = bfs(me.x, me.y, tx, ty);
 });
@@ -1159,11 +1266,15 @@ canvas.addEventListener('click', (e) => {
 // Chaises : E pour s'asseoir / se lever, ou clic sur une chaise
 // ============================================================
 let sitTarget = null;
-const chairTaken = (x, y) => [...users.values()].some((u) => !u.isMe && u.seated && u.x === x && u.y === y);
+const someoneAt = (x, y, pred) => [...users.values()].some((u) => !u.isMe && u.x === x && u.y === y && pred(u));
+// Une case avec quelqu'un dessus (assis ou debout) est infranchissable
+const occupied = (x, y) => someoneAt(x, y, () => true);
+const chairBusy = occupied;
+const canWalk = (x, y) => !isBlocked(x, y) && !occupied(x, y);
 
 // Chaise sous soi, sinon devant soi, sinon sur les côtés
 function chairNearMe() {
-  const free = (x, y) => chairAt(x, y) && !chairTaken(x, y);
+  const free = (x, y) => chairAt(x, y) && !chairBusy(x, y);
   if (free(me.x, me.y)) return [me.x, me.y];
   for (const d of [me.dir, ...DIR_NAMES.filter((n) => n !== me.dir)]) {
     const [dx, dy] = DELTA[d];
@@ -1178,6 +1289,7 @@ function sitOn(x, y) {
   me.x = x; me.y = y;
   me.dir = chairAt(x, y).dir;
   me.seated = true;
+  me.sitAt = Date.now();
   nextStepAt = performance.now() + STEP_MS;
   sendMove();
   if (moved) onMyMove();
@@ -1191,7 +1303,45 @@ function toggleSit() {
 }
 
 function sendMove(extra) {
-  broadcast('move', { x: me.x, y: me.y, dir: me.dir, seated: !!me.seated, ...extra });
+  broadcast('move', { x: me.x, y: me.y, dir: me.dir, seated: !!me.seated, sitAt: me.sitAt || 0, ...extra });
+}
+
+// Deux personnes sur la même case (arrivées en même temps, ou à la connexion) :
+// une seule reste. Assis > debout ; entre deux assis, le premier arrivé ;
+// sinon, l'identifiant le plus petit. L'autre se décale sur la case libre la plus proche.
+function resolveOverlap(u) {
+  if (!me || u.isMe || u.x !== me.x || u.y !== me.y) return;
+  const iLose = me.seated && u.seated
+    ? me.sitAt > u.sitAt || (me.sitAt === u.sitAt && myId > u.id)
+    : me.seated ? false : u.seated ? true : myId > u.id;
+  if (!iLose) return;
+  const wasSeated = me.seated;
+  me.seated = false;
+  path = null;
+  const spot = nearestFree(me.x, me.y);
+  if (spot) { me.x = spot[0]; me.y = spot[1]; }
+  sendMove();
+  onMyMove();
+  if (wasSeated) toast(`${u.name} s'est assis·e ici juste avant vous`);
+}
+
+// Case libre la plus proche (de préférence pas une chaise)
+function nearestFree(sx, sy) {
+  const seen = new Set([sy * MAP_W + sx]);
+  const q = [[sx, sy]];
+  let fallback = null;
+  for (let i = 0; i < q.length && i < 400; i++) {
+    const [x, y] = q[i];
+    if (i > 0 && canWalk(x, y)) {
+      if (!chairAt(x, y)) return [x, y];
+      fallback ||= [x, y];
+    }
+    for (const [dx, dy] of Object.values(DELTA)) {
+      const nx = x + dx, ny = y + dy, k = ny * MAP_W + nx;
+      if (!isBlocked(nx, ny) && !seen.has(k)) { seen.add(k); q.push([nx, ny]); }
+    }
+  }
+  return fallback;
 }
 
 // Espace : bond de quelques cases dans la direction regardée (ou tenue)
@@ -1201,7 +1351,7 @@ function dash() {
   const dir = heldDir() || me.dir;
   const [dx, dy] = DELTA[dir];
   let n = 0;
-  while (n < DASH_TILES && !isBlocked(me.x + dx * (n + 1), me.y + dy * (n + 1))) n++;
+  while (n < DASH_TILES && canWalk(me.x + dx * (n + 1), me.y + dy * (n + 1))) n++;
   me.dir = dir;
   if (!n) return;
   nextDashAt = now + DASH_COOLDOWN;
@@ -1248,8 +1398,9 @@ function drawDashFx(u, now) {
 
 function onMyMove() {
   const prevZone = me.zone;
+  const wasLive = isBroadcasting(me);
   me.zone = zoneAt(me.x, me.y);
-  if (me.zone !== prevZone) onZoneChange();
+  if (me.zone !== prevZone) { onZoneChange(); onBroadcastChange(me, wasLive); }
   updateRouting();
 }
 
@@ -1268,8 +1419,11 @@ function step(now) {
   const changed = me.dir !== dir || me.seated;
   me.dir = dir;
   me.seated = false;
-  if (isBlocked(nx, ny)) {
-    path = null;
+  if (!canWalk(nx, ny)) {
+    // Quelqu'un barre le trajet cliqué : on le contourne
+    const goal = path?.at(-1);
+    path = goal && occupied(nx, ny) ? bfs(me.x, me.y, goal[0], goal[1]) : null;
+    nextStepAt = now + STEP_MS;
     if (changed) sendMove();
     return;
   }
@@ -1277,10 +1431,11 @@ function step(now) {
   if (path) path.shift();
   nextStepAt = now + (sprinting ? SPRINT_MS : STEP_MS);
   // Arrivé sur la chaise cliquée : on s'assoit
-  if (sitTarget && !path?.length && sitTarget[0] === nx && sitTarget[1] === ny && !chairTaken(nx, ny)) {
+  if (sitTarget && !path?.length && sitTarget[0] === nx && sitTarget[1] === ny && !chairBusy(nx, ny)) {
     sitTarget = null;
     me.dir = chairAt(nx, ny).dir;
     me.seated = true;
+    me.sitAt = Date.now();
   }
   sendMove();
   onMyMove();
@@ -1450,5 +1605,5 @@ function drawSitHint(zoom) {
 
 // Accès de débogage : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {
-  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
+  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, sitOn: (x, y) => sitOn(x, y), toggleSit: () => toggleSit(), place: (x, y) => { me.x = me.rx = x; me.y = me.ry = y; sendMove(); onMyMove(); }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
 }

@@ -70,6 +70,13 @@ kbd {
 .btn-ghost .copied-label, .btn-ghost.done .copy-label { display: none; }
 .btn-ghost.done .copied-label { display: inline; color: var(--green); }
 .room-link { font-size: 12px; color: var(--muted); word-break: break-all; font-weight: 400; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips button {
+  padding: 6px 12px; border-radius: 999px; background: var(--bg); border: 2px solid var(--border);
+  font-size: 13px; font-weight: 500; color: var(--text);
+}
+.chips button:hover { border-color: var(--panel-3); }
+.chips button.sel { border-color: var(--purple); background: rgba(123, 108, 255, .2); }
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 .swatches button {
   width: 26px; height: 26px; border-radius: 50%; border: 3px solid transparent; outline: 2px solid transparent;
@@ -106,6 +113,11 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
   background: var(--yellow); color: #2a2200; font-weight: 700; padding: 8px 16px; border-radius: 999px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, .3); font-size: 14px; z-index: 5;
+}
+#broadcast.announcing { animation: announce .6s ease-in-out infinite alternate; font-size: 16px; padding: 10px 20px; }
+@keyframes announce {
+  from { box-shadow: 0 0 0 0 rgba(255, 207, 92, .7); transform: translateX(-50%) scale(1); }
+  to { box-shadow: 0 0 0 10px rgba(255, 207, 92, 0); transform: translateX(-50%) scale(1.04); }
 }
 
 #help {
