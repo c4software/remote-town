@@ -73,18 +73,23 @@ export function renderMap() {
     g.beginPath(); g.roundRect(tx - w / 2, ty - 7, w, 14, 7); g.fill();
     g.fillStyle = '#fff'; g.fillText(z.name, tx, ty + 0.5);
   }
-  g.font = '700 11px "DM Sans", sans-serif';
-  g.textAlign = 'center';
-  g.fillStyle = 'rgba(122,81,52,.5)';
-  g.fillText('SALLE DE CLASSE', 68.5 * TILE, 19 * TILE);
   return c;
 }
 
 // Chaise tournée vers le haut (vue de dos) : son dossier est devant la personne
 // assise, il est donc redessiné par-dessus l'avatar.
 export function drawChairBack(g, o) {
-  if (o.kind !== 'chair' || o.dir !== 'up') return;
+  if (o.dir !== 'up') return;
   const px = o.x * TILE, py = o.y * TILE;
+  if (o.kind === 'sofa') { // la partie du dossier (et l'accoudoir) de cette place du canapé
+    const s = o.sofa, d = shade(o.color, -35), sx = s.x * TILE, sw = s.w * TILE;
+    g.fillStyle = d;
+    g.fillRect(Math.max(px, sx + 2), py + 22, Math.min(px + TILE, sx + sw - 2) - Math.max(px, sx + 2), 9);
+    if (o.x === s.x) { g.beginPath(); g.roundRect(sx, py + 6, 7, 22, 3); g.fill(); }
+    if (o.x === s.x + s.w - 1) { g.beginPath(); g.roundRect(sx + sw - 7, py + 6, 7, 22, 3); g.fill(); }
+    return;
+  }
+  if (o.kind !== 'chair') return;
   g.fillStyle = shade(o.color, -30);
   g.beginPath(); g.roundRect(px + 5, py + 14, 22, 13, 3); g.fill();
   g.fillStyle = shade(o.color, 12);

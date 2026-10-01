@@ -88,6 +88,10 @@ const scenarios = {
     await wait(1500);
     const both = [await me(a), await me(b)].filter((s) => s.seated && s.x === 21 && s.y === 3);
     t.check(both.length === 1, 'deux personnes en même temps : une seule reste assise');
+    await place(a, 6, 14); await a.keyboard.press('ArrowDown'); await wait(100);
+    await a.keyboard.press('KeyE'); await wait(800);
+    const sofa = await seen(b, 'Alice');
+    t.check(sofa.seated && sofa.x === 6 && sofa.y === 15, 'E près d\'un canapé : assis sur le canapé');
   },
 
   async 'tableau blanc'(t) {

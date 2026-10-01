@@ -33,9 +33,10 @@ function build() {
     for (const x of [3, 4, 5, 6, 9, 10, 11, 12]) obj('chair', x, y, 1, 1, { block: false, dir: 'up', color: '#d9534f' });
   }
   obj('rug', 3, 15, 10, 5, { block: false, color: '#c98a5a' });
-  obj('sofa', 5, 15, 4, 1, { dir: 'down', color: '#4f7fd1' });
+  // Canapés : chaque case est une place assise (voir chairs plus bas)
+  obj('sofa', 5, 15, 4, 1, { dir: 'down', color: '#4f7fd1', block: false });
   obj('ctable', 6, 17, 2, 1);
-  obj('sofa', 5, 19, 4, 1, { dir: 'up', color: '#4f7fd1' });
+  obj('sofa', 5, 19, 4, 1, { dir: 'up', color: '#4f7fd1', block: false });
   for (const [x, y] of [[1, 1], [14, 1], [1, 20], [14, 20], [1, 13], [14, 13]]) obj('plant', x, y);
 
   // --- Couloir ---
@@ -106,8 +107,14 @@ function build() {
     for (let j = z.y; j < z.y + z.h; j++) for (let i = z.x; i < z.x + z.w; i++) zoneGrid[j * MAP_W + i] = z.id;
   }
 
+  // Places assises : les chaises, et chaque case des canapés
   const chairs = new Map();
-  for (const o of objects) if (o.kind === 'chair') chairs.set(o.y * MAP_W + o.x, o);
+  for (const o of objects) {
+    if (o.kind === 'chair') chairs.set(o.y * MAP_W + o.x, o);
+    if (o.kind === 'sofa') {
+      for (let i = 0; i < o.w; i++) chairs.set(o.y * MAP_W + o.x + i, { kind: 'sofa', x: o.x + i, y: o.y, dir: o.dir, color: o.color, sofa: o });
+    }
+  }
 
   const zoneById = { hall: { id: 'hall', name: 'Couloir', type: 'open' } };
   for (const z of zones) zoneById[z.id] = z;

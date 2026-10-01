@@ -115,6 +115,6 @@ npm run test:e2e -- tableau   # un seul scénario (filtre sur le nom)
 
 - **Audio** : ne pas faire passer tout l'audio par Web Audio ni utiliser la synthèse vocale pendant les échanges (une « annonce » carillon + voix a cassé le son et a été retirée). L'effet haut-parleur ne s'applique qu'à la voix diffusée depuis le pupitre, avec retour au son normal en cas de problème.
 - **Mobile** : pas de `getDisplayMedia` (bouton masqué) ; la barre du bas est déjà pleine ; l'aide clavier n'est utile que sur ordinateur.
-- **Chaises orientées vers le haut** : leur dossier est redessiné par-dessus la personne assise (`drawChairBack`), sinon la chaise semble tournée dans le mauvais sens.
+- **Places assises** : `MAP.chairs` contient les chaises et chaque case des canapés (`world.js`). Pour une place orientée vers le haut, le dossier est redessiné par-dessus la personne assise (`drawChairBack`), sinon elle semble assise dans le mauvais sens.
 - **Partage d'écran et tableau blanc** sont limités aux pièces (`canShareIn`, `boardZone`) ; le tableau ne s'ouvre qu'au bureau du prof (`TEACHER_AREAS` dans `board.js`).
 - **Historique du chat** : il n'existe que chez les participants connectés ; il disparaît quand la salle se vide.

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, LECTERN_SPOTS, isBlocked, isOnAir, nearLectern, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, LECTERN_SPOTS, chairAt, isBlocked, isOnAir, nearLectern, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -32,6 +32,14 @@ test('toutes les zones et toutes les chaises sont accessibles depuis le couloir'
   for (const z of MAP.zones) assert.ok(zones.has(z.id), `zone ${z.id} accessible`);
   for (const [k] of MAP.chairs) assert.ok(seen.has(k), `chaise ${k % MAP_W},${Math.floor(k / MAP_W)} accessible`);
   assert.ok(MAP_H > 0);
+});
+
+test('canapés : chaque case est une place assise, orientée', () => {
+  for (let x = 5; x <= 8; x++) {
+    assert.equal(chairAt(x, 15)?.dir, 'down', `canapé du haut, case ${x}`);
+    assert.equal(chairAt(x, 19)?.dir, 'up', `canapé du bas, case ${x}`);
+    assert.equal(isBlocked(x, 15), false);
+  }
 });
 
 test('micro (M) : entendu seulement dans la même pièce', () => {
