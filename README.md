@@ -4,6 +4,8 @@ Un bureau virtuel façon Gather Town, en plus simple : pas de compte, pas de ser
 
 **Démo : https://c4software.github.io/remote-town/**
 
+![Remote Town : Alice parle à tout le monde depuis le pupitre, Léa et Camille l'écoutent dans le bureau principal, Bob lève la main au Bureau 1 à côté de Chloé, Hugo parle au talkie dans le couloir](docs/screenshot.png)
+
 Choisissez une **salle** sur l'écran de connexion (ou ouvrez un lien `?room=nom`) : seules les personnes dans la même salle se retrouvent. Le bouton lien (sur l'écran de connexion et dans la barre du bas) copie le lien d'invitation, ou ouvre le partage natif sur mobile. Le nom, l'apparence et la dernière salle sont mémorisés dans le navigateur.
 
 Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des boutons pour le dash et « parler à proximité ». Le partage d'écran n'existe pas sur les navigateurs mobiles.
