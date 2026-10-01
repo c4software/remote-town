@@ -22,6 +22,53 @@ const PALETTE = {
 // ============================================================
 // Dessin des avatars
 // ============================================================
+// Petits clins d'œil selon le prénom (premier mot, sans accents ni majuscules)
+const DECOS = { valentin: 'metal', carine: 'unicorn' };
+const decoFor = (name) => DECOS[String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .trim().toLowerCase().split(/\s+/)[0]] || null;
+
+// 🤘 imprimé sur le t-shirt (vue de face). X = main, K = doigts repliés,
+// '.' = vide avec contour, ' ' = vide sans contour (entre les cornes)
+const METAL = [
+  '.X   X.',
+  '.X   X.',
+  '.X   X.',
+  '.XKKKX.',
+  '.XXXXXX',
+  '.XXXXX.',
+  '..XXX..',
+];
+function drawMetalPrint(r, look, o) {
+  const light = parseInt(look.shirt.slice(1, 3), 16) > 200 && parseInt(look.shirt.slice(3, 5), 16) > 170;
+  const fill = light ? '#ffffff' : '#ffcf5c';
+  const line = shade(look.shirt, -70);
+  const cell = (x, y) => METAL[y]?.[x] ?? '.';
+  const x0 = -3, y0 = -17 + o;
+  for (let y = -1; y <= METAL.length; y++) {
+    for (let x = -1; x <= METAL[0].length; x++) {
+      if (cell(x, y) !== '.') continue;
+      const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => 'XK'.includes(cell(x + dx, y + dy)));
+      if (near) r(x0 + x, y0 + y, 1, 1, line);
+    }
+  }
+  METAL.forEach((row, y) => [...row].forEach((c, x) => {
+    if (c === 'X') r(x0 + x, y0 + y, 1, 1, fill);
+    if (c === 'K') r(x0 + x, y0 + y, 1, 1, shade(fill, -50));
+  }));
+}
+
+// Serre-tête licorne : bandeau, oreilles, fleurs et corne dorée torsadée
+function drawUnicornHeadband(r, dir, top) {
+  const hx = dir === 'left' ? -3 : dir === 'right' ? 2 : 0;
+  r(-7, top + 2, 14, 2, '#f9a8d4');
+  if (dir !== 'right') { r(-7, top - 2, 3, 3, '#ffffff'); r(-6, top - 1, 1, 2, '#f9a8d4'); }
+  if (dir !== 'left') { r(4, top - 2, 3, 3, '#ffffff'); r(5, top - 1, 1, 2, '#f9a8d4'); }
+  if (dir !== 'up') { r(hx - 5, top + 1, 2, 2, '#c4b5fd'); r(hx + 4, top + 1, 2, 2, '#86efac'); }
+  [1, 2, 2, 3, 3, 4].forEach((w, i) => {
+    r(hx - Math.floor(w / 2), top - 6 + i, w, 1, i % 2 ? '#fff1b8' : '#ffcf5c');
+  });
+}
+
 function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0) {
   const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x), Math.round(by + y), w, h); };
   const sit = seated ? 4 : 0;
@@ -60,6 +107,8 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
     if (dir === 'left') r(-6, -24 + o, 2, 3, eye);
     if (dir === 'right') r(4, -24 + o, 2, 3, eye);
   }
+  if (look.deco === 'metal' && dir === 'down') drawMetalPrint(r, look, o);
+  if (look.deco === 'unicorn') drawUnicornHeadband(r, dir, -31 + o);
 }
 
 // ============================================================
@@ -343,7 +392,7 @@ function savePrefs() {
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
-nameInput.addEventListener('input', savePrefs);
+nameInput.addEventListener('input', () => { savePrefs(); look.deco = decoFor(nameInput.value); drawPreview(); });
 roomInput.addEventListener('input', () => { showRoomLink(); savePrefs(); });
 $('#copyLinkJoin').onclick = () => shareLink(cleanRoom(roomInput.value));
 showRoomLink();
@@ -367,6 +416,7 @@ document.querySelectorAll('.swatches').forEach((box) => {
     box.append(b);
   }
 });
+look.deco = decoFor(nameInput.value);
 drawPreview();
 document.fonts?.ready.then(drawPreview);
 savePrefs(); // garde la couleur tirée au hasard dès la première visite
@@ -436,7 +486,7 @@ function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
   myId = selfId;
   me = {
-    id: myId, isMe: true, name, look: { ...look }, x, y, rx: x, ry: y, dir: 'down',
+    id: myId, isMe: true, name, look: { ...look, deco: decoFor(name) }, x, y, rx: x, ry: y, dir: 'down',
     zone: zoneAt(x, y), seated: false, mic: false, ptt: false, sharing: false, walk: 0, level: 0,
   };
   users.set(myId, me);
@@ -477,6 +527,7 @@ function onHello(d, { peerId }) {
     shirt: COLOR.test(d?.look?.shirt) ? d.look.shirt : '#6c63ff',
     hair: COLOR.test(d?.look?.hair) ? d.look.hair : '#3b2a20',
     skin: COLOR.test(d?.look?.skin) ? d.look.skin : '#f1c7a4',
+    deco: decoFor(u.name),
   };
   if (!setPos(u, d) && !known) setPos(u, { x: MAP.spawns[0][0], y: MAP.spawns[0][1] });
   u.rx = u.x; u.ry = u.y;
