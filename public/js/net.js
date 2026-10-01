@@ -202,6 +202,7 @@ function onRemoteMove(d, { peerId }) {
   u.sitAt = Number(d.sitAt) || 0;
   u.crouch = !!d.crouch;
   if (d.dash) startDash(u);
+  if (d.jump) u.jumpAt = performance.now();
   if (Math.abs(u.rx - u.x) > 3 || Math.abs(u.ry - u.y) > 3) { u.rx = u.x; u.ry = u.y; }
   resolveOverlap(u);
   updateRouting();

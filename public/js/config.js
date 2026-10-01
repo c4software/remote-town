@@ -8,6 +8,7 @@ export const CROUCH_MS = 260;    // C : accroupi, on avance à pas de loup
 export const DASH_TILES = 3;     // Espace : bond de 3 cases
 export const DASH_COOLDOWN = 450;
 export const TRAIL_MS = 260;     // durée de la traînée du dash
+export const HOP_MS = 220;       // petit bond : V (sauter) ou en levant le talkie (N)
 
 export const WORLD_W = MAP_W * TILE;
 export const WORLD_H = MAP_H * TILE;

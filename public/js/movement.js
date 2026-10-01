@@ -3,7 +3,7 @@
 import { initMic } from './audio.js';
 import { atTeacherDesk, boards } from './board.js';
 import { renderChat } from './chat.js';
-import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, SPRINT_MS, STEP_MS } from './config.js';
+import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STEP_MS } from './config.js';
 import { $, toast, typing } from './dom.js';
 import { onZoneChange } from './hud.js';
 import { heldDir } from './input.js';
@@ -210,13 +210,21 @@ export function interact() {
 }
 
 // ============================================================
-// Accroupi (C) et dash (Espace)
+// Accroupi (C), saut (V) et dash (Espace)
 // ============================================================
 export function toggleCrouch() {
   if (!S.me || typing()) return;
   S.me.crouch = !S.me.crouch;
   if (S.me.crouch) S.me.seated = false;
   sendMove();
+}
+
+// Saut sur place (même bond qu'en levant le talkie), vu par tout le monde
+export function jump() {
+  const now = performance.now();
+  if (!S.me || typing() || S.me.seated || now - (S.me.jumpAt || 0) < HOP_MS + 80) return;
+  S.me.jumpAt = now;
+  sendMove({ jump: true });
 }
 
 // Bond de quelques cases dans la direction regardée (ou tenue)

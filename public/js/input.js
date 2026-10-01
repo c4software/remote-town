@@ -2,7 +2,7 @@
 import { DIRS } from './config.js';
 import { $, toast, typing } from './dom.js';
 import { setPtt, toggleMic } from './media.js';
-import { bfs, chairBusy, dash, freeLecternSpot, interact, sendMove, sitOn, startOnAir, stopOnAir, toggleCrouch } from './movement.js';
+import { bfs, chairBusy, dash, freeLecternSpot, interact, jump, sendMove, sitOn, startOnAir, stopOnAir, toggleCrouch } from './movement.js';
 import { showPanel } from './panel.js';
 import { closeProfile } from './profile.js';
 import { canvas } from './render.js';
@@ -33,6 +33,7 @@ export function initInput() {
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
     if (e.code === 'KeyE') { if (!e.repeat) interact(); return; }
     if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
+    if (e.code === 'KeyV') { if (!e.repeat) jump(); return; }
     if (e.code === 'KeyH') { if (!e.repeat) toggleHand(); return; }
     const n = /^(Digit|Numpad)([1-6])$/.exec(e.code);
     if (n) { if (!e.repeat) sendReaction(REACTIONS[n[2] - 1]); return; }

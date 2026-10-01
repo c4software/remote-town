@@ -74,9 +74,7 @@ export function renderMap() {
     g.fillStyle = '#fff'; g.fillText(z.name, tx, ty + 0.5);
   }
   g.font = '700 11px "DM Sans", sans-serif';
-  g.fillStyle = 'rgba(61,66,112,.55)';
   g.textAlign = 'center';
-  g.fillText('BUREAU PRINCIPAL', 8 * TILE, 14 * TILE);
   g.fillStyle = 'rgba(122,81,52,.5)';
   g.fillText('SALLE DE CLASSE', 68.5 * TILE, 19 * TILE);
   return c;

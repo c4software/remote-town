@@ -46,6 +46,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `Espace` | Dash : bond de 3 cases, avec traînée |
 | `E` (ou clic sur une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
+| `V` | Sauter |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |
 | `H` (ou bouton ✋ de la barre) | Lever / baisser la main (✋ reste affichée). Les mains levées apparaissent en bulles en bas à droite : un clic emmène auprès de la personne |
 | `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin, personnage qui lève son talkie) |

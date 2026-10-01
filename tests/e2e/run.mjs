@@ -11,6 +11,9 @@ const scenarios = {
     await place(a, 30, 10);
     await wait(800);
     t.check((await seen(b, 'Alice')).x === 30, 'Bob voit Alice se déplacer');
+    await a.keyboard.press('KeyV');
+    await wait(500);
+    t.check(await b.evaluate(() => [...rt.users.values()].some((u) => u.name === 'Alice' && u.jumpAt > 0)), 'V : Bob voit Alice sauter');
     await a.evaluate(() => document.querySelector('.chat-tabs [data-chan=global]').click());
     await a.type('#chatInput', 'bonjour à tous');
     await a.keyboard.press('Enter');

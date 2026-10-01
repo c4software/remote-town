@@ -1,7 +1,7 @@
 // Rendu de la scène à chaque frame : caméra, personnages, effets, étiquettes.
 import { sampleLevel } from './audio.js';
 import { HAT_HEIGHT, drawAvatar } from './avatar.js';
-import { CROUCH_MS, DELTA, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './config.js';
+import { CROUCH_MS, DELTA, HOP_MS, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './config.js';
 import { $, typing } from './dom.js';
 import { drawChairBack } from './map-render.js';
 import { links } from './media.js';
@@ -192,8 +192,9 @@ function draw() {
       ctx.fillStyle = 'rgba(6,214,160,.35)';
       ctx.beginPath(); ctx.ellipse(cx, by - 1, 13 + u.level * 20, 5 + u.level * 6, 0, 0, Math.PI * 2); ctx.fill();
     }
-    // Petit saut quand on appuie sur N
-    const k = u.ptt && u.pttAt ? (now - u.pttAt) / 220 : 1;
+    // Petit bond : en levant le talkie (N) ou en sautant (V)
+    const hopAt = Math.max(u.ptt ? u.pttAt || 0 : 0, u.jumpAt || 0);
+    const k = (now - hopAt) / HOP_MS;
     const lift = k < 1 ? Math.sin(Math.PI * k) * 4 : 0;
     const crouched = !!u.crouch && !chair;
     drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched);
