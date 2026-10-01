@@ -1,0 +1,10 @@
+{
+  "name": "remote-town",
+  "version": "1.0.0",
+  "description": "Mini bureau virtuel façon Gather Town — WebRTC pair-à-pair, sans compte ni serveur",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

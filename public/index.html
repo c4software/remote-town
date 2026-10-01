@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Remote Town</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%2306d6a0%22/%3E%3Crect x=%224%22 y=%224%22 width=%228%22 height=%228%22 rx=%222%22 fill=%22%237b6cff%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Écran d'accueil -->
+  <section id="join">
+    <div class="join-card">
+      <div class="brand"><span class="brand-dot"></span>Remote Town</div>
+      <p class="join-sub">Votre bureau virtuel. Pas de compte, choisissez un nom et entrez.</p>
+      <div class="join-body">
+        <div class="preview-wrap"><canvas id="preview" width="96" height="120"></canvas></div>
+        <form id="joinForm" autocomplete="off">
+          <label class="field">
+            <span>Votre nom</span>
+            <input id="nameInput" maxlength="24" placeholder="ex. Camille" required>
+          </label>
+          <div class="field"><span>Haut</span><div class="swatches" data-part="shirt"></div></div>
+          <div class="field"><span>Cheveux</span><div class="swatches" data-part="hair"></div></div>
+          <div class="field"><span>Peau</span><div class="swatches" data-part="skin"></div></div>
+          <button class="btn-primary" type="submit">Rejoindre l'espace</button>
+          <p class="join-note">Le micro vous sera demandé : il reste coupé tant que vous ne parlez pas. Tout passe en pair-à-pair, sans serveur.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Application -->
+  <main id="app" hidden>
+    <canvas id="world"></canvas>
+
+    <div id="zoneTag"></div>
+    <div id="broadcast" hidden></div>
+    <div id="videos"></div>
+
+    <div id="help">
+      <button class="help-close" aria-label="Fermer">×</button>
+      <b>Commandes</b>
+      <div><kbd>←↑→↓</kbd> / <kbd>WASD</kbd> ou clic : se déplacer</div>
+      <div><kbd>Maj</kbd> maintenu : courir</div>
+      <div><kbd>N</kbd> maintenu : parler à proximité</div>
+      <div><kbd>M</kbd> : micro (bureaux, classe &amp; bureau principal)</div>
+      <div><kbd>Entrée</kbd> : écrire dans le chat</div>
+    </div>
+
+    <aside id="sidebar">
+      <div class="side-tabs">
+        <button data-panel="chat" class="active">Chat</button>
+        <button data-panel="people">Participants <span id="peopleCount">0</span></button>
+        <button class="side-close" aria-label="Fermer le panneau">×</button>
+      </div>
+      <section class="panel" data-panel="chat">
+        <div class="chat-tabs">
+          <button data-chan="zone" class="active"><span id="zoneChanName">Zone</span><i class="badge" hidden></i></button>
+          <button data-chan="global">Tout le monde<i class="badge" hidden></i></button>
+        </div>
+        <div id="messages"></div>
+        <form id="chatForm" autocomplete="off">
+          <input id="chatInput" maxlength="1000" placeholder="Message…">
+          <button type="submit" aria-label="Envoyer">
+            <svg viewBox="0 0 24 24"><path d="M3 11.5 21 3l-8.5 18-2-7.5z"/></svg>
+          </button>
+        </form>
+      </section>
+      <section class="panel" data-panel="people" hidden>
+        <ul id="people"></ul>
+      </section>
+    </aside>
+
+    <nav id="bar">
+      <div class="me-pill">
+        <canvas id="meAvatar" width="32" height="40"></canvas>
+        <div>
+          <div id="meName"></div>
+          <div id="meZone" class="muted"></div>
+        </div>
+      </div>
+      <div class="bar-center">
+        <button id="micBtn" class="round" title="Micro (M)">
+          <svg class="on" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8"/></svg>
+          <svg class="off" viewBox="0 0 24 24"><path d="M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 5.1 2.1M19 10v1a7 7 0 0 1-1.1 3.8M5 10v1a7 7 0 0 0 11.4 5.4M12 18v4M8 22h8M2 2l20 20"/></svg>
+        </button>
+        <button id="shareBtn" class="round" title="Partager l'écran">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M12 13V7M9 10l3-3 3 3"/></svg>
+        </button>
+        <button id="pttBtn" class="ptt" title="Maintenir pour parler à proximité">
+          <kbd>N</kbd><span>Parler à proximité</span>
+        </button>
+      </div>
+      <div class="bar-right">
+        <button id="peopleBtn" class="round" title="Participants">
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>
+        </button>
+        <button id="chatBtn" class="round" title="Chat">
+          <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.8 7L3 21l2-6A8 8 0 1 1 21 12z"/></svg>
+          <i class="badge" hidden></i>
+        </button>
+      </div>
+    </nav>
+
+    <div id="focus" hidden>
+      <video autoplay playsinline muted></video>
+      <div class="focus-bar"><span class="focus-name"></span><button aria-label="Fermer">×</button></div>
+    </div>
+
+    <div id="toasts"></div>
+    <div id="audios" hidden></div>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+# Remote Town
+
+Un bureau virtuel façon Gather Town, en plus simple : pas de compte, pas de serveur. L'audio, le partage d'écran et le chat passent en WebRTC pair-à-pair.
+
+**Démo : https://c4software.github.io/remote-town/**
+
+Pour un espace séparé (une équipe, un test), ajoutez `?room=nom` à l'adresse : seules les personnes avec le même nom de salle se retrouvent.
+
+## La carte
+
+- **Bureau principal** (à gauche) : micro et partage d'écran diffusés **à tout le monde**, où que les gens soient.
+- **10 bureaux de 4 places** (table, 4 chaises) : le micro (`M`) et le partage d'écran (fonction native de Chrome) ne sont reçus que par les personnes **dans le même bureau**.
+- **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
+- **Couloir** : ni micro ni partage, seulement le « N pour parler ».
+
+Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans la même zone** (les murs bloquent le son).
+
+## Chat
+
+Deux onglets : **la zone où vous êtes** (seules les personnes présentes le reçoivent) et **Tout le monde**. Sans serveur, l'historique vit chez les participants : en arrivant, on le récupère auprès des personnes déjà connectées. Quand tout le monde est parti, il disparaît.
+
+## Commandes
+
+| Touche | Action |
+| --- | --- |
+| Flèches / WASD (ZQSD en AZERTY), clic | Se déplacer |
+| `Maj` maintenu | Courir |
+| `N` maintenu | Parler à proximité |
+| `M` | Couper ou ouvrir le micro |
+| `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
+
+## Comment ça marche
+
+- La mise en relation WebRTC passe par des relais [Nostr](https://nostr.com) publics grâce à [Trystero](https://github.com/dmotz/trystero) (embarqué dans `public/vendor/`). Les relais ne voient que les messages de mise en relation (chiffrés), jamais l'audio, la vidéo ou le chat.
+- Chaque participant est connecté à tous les autres (maillage). Ça tient pour quelques dizaines de personnes.
+- Pour chaque pair, on envoie une copie de son micro et de son écran, activée ou coupée selon les règles de zone (`public/shared.js`). Il n'y a pas de renégociation, donc `N` répond tout de suite.
+- Les règles sont appliquées par le navigateur de chacun : c'est fait pour une équipe de confiance, pas pour un espace public.
+- Derrière certains réseaux d'entreprise (NAT strict), un serveur TURN est nécessaire : à configurer via `turnConfig` dans l'appel `joinRoom` de `public/app.js`.
+
+## Développement local
+
+```bash
+npm start   # http://localhost:3000 (serveur statique, aucune dépendance)
+```
+
+Le déploiement sur GitHub Pages se fait automatiquement à chaque push sur `main` (`.github/workflows/pages.yml` publie le dossier `public/`).
+
+## Structure
+
+- `public/shared.js` : la carte, les zones et les règles de qui entend qui
+- `public/app.js` : rendu canvas, déplacements, WebRTC, chat, interface
+- `public/vendor/trystero-nostr.js` : Trystero 0.25.4 (licence MIT)
+- `server.js` : petit serveur statique pour le développement local
