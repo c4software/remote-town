@@ -950,7 +950,7 @@ function applySenders(u) {
 // « d'Alice », « de Bob »
 const ofName = (name) => (/^[aeiouyhàâéèêëîïôöùûü]/i.test(name) ? `d'${name}` : `de ${name}`);
 
-// Notification à chaque nouvelle personne côte à côte (une fois par rencontre)
+// Côte à côte avec le micro coupé : notification à chaque rencontre
 let besideIds = new Set();
 const besideToastAt = new Map();
 function notifyBeside() {
@@ -959,11 +959,8 @@ function notifyBeside() {
     if (besideIds.has(id) || performance.now() - (besideToastAt.get(id) || -1e9) < 10000) continue;
     besideToastAt.set(id, performance.now());
     const u = users.get(id);
-    const iTalk = !!micTrack && micOn;
-    toast(iTalk && u.mic ? `💬 Vous êtes à côté ${ofName(u.name)} : vous vous entendez`
-      : iTalk ? `💬 ${u.name} vous entend (son micro est coupé)`
-      : u.mic ? `💬 Vous entendez ${u.name} ; votre micro est coupé : M pour lui répondre`
-      : `💬 À côté ${ofName(u.name)} : vos micros sont coupés (M pour parler)`);
+    // Micro ouvert : rien à signaler. Micro coupé : on prévient qu'on ne sera pas entendu.
+    if (!micTrack || !micOn) toast(`🔇 Votre micro est coupé : ${u.name} ne vous entendra pas (M pour l'ouvrir)`);
   }
   besideIds = now;
 }
