@@ -22,7 +22,7 @@ const PALETTE = {
 // ============================================================
 // Dessin des avatars
 // ============================================================
-function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false) {
+function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0) {
   const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x), Math.round(by + y), w, h); };
   const sit = seated ? 4 : 0;
   const bob = walkFrame ? -1 : 0;
@@ -30,6 +30,7 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
 
   ctx.fillStyle = 'rgba(0,0,0,.22)';
   ctx.beginPath(); ctx.ellipse(cx, by - 1, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
+  by -= lift;
 
   if (!seated) {
     const l = walkFrame === 1 ? 2 : 0, rr = walkFrame === 2 ? 2 : 0;
@@ -493,7 +494,12 @@ function onRemoteMove(d, { peerId }) {
 function onRemoteState(d, { peerId }) {
   const u = users.get(peerId);
   if (!u) return;
+  const wasTalking = pttReaches(u);
+  if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
+  const talking = pttReaches(u);
+  if (talking && !wasTalking) walkieBeep('start', 0.12);
+  if (wasTalking && !talking) walkieBeep('end', 0.12);
   updateRouting(); renderPeople();
 }
 
@@ -604,6 +610,8 @@ async function setPtt(on) {
   if (on === pttHeld) return;
   if (on && !micTrack && !(await initMic())) return;
   pttHeld = on;
+  if (on) me.pttAt = performance.now();
+  walkieBeep(on ? 'start' : 'end', 0.25);
   pushState();
 }
 
@@ -632,6 +640,79 @@ function stopShare() {
   }
   sharing = false;
   pushState();
+}
+
+// ============================================================
+// Talkie-walkie : bips d'ouverture / fin de N et dessin de l'appareil
+// ============================================================
+// N d'un autre participant qui nous parvient (sans compter son micro de bureau)
+const pttReaches = (u) => !!me && sendsAudio({ ...u, mic: false }, me);
+
+function walkieBeep(kind, volume) {
+  if (!audioCtx) return;
+  audioCtx.resume?.();
+  const t0 = audioCtx.currentTime + 0.01;
+  const out = audioCtx.createGain();
+  out.gain.value = volume;
+  out.connect(audioCtx.destination);
+  // Deux tons courts : montant à l'ouverture, descendant à la fin
+  const notes = kind === 'start' ? [[1300, 0, 0.06], [1850, 0.075, 0.08]] : [[1850, 0, 0.05], [1150, 0.065, 0.09]];
+  for (const [freq, at, dur] of notes) {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    const env = audioCtx.createGain();
+    env.gain.setValueAtTime(0, t0 + at);
+    env.gain.linearRampToValueAtTime(0.3, t0 + at + 0.005);
+    env.gain.setValueAtTime(0.3, t0 + at + dur - 0.01);
+    env.gain.linearRampToValueAtTime(0, t0 + at + dur);
+    osc.connect(env).connect(out);
+    osc.start(t0 + at);
+    osc.stop(t0 + at + dur + 0.02);
+  }
+  if (kind === 'end') {
+    // Petit souffle radio (squelch) après le bip de fin
+    const len = Math.floor(audioCtx.sampleRate * 0.14);
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buf;
+    const band = audioCtx.createBiquadFilter();
+    band.type = 'bandpass'; band.frequency.value = 2200; band.Q.value = 0.8;
+    const ng = audioCtx.createGain();
+    ng.gain.value = 0.18;
+    noise.connect(band).connect(ng).connect(out);
+    noise.start(t0 + 0.17);
+  }
+}
+
+// Talkie levé près de la tête, avec des ondes radio qui s'échappent de l'antenne
+function drawWalkie(u, cx, by, dir, now) {
+  const side = dir === 'left' ? -1 : 1;
+  const dark = shade(u.look.shirt, -35);
+  const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+  const dx = cx + side * 9 - (side < 0 ? 4 : 0); // bord gauche de l'appareil
+  const dy = by - 30;
+  // bras levé + main
+  r(side > 0 ? cx + 6 : cx - 9, by - 20, 3, 5, dark);
+  r(dx, dy + 9, 4, 2, u.look.skin);
+  // appareil
+  r(dx, dy, 4, 9, '#2b2d42');
+  r(dx + 1, dy + 2, 2, 2, '#7fd1ff');
+  r(dx + 1, dy + 6, 2, 1, '#06d6a0');
+  const ax = side > 0 ? dx + 3 : dx;
+  r(ax, dy - 5, 1, 5, '#2b2d42');
+  // ondes
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const phase = (now / 650 + i / 3) % 1;
+    ctx.strokeStyle = `rgba(6,214,160,${0.85 * (1 - phase)})`;
+    ctx.beginPath();
+    const a0 = side > 0 ? -Math.PI / 3 : (2 * Math.PI) / 3;
+    ctx.arc(ax + 0.5, dy - 5, 3 + phase * 9, a0, a0 + (2 * Math.PI) / 3);
+    ctx.stroke();
+  }
 }
 
 // ============================================================
@@ -1239,7 +1320,11 @@ function draw() {
       ctx.fillStyle = 'rgba(6,214,160,.35)';
       ctx.beginPath(); ctx.ellipse(cx, by - 1, 13 + u.level * 20, 5 + u.level * 6, 0, 0, Math.PI * 2); ctx.fill();
     }
-    drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair);
+    // Petit saut quand on appuie sur N
+    const k = u.ptt && u.pttAt ? (now - u.pttAt) / 220 : 1;
+    const lift = k < 1 ? Math.sin(Math.PI * k) * 4 : 0;
+    drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift);
+    if (u.ptt) drawWalkie(u, cx, by - lift, dir, now);
     if (u.level > 0.04) {
       ctx.strokeStyle = '#06d6a0'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.roundRect(cx - 9, by - 33 + (chair ? 0 : 0), 18, 16, 4); ctx.stroke();

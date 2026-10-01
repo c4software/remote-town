@@ -29,7 +29,7 @@ Deux onglets : **la zone où vous êtes** (seules les personnes présentes le re
 | `Maj` maintenu | Courir |
 | `Espace` | Dash : bond de 3 cases, avec traînée |
 | `E` (ou clic sur une chaise) | S'asseoir / se lever |
-| `N` maintenu | Parler à proximité |
+| `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin, personnage qui lève son talkie) |
 | `M` | Couper ou ouvrir le micro |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
 
