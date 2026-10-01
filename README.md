@@ -15,7 +15,7 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 - **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
 - **Couloir** : ni micro ni partage, seulement le « N pour parler ».
 
-Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans la même zone** (les murs bloquent le son).
+Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans la même zone** (les murs bloquent le son). Dans le couloir, deux personnes **côte à côte** (cases voisines) s'entendent directement, sans `N` ; pas dans les pièces, où le micro (`M`) décide.
 
 ## Personnage
 

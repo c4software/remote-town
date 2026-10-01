@@ -2,7 +2,7 @@ import * as trysteroModule from './vendor/trystero-nostr.js';
 import {
   TILE, MAP_W, MAP_H, PROX_RADIUS, T, MAP, shade,
   tileAt, isBlocked, zoneAt, chairAt, zoneType, sendsAudio, sendsVideo, canShareIn, ROOM_TYPES,
-  LECTERN, LECTERN_SPOTS, nearLectern, isOnAir,
+  LECTERN, LECTERN_SPOTS, nearLectern, isOnAir, sideBySide,
 } from './shared.js';
 
 const $ = (s) => document.querySelector(s);
@@ -946,8 +946,24 @@ function applySenders(u) {
   if (L.screenOut) L.screenOut.getTracks()[0].enabled = v;
 }
 
+// « d'Alice », « de Bob »
+const ofName = (name) => (/^[aeiouyhàâéèêëîïôöùûü]/i.test(name) ? `d'${name}` : `de ${name}`);
+
+// Notification à chaque nouvelle personne côte à côte (une fois par rencontre)
+let besideIds = new Set();
+function notifyBeside() {
+  const now = new Set([...users.values()].filter((u) => !u.isMe && sideBySide(me, u)).map((u) => u.id));
+  for (const id of now) {
+    if (besideIds.has(id)) continue;
+    const u = users.get(id);
+    toast(micTrack ? `💬 Vous êtes à côté ${ofName(u.name)} : vous vous entendez` : `💬 À côté ${ofName(u.name)} : autorisez le micro pour lui parler`);
+  }
+  besideIds = now;
+}
+
 function updateRouting() {
   if (!me) return;
+  notifyBeside();
   for (const u of users.values()) if (!u.isMe) applySenders(u);
   for (const [id, L] of links) setSpeakerFx(L, isOnAir(users.get(id)));
   renderVideos();
@@ -1011,7 +1027,8 @@ function stopShare() {
 // Talkie-walkie : bips d'ouverture / fin de N et dessin de l'appareil
 // ============================================================
 // N d'un autre participant qui nous parvient (sans compter son micro de bureau)
-const pttReaches = (u) => !!me && sendsAudio({ ...u, mic: false }, me);
+// N d'un autre participant qui nous parvient (indépendamment du micro de pièce ou du côte à côte)
+const pttReaches = (u) => !!me && !!u.ptt && u.zone === me.zone && Math.hypot(u.x - me.x, u.y - me.y) <= PROX_RADIUS;
 
 function walkieBeep(kind, volume) {
   if (!audioCtx) return;
@@ -1479,8 +1496,10 @@ $('#peopleBtn').onclick = () => showPanel('people');
 
 const ICON_MIC = '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg>';
 const ICON_SCREEN = '<svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+const besideSomeone = (u) => [...users.values()].some((v) => sideBySide(u, v));
 function isTransmitting(u) {
-  return u.ptt || isOnAir(u) || (u.mic && ROOM_TYPES.includes(zoneType(u.zone)));
+  return u.ptt || isOnAir(u) || (u.mic && ROOM_TYPES.includes(zoneType(u.zone)))
+    || ((!u.isMe || !!micTrack) && besideSomeone(u));
 }
 function renderPeople() {
   if (!me) return;
@@ -1979,6 +1998,14 @@ function draw() {
     ctx.fill('evenodd');
   }
 
+  // Trait vert entre moi et les personnes côte à côte
+  for (const u of users.values()) {
+    if (u.isMe || !sideBySide(me, u)) continue;
+    ctx.strokeStyle = 'rgba(6,214,160,.85)'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(fx, fy + 6); ctx.lineTo(u.rx * TILE + TILE / 2, u.ry * TILE + TILE / 2 + 6); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   // Cercle de proximité quand N est maintenu
   if (pttHeld) {
     ctx.fillStyle = 'rgba(6,214,160,.12)';
@@ -2031,7 +2058,7 @@ function draw() {
     const sx = (u.rx * TILE + TILE / 2 - cam.x) * zoom;
     const sy = (u.ry * TILE - cam.y) * zoom - (6 + (HAT_HEIGHT[u.look?.deco] || 0)) * zoom;
     const tx = isTransmitting(u);
-    const inRange = pttHeld && !u.isMe && sendsAudio(me, u);
+    const inRange = !u.isMe && ((pttHeld && sendsAudio(me, u)) || sideBySide(me, u));
     const onAir = isOnAir(u);
     const label = onAir ? `📢 ${u.name}` : u.name;
     const tw = ctx.measureText(label).width;

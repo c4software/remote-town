@@ -135,7 +135,6 @@ export const zoneType = (id) => MAP.zoneById[id]?.type || 'open';
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-// Est-ce que `s` (émetteur) doit envoyer son micro à `r` (récepteur) ?
 // Pupitre du bureau principal : on s'y place (E) pour parler à tout le monde.
 // L'orateur se tient derrière, face à la salle.
 export const LECTERN = { x: 7, y: 2, w: 2 };
@@ -146,12 +145,19 @@ export const nearLectern = (x, y) =>
 // En direct au pupitre (vérifié aussi par la position, pas seulement par l'état annoncé)
 export const isOnAir = (u) => !!u?.onAir && atLectern(u);
 
+// Deux personnes sur des cases voisines (diagonales comprises) d'un espace ouvert.
+// Pas dans les pièces : le micro (M) y décide, et un micro coupé doit le rester.
+export const sideBySide = (a, b) => !!a && !!b && a.id !== b.id && a.zone === b.zone
+  && zoneType(a.zone) === 'open' && Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) <= 1;
+
 // Est-ce que `s` (émetteur) doit envoyer son micro à `r` (récepteur) ?
 export function sendsAudio(s, r) {
   if (!s || !r || s.id === r.id) return false;
   if (isOnAir(s)) return true; // pupitre : tout le monde entend
   // N : parler à proximité, uniquement dans la même zone (les murs bloquent le son)
   if (s.ptt && s.zone === r.zone && dist(s, r) <= PROX_RADIUS) return true;
+  // Côte à côte dans un espace ouvert (couloir) : on s'entend sans rien faire
+  if (sideBySide(s, r)) return true;
   // M : micro partagé avec les personnes de la même pièce
   return !!s.mic && ROOM_TYPES.includes(zoneType(s.zone)) && s.zone === r.zone;
 }
