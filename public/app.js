@@ -1,4 +1,4 @@
-import { joinRoom, selfId } from './vendor/trystero-nostr.js';
+import { joinRoom, selfId, getRelaySockets } from './vendor/trystero-nostr.js';
 import {
   TILE, MAP_W, MAP_H, PROX_RADIUS, T, MAP, shade,
   tileAt, isBlocked, zoneAt, chairAt, zoneType, sendsAudio, sendsVideo, canShareIn, ROOM_TYPES,
@@ -523,7 +523,13 @@ function connect(name) {
   };
   users.set(myId, me);
   joinedAt = performance.now();
+  joinNet();
+  addEventListener('pagehide', () => room?.leave());
+  watchConnection();
+  startApp();
+}
 
+function joinNet() {
   room = joinRoom({ appId: APP_ID }, ROOM_ID);
   net = {
     hello: room.makeAction('hello', { onMessage: onHello }),
@@ -535,8 +541,63 @@ function connect(name) {
   room.onPeerJoin = (id) => net.hello.send(profile(), { target: id }).catch(() => {});
   room.onPeerLeave = onPeerLeave;
   room.onPeerStream = onPeerStream;
-  addEventListener('pagehide', () => room.leave());
-  startApp();
+}
+
+// ============================================================
+// Attente et reconnexion. Il n'y a pas d'hôte : chacun est relié à tous.
+// Si on se retrouve seul (tout le monde est parti, ou notre connexion a
+// sauté), on attend et on rejoint la salle à nouveau automatiquement.
+// ============================================================
+let rejoining = false;
+let lastRejoin = 0;
+let aloneSince = 0; // 0 = pas seul
+let connected = true;
+
+const relaysUp = () => {
+  try { return Object.values(getRelaySockets()).some((s) => s.readyState === 1); } catch { return true; }
+};
+
+async function rejoin() {
+  if (rejoining || !room) return;
+  rejoining = true;
+  lastRejoin = performance.now();
+  for (const id of [...users.keys()]) if (id !== myId) onPeerLeave(id, true);
+  const old = room;
+  room = null; net = null;
+  await Promise.race([old.leave().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+  joinNet();
+  rejoining = false;
+  updatePresence();
+}
+
+function updatePresence() {
+  const alone = users.size <= 1;
+  if (!alone) aloneSince = 0;
+  else if (!aloneSince) aloneSince = performance.now();
+  const box = $('#waiting');
+  // On laisse quelques secondes aux connexions pour s'établir avant d'afficher l'attente
+  const show = !connected || (alone && performance.now() - aloneSince > 3000);
+  box.hidden = !show;
+  box.classList.toggle('offline', !connected);
+  $('#waiting .w-text').textContent = !connected
+    ? 'Connexion perdue : reconnexion en cours…'
+    : 'En attente des autres participants… Vous serez reconnecté·e dès leur retour.';
+}
+
+function watchConnection() {
+  setInterval(() => {
+    connected = navigator.onLine && relaysUp();
+    updatePresence();
+    // Seul depuis un moment : on rejoint la salle (sans effet si elle est vraiment vide)
+    if (users.size <= 1 && aloneSince && performance.now() - aloneSince > 20000 && performance.now() - lastRejoin > 45000) rejoin();
+  }, 1000);
+  addEventListener('online', () => setTimeout(rejoin, 1000));
+  addEventListener('offline', () => { connected = false; updatePresence(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && users.size <= 1 && performance.now() - lastRejoin > 5000) rejoin();
+  });
+  $('#waitInvite').onclick = () => shareLink(ROOM_ID);
+  $('#waitReload').onclick = () => location.reload();
 }
 
 function broadcast(action, data) { net?.[action].send(data).catch(() => {}); }
@@ -574,16 +635,14 @@ function onHello(d, { peerId }) {
     if (!globalHistoryLoaded) { globalHistoryLoaded = true; fetchHistory('global', [peerId]); }
     if (u.zone === me.zone) fetchHistory(me.zone, [peerId]);
   }
-  renderPeople(); updateRouting();
+  renderPeople(); updateRouting(); updatePresence();
 }
 
 function onRemoteMove(d, { peerId }) {
   const u = users.get(peerId);
   if (!u) return;
   const prevZone = u.zone;
-  const wasLive = isBroadcasting(u);
   if (!setPos(u, d)) return;
-  if (u.zone !== prevZone) onBroadcastChange(u, wasLive);
   u.seated = !!d.seated;
   u.sitAt = Number(d.sitAt) || 0;
   if (d.dash) startDash(u);
@@ -597,22 +656,20 @@ function onRemoteState(d, { peerId }) {
   const u = users.get(peerId);
   if (!u) return;
   const wasTalking = pttReaches(u);
-  const wasLive = isBroadcasting(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
-  onBroadcastChange(u, wasLive);
   const talking = pttReaches(u);
   if (talking && !wasTalking) walkieBeep('start', 0.12);
   if (wasTalking && !talking) walkieBeep('end', 0.12);
   updateRouting(); renderPeople();
 }
 
-function onPeerLeave(id) {
+function onPeerLeave(id, silent = false) {
   const u = users.get(id);
   users.delete(id);
   closeLink(id);
-  if (u) toast(`${u.name} est parti·e`);
-  renderPeople(); updateRouting();
+  if (u && !silent) toast(`${u.name} est parti·e`);
+  renderPeople(); updateRouting(); updatePresence();
 }
 
 function startApp() {
@@ -627,9 +684,6 @@ function startApp() {
   onZoneChange(true);
   renderChat(); renderPeople(); updateUI();
   requestAnimationFrame(loop);
-  setTimeout(() => {
-    if (users.size === 1) toast('Personne pour l\'instant : partagez le lien pour inviter vos collègues.');
-  }, 8000);
 }
 
 // ============================================================
@@ -666,6 +720,7 @@ function closeLink(id) {
 }
 
 function addOut(track, kind, peerId) {
+  if (!room) { track.stop(); return null; }
   const out = new MediaStream([track]);
   Promise.allSettled(room.addStream(out, { target: peerId, metadata: { kind } }));
   return out;
@@ -674,10 +729,7 @@ function addOut(track, kind, peerId) {
 // Choisit, pour un pair, si on lui envoie notre micro / écran
 function applySenders(u) {
   const L = link(u.id);
-  // Pendant l'annonce (carillon + voix de synthèse), la diffusion générale attend ;
-  // le N à proximité, lui, reste immédiat
-  const announcing = performance.now() < (me.announceUntil || 0);
-  const a = !!micTrack && sendsAudio(me, u) && !(announcing && !sendsAudio({ ...me, mic: false }, u));
+  const a = !!micTrack && sendsAudio(me, u);
   if (a && !L.micOut) L.micOut = addOut(micTrack.clone(), 'mic', u.id);
   if (L.micOut) L.micOut.getTracks()[0].enabled = a;
   const v = !!screenTrack && sendsVideo(me, u);
@@ -700,9 +752,7 @@ function updateRouting() {
 // Micro, N pour parler, partage d'écran
 // ============================================================
 function pushState() {
-  const wasLive = isBroadcasting(me);
   me.mic = micOn; me.ptt = pttHeld; me.sharing = sharing;
-  onBroadcastChange(me, wasLive);
   broadcast('state', { mic: micOn, ptt: pttHeld, sharing });
   updateRouting();
   renderPeople();
@@ -743,7 +793,7 @@ function stopShare() {
   screenStream = screenTrack = null;
   for (const [id, L] of links) {
     if (!L.screenOut) continue;
-    room.removeStream(L.screenOut, { target: id });
+    room?.removeStream(L.screenOut, { target: id });
     L.screenOut.getTracks().forEach((t) => t.stop());
     L.screenOut = null;
   }
@@ -822,60 +872,6 @@ function drawWalkie(u, cx, by, dir, now) {
     ctx.arc(ax + 0.5, dy - 5, 3 + phase * 9, a0, a0 + (2 * Math.PI) / 3);
     ctx.stroke();
   }
-}
-
-// ============================================================
-// Annonces du bureau principal : carillon, voix de synthèse, puis en direct
-// ============================================================
-const ANNOUNCE_MS = 3400;
-const isBroadcasting = (u) => !!u?.mic && zoneType(u.zone) === 'main';
-
-function onBroadcastChange(u, wasLive) {
-  const live = isBroadcasting(u);
-  if (live && !wasLive) startAnnouncement(u);
-  if (!live && wasLive) { u.announceUntil = 0; chime([783.99, 523.25], 0.18); updateUI(); }
-}
-
-function startAnnouncement(u) {
-  u.announceUntil = performance.now() + ANNOUNCE_MS;
-  chime([523.25, 659.25, 783.99, 1046.5], 0.2);
-  const of = /^[aeiouyhàâéèêëîïôöùûü]/i.test(u.name) ? 'd\'' : 'de ';
-  setTimeout(() => speak(u.isMe ? 'Vous êtes en direct' : `Annonce ${of}${u.name}`), 1500);
-  setTimeout(() => { updateRouting(); updateUI(); }, ANNOUNCE_MS + 50);
-  updateUI();
-}
-
-// Carillon « ding-dong » façon gare : notes douces qui résonnent
-function chime(notes, volume) {
-  if (!audioCtx) return;
-  audioCtx.resume?.();
-  const t0 = audioCtx.currentTime + 0.02;
-  notes.forEach((freq, i) => {
-    const at = t0 + i * 0.32;
-    for (const [mult, amp] of [[1, 1], [2, 0.25], [3, 0.08]]) {
-      const osc = audioCtx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = freq * mult;
-      const env = audioCtx.createGain();
-      env.gain.setValueAtTime(0, at);
-      env.gain.linearRampToValueAtTime(volume * amp, at + 0.01);
-      env.gain.exponentialRampToValueAtTime(0.0001, at + 1.3);
-      osc.connect(env).connect(audioCtx.destination);
-      osc.start(at);
-      osc.stop(at + 1.35);
-    }
-  });
-}
-
-function speak(text) {
-  if (!('speechSynthesis' in window)) return;
-  const say = new SpeechSynthesisUtterance(text);
-  say.lang = 'fr-FR';
-  say.rate = 1.05;
-  const voice = speechSynthesis.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr'));
-  if (voice) say.voice = voice;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(say);
 }
 
 // ============================================================
@@ -977,6 +973,7 @@ async function fetchHistory(channel, targets) {
 }
 
 function sendChat(text) {
+  if (!net) return toast('Reconnexion en cours, réessayez dans un instant.');
   const channel = chat.tab === 'global' ? 'global' : me.zone;
   const msg = { id: `${myId}-${(msgSeq++).toString(36)}`, from: myId, name: me.name, color: me.look.shirt, text, ts: Date.now() };
   if (channel === 'global') net.chat.send({ channel, msg }).catch(() => {});
@@ -1140,16 +1137,10 @@ function updateUI() {
   share.title = sharing ? 'Arrêter le partage' : canShareIn(me.zone) ? "Partager l'écran" : "Partage d'écran : dans un bureau, la classe ou le bureau principal";
   $('#pttBtn').classList.toggle('active', pttHeld);
 
-  const speakers = [...users.values()].filter(isBroadcasting);
+  const speakers = [...users.values()].filter((u) => u.mic && zoneType(u.zone) === 'main');
   const bc = $('#broadcast');
   bc.hidden = !speakers.length;
-  const intro = speakers.find((u) => performance.now() < (u.announceUntil || 0));
-  bc.classList.toggle('announcing', !!intro);
-  if (intro) {
-    bc.textContent = intro.isMe
-      ? '🔔 Votre attention s\'il vous plaît ! Vous êtes en direct dans un instant…'
-      : `🔔 Votre attention s'il vous plaît ! ${intro.name} prend la parole`;
-  } else if (speakers.length) {
+  if (speakers.length) {
     const names = speakers.map((u) => (u.isMe ? 'Vous' : u.name)).join(', ');
     bc.textContent = `📢 ${names} — en direct du bureau principal`;
   }
@@ -1398,9 +1389,8 @@ function drawDashFx(u, now) {
 
 function onMyMove() {
   const prevZone = me.zone;
-  const wasLive = isBroadcasting(me);
   me.zone = zoneAt(me.x, me.y);
-  if (me.zone !== prevZone) { onZoneChange(); onBroadcastChange(me, wasLive); }
+  if (me.zone !== prevZone) onZoneChange();
   updateRouting();
 }
 
@@ -1605,5 +1595,5 @@ function drawSitHint(zoom) {
 
 // Accès de débogage : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {
-  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, sitOn: (x, y) => sitOn(x, y), toggleSit: () => toggleSit(), place: (x, y) => { me.x = me.rx = x; me.y = me.ry = y; sendMove(); onMyMove(); }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
+  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, sitOn: (x, y) => sitOn(x, y), toggleSit: () => toggleSit(), rejoin: () => rejoin(), place: (x, y) => { me.x = me.rx = x; me.y = me.ry = y; sendMove(); onMyMove(); }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
 }

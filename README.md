@@ -10,7 +10,7 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 
 ## La carte
 
-- **Bureau principal** (à gauche) : micro et partage d'écran diffusés **à tout le monde**, où que les gens soient. Chaque prise de parole commence par une annonce : bandeau « Votre attention s'il vous plaît ! », carillon, voix de synthèse « Annonce de… », puis la voix de l'orateur. Un carillon descendant marque la fin.
+- **Bureau principal** (à gauche) : micro et partage d'écran diffusés **à tout le monde**, où que les gens soient.
 - **10 bureaux de 4 places** (table, 4 chaises) : le micro (`M`) et le partage d'écran (fonction native de Chrome) ne sont reçus que par les personnes **dans le même bureau**.
 - **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
 - **Couloir** : ni micro ni partage, seulement le « N pour parler ».
@@ -26,6 +26,10 @@ Une case ne peut accueillir qu'une personne : on ne passe pas à travers les aut
 ## Chat
 
 Deux onglets : **la zone où vous êtes** (seules les personnes présentes le reçoivent) et **Tout le monde**. Sans serveur, l'historique vit chez les participants : en arrivant, on le récupère auprès des personnes déjà connectées. Quand tout le monde est parti, il disparaît.
+
+## Attente et reconnexion
+
+Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le départ d'une personne ne coupe pas les autres. Quand on se retrouve seul, un bandeau « En attente des autres participants… » s'affiche, et on retrouve automatiquement les autres dès leur retour. Si la connexion saute (réseau, onglet en veille), l'app rejoint la salle d'elle-même ; le bandeau propose aussi d'inviter ou de recharger.
 
 ## Commandes
 
