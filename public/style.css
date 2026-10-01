@@ -247,7 +247,10 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #board.owner #boardCanvas { cursor: crosshair; }
 @media (max-width: 560px) {
   #board { top: calc(54px + env(safe-area-inset-top)); left: 6px; right: 6px; bottom: calc(68px + env(safe-area-inset-bottom)); padding: 6px; }
-  
+  #board.pip { width: 210px; }
+  #board.pip #boardWrap { height: 118px; }
+}
+
 /* ---------- Mains levées ---------- */
 #hands {
   position: absolute; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 8;
