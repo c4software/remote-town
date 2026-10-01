@@ -935,7 +935,8 @@ function addOut(track, kind, peerId) {
 function applySenders(u) {
   const L = link(u.id);
   const a = !!micTrack && sendsAudio(me, u);
-  if (a && !L.micOut) L.micOut = addOut(micTrack.clone(), 'mic', u.id);
+  // Côte à côte : canal préparé à l'avance mais muet, pour que M soit instantané
+  if ((a || (micTrack && sideBySide(me, u))) && !L.micOut) L.micOut = addOut(micTrack.clone(), 'mic', u.id);
   if (L.micOut) L.micOut.getTracks()[0].enabled = a;
   const v = !!screenTrack && sendsVideo(me, u);
   if (v && !L.screenOut) {
@@ -951,12 +952,18 @@ const ofName = (name) => (/^[aeiouyhàâéèêëîïôöùûü]/i.test(name) ? `
 
 // Notification à chaque nouvelle personne côte à côte (une fois par rencontre)
 let besideIds = new Set();
+const besideToastAt = new Map();
 function notifyBeside() {
   const now = new Set([...users.values()].filter((u) => !u.isMe && sideBySide(me, u)).map((u) => u.id));
   for (const id of now) {
-    if (besideIds.has(id)) continue;
+    if (besideIds.has(id) || performance.now() - (besideToastAt.get(id) || -1e9) < 10000) continue;
+    besideToastAt.set(id, performance.now());
     const u = users.get(id);
-    toast(micTrack ? `💬 Vous êtes à côté ${ofName(u.name)} : vous vous entendez` : `💬 À côté ${ofName(u.name)} : autorisez le micro pour lui parler`);
+    const iTalk = !!micTrack && micOn;
+    toast(iTalk && u.mic ? `💬 Vous êtes à côté ${ofName(u.name)} : vous vous entendez`
+      : iTalk ? `💬 ${u.name} vous entend (son micro est coupé)`
+      : u.mic ? `💬 Vous entendez ${u.name} ; votre micro est coupé : M pour lui répondre`
+      : `💬 À côté ${ofName(u.name)} : vos micros sont coupés (M pour parler)`);
   }
   besideIds = now;
 }
@@ -983,7 +990,7 @@ function pushState() {
 async function toggleMic() {
   if (!micTrack && !(await initMic())) return;
   micOn = !micOn;
-  if (micOn && !ROOM_TYPES.includes(zoneType(me.zone))) toast('Micro activé : il s\'ouvrira dans un bureau ou la classe. Ici, maintenez N pour parler.');
+  if (micOn && !ROOM_TYPES.includes(zoneType(me.zone))) toast('Micro ouvert : ici, seules les personnes juste à côté vous entendent. Maintenez N pour parler plus loin.');
   pushState();
 }
 
@@ -1496,7 +1503,7 @@ $('#peopleBtn').onclick = () => showPanel('people');
 
 const ICON_MIC = '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg>';
 const ICON_SCREEN = '<svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
-const besideSomeone = (u) => [...users.values()].some((v) => sideBySide(u, v));
+const besideSomeone = (u) => !!u.mic && [...users.values()].some((v) => sideBySide(u, v));
 function isTransmitting(u) {
   return u.ptt || isOnAir(u) || (u.mic && ROOM_TYPES.includes(zoneType(u.zone)))
     || ((!u.isMe || !!micTrack) && besideSomeone(u));
@@ -1539,7 +1546,7 @@ function onZoneChange(initial = false) {
   const hint = z.type === 'desk' ? 'micro & écran partagés avec le bureau'
     : z.type === 'class' ? 'micro & écran partagés avec toute la classe'
     : z.type === 'main' ? 'micro partagé avec la salle · pupitre (E) : parler à tout le monde'
-    : 'maintenez N pour parler à proximité';
+    : 'micro (M) : personnes juste à côté · N maintenu : à proximité';
   tag.innerHTML = '<span class="dot"></span>';
   tag.append(z.name, Object.assign(document.createElement('small'), { textContent: `· ${hint}` }));
   $('#meZone').textContent = z.name;
@@ -1554,7 +1561,7 @@ function updateUI() {
   const mic = $('#micBtn');
   mic.classList.toggle('active', micOn && zt !== 'open');
   mic.classList.toggle('standby', micOn && zt === 'open');
-  mic.title = !micOn ? 'Micro coupé (M)' : zt === 'open' ? 'Micro en attente : actif dans les bureaux (M)' : 'Micro ouvert (M)';
+  mic.title = !micOn ? 'Micro coupé (M)' : zt === 'open' ? 'Micro ouvert : entendu par les personnes juste à côté (M)' : 'Micro ouvert (M)';
   const share = $('#shareBtn');
   share.disabled = !canShareIn(me.zone) && !sharing;
   share.classList.toggle('active', sharing);
@@ -2000,7 +2007,7 @@ function draw() {
 
   // Trait vert entre moi et les personnes côte à côte
   for (const u of users.values()) {
-    if (u.isMe || !sideBySide(me, u)) continue;
+    if (u.isMe || !sideBySide(me, u) || !(sendsAudio(me, u) || sendsAudio(u, me))) continue;
     ctx.strokeStyle = 'rgba(6,214,160,.85)'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(fx, fy + 6); ctx.lineTo(u.rx * TILE + TILE / 2, u.ry * TILE + TILE / 2 + 6); ctx.stroke();
     ctx.setLineDash([]);
@@ -2058,7 +2065,7 @@ function draw() {
     const sx = (u.rx * TILE + TILE / 2 - cam.x) * zoom;
     const sy = (u.ry * TILE - cam.y) * zoom - (6 + (HAT_HEIGHT[u.look?.deco] || 0)) * zoom;
     const tx = isTransmitting(u);
-    const inRange = !u.isMe && ((pttHeld && sendsAudio(me, u)) || sideBySide(me, u));
+    const inRange = !u.isMe && ((pttHeld && sendsAudio(me, u)) || (sideBySide(me, u) && sendsAudio(me, u)));
     const onAir = isOnAir(u);
     const label = onAir ? `📢 ${u.name}` : u.name;
     const tw = ctx.measureText(label).width;
