@@ -10,7 +10,7 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 
 ## La carte
 
-- **Bureau principal** (à gauche) : micro et partage d'écran diffusés **à tout le monde**, où que les gens soient.
+- **Bureau principal** (à gauche) : le micro (`M`) et le partage d'écran sont partagés avec les personnes présentes dans la salle. Pour parler **à tout le monde**, où que les gens soient, on se place au **pupitre** avec `E` (ou un clic dessus) : la voix et le partage d'écran sont alors diffusés à tous. `E` à nouveau ou s'éloigner du pupitre rend la parole.
 - **10 bureaux de 4 places** (table, 4 chaises) : le micro (`M`) et le partage d'écran (fonction native de Chrome) ne sont reçus que par les personnes **dans le même bureau**.
 - **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
 - **Couloir** : ni micro ni partage, seulement le « N pour parler ».
@@ -38,7 +38,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | Flèches / WASD (ZQSD en AZERTY), clic | Se déplacer |
 | `Maj` maintenu | Courir |
 | `Espace` | Dash : bond de 3 cases, avec traînée |
-| `E` (ou clic sur une chaise) | S'asseoir / se lever |
+| `E` (ou clic sur une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin, personnage qui lève son talkie) |
 | `M` | Couper ou ouvrir le micro |

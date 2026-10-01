@@ -136,24 +136,31 @@ export const zoneType = (id) => MAP.zoneById[id]?.type || 'open';
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // Est-ce que `s` (émetteur) doit envoyer son micro à `r` (récepteur) ?
+// Pupitre du bureau principal : on s'y place (E) pour parler à tout le monde.
+// L'orateur se tient derrière, face à la salle.
+export const LECTERN = { x: 7, y: 2, w: 2 };
+export const LECTERN_SPOTS = [[7, 1], [8, 1]];
+const atLectern = (u) => LECTERN_SPOTS.some(([x, y]) => u.x === x && u.y === y);
+export const nearLectern = (x, y) =>
+  x >= LECTERN.x - 1 && x <= LECTERN.x + LECTERN.w && y >= LECTERN.y - 1 && y <= LECTERN.y + 1;
+// En direct au pupitre (vérifié aussi par la position, pas seulement par l'état annoncé)
+export const isOnAir = (u) => !!u?.onAir && atLectern(u);
+
+// Est-ce que `s` (émetteur) doit envoyer son micro à `r` (récepteur) ?
 export function sendsAudio(s, r) {
   if (!s || !r || s.id === r.id) return false;
+  if (isOnAir(s)) return true; // pupitre : tout le monde entend
   // N : parler à proximité, uniquement dans la même zone (les murs bloquent le son)
   if (s.ptt && s.zone === r.zone && dist(s, r) <= PROX_RADIUS) return true;
-  if (s.mic) {
-    const t = zoneType(s.zone);
-    if (t === 'main') return true; // bureau principal : tout le monde entend
-    if ((t === 'desk' || t === 'class') && s.zone === r.zone) return true;
-  }
-  return false;
+  // M : micro partagé avec les personnes de la même pièce
+  return !!s.mic && ROOM_TYPES.includes(zoneType(s.zone)) && s.zone === r.zone;
 }
 
 // Est-ce que `s` doit envoyer son partage d'écran à `r` ?
 export function sendsVideo(s, r) {
   if (!s || !r || s.id === r.id || !s.sharing) return false;
-  const t = zoneType(s.zone);
-  if (t === 'main') return true;
-  return (t === 'desk' || t === 'class') && s.zone === r.zone;
+  if (isOnAir(s)) return true;
+  return ROOM_TYPES.includes(zoneType(s.zone)) && s.zone === r.zone;
 }
 
 // Zones où le micro (M) et le partage d'écran fonctionnent

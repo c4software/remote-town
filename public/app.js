@@ -2,6 +2,7 @@ import * as trysteroModule from './vendor/trystero-nostr.js';
 import {
   TILE, MAP_W, MAP_H, PROX_RADIUS, T, MAP, shade,
   tileAt, isBlocked, zoneAt, chairAt, zoneType, sendsAudio, sendsVideo, canShareIn, ROOM_TYPES,
+  LECTERN, LECTERN_SPOTS, nearLectern, isOnAir,
 } from './shared.js';
 
 const $ = (s) => document.querySelector(s);
@@ -279,6 +280,10 @@ function drawObject(g, o) {
     case 'lectern':
       rr(px + 14, py + 4, w - 28, 26, 3, '#7a5134');
       rect(px + 16, py + 4, w - 32, 5, '#b5824f');
+      // micro sur pied
+      rect(px + 31, py - 6, 2, 11, '#2b2d42');
+      rr(px + 29, py - 10, 6, 6, 3, '#4a4e69');
+      rect(px + 30, py - 9, 4, 1, '#9aa0b8');
       break;
     case 'sofa': {
       const d = shade(o.color, -35);
@@ -529,7 +534,7 @@ let room = null;
 let net = null;
 let joinedAt = 0;
 
-const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, seated: me.seated, sitAt: me.sitAt || 0, crouch: !!me.crouch, mic: micOn, ptt: pttHeld, sharing });
+const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, seated: me.seated, sitAt: me.sitAt || 0, crouch: !!me.crouch, onAir: !!me.onAir, mic: micOn, ptt: pttHeld, sharing });
 
 function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
@@ -692,7 +697,7 @@ function onHello(d, { peerId }) {
   u.sitAt = Number(d?.sitAt) || 0;
   u.crouch = !!d?.crouch;
   if (d?.ask) net?.hello.send(profile(), { target: peerId }).catch(() => {});
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir });
   users.set(peerId, u);
   resolveOverlap(u);
   if (!known) {
@@ -723,7 +728,7 @@ function onRemoteState(d, { peerId }) {
   if (!u) return;
   const wasTalking = pttReaches(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir });
   const talking = pttReaches(u);
   if (talking && !wasTalking) walkieBeep('start', 0.12);
   if (wasTalking && !talking) walkieBeep('end', 0.12);
@@ -819,7 +824,7 @@ function updateRouting() {
 // ============================================================
 function pushState() {
   me.mic = micOn; me.ptt = pttHeld; me.sharing = sharing;
-  broadcast('state', { mic: micOn, ptt: pttHeld, sharing });
+  broadcast('state', { mic: micOn, ptt: pttHeld, sharing, onAir: !!me.onAir });
   updateRouting();
   renderPeople();
 }
@@ -1143,7 +1148,7 @@ $('#peopleBtn').onclick = () => showPanel('people');
 const ICON_MIC = '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg>';
 const ICON_SCREEN = '<svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
 function isTransmitting(u) {
-  return u.ptt || (u.mic && ROOM_TYPES.includes(zoneType(u.zone)));
+  return u.ptt || isOnAir(u) || (u.mic && ROOM_TYPES.includes(zoneType(u.zone)));
 }
 function renderPeople() {
   if (!me) return;
@@ -1180,7 +1185,7 @@ function onZoneChange(initial = false) {
   tag.className = z.type;
   const hint = z.type === 'desk' ? 'micro & écran partagés avec le bureau'
     : z.type === 'class' ? 'micro & écran partagés avec toute la classe'
-    : z.type === 'main' ? 'micro & écran diffusés à tout le monde'
+    : z.type === 'main' ? 'micro partagé avec la salle · pupitre (E) : parler à tout le monde'
     : 'maintenez N pour parler à proximité';
   tag.innerHTML = '<span class="dot"></span>';
   tag.append(z.name, Object.assign(document.createElement('small'), { textContent: `· ${hint}` }));
@@ -1203,12 +1208,12 @@ function updateUI() {
   share.title = sharing ? 'Arrêter le partage' : canShareIn(me.zone) ? "Partager l'écran" : "Partage d'écran : dans un bureau, la classe ou le bureau principal";
   $('#pttBtn').classList.toggle('active', pttHeld);
 
-  const speakers = [...users.values()].filter((u) => u.mic && zoneType(u.zone) === 'main');
+  const speakers = [...users.values()].filter(isOnAir);
   const bc = $('#broadcast');
   bc.hidden = !speakers.length;
   if (speakers.length) {
     const names = speakers.map((u) => (u.isMe ? 'Vous' : u.name)).join(', ');
-    bc.textContent = `📢 ${names} — en direct du bureau principal`;
+    bc.textContent = `📢 ${names} — en direct depuis le pupitre`;
   }
 }
 
@@ -1257,7 +1262,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Enter') { e.preventDefault(); if ($('#sidebar').classList.contains('closed') || activePanel !== 'chat') showPanel('chat'); else $('#chatInput').focus(); return; }
   if (e.code === 'KeyN') { e.preventDefault(); if (!e.repeat) setPtt(true); return; }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
-  if (e.code === 'KeyE') { if (!e.repeat) toggleSit(); return; }
+  if (e.code === 'KeyE') { if (!e.repeat) interact(); return; }
   if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
   if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }
   if (DIRS[e.code]) {
@@ -1314,6 +1319,16 @@ canvas.addEventListener('click', (e) => {
   document.activeElement?.blur();
   const tx = Math.floor((e.clientX / cam.zoom + cam.x) / TILE);
   const ty = Math.floor((e.clientY / cam.zoom + cam.y) / TILE);
+  airTarget = false;
+  if (ty === LECTERN.y && tx >= LECTERN.x && tx < LECTERN.x + LECTERN.w) {
+    if (me.onAir) return stopOnAir();
+    const spot = freeLecternSpot();
+    if (!spot) return toast('Quelqu\'un est déjà au pupitre');
+    if (spot[0] === me.x && spot[1] === me.y) return startOnAir();
+    sitTarget = null; airTarget = true;
+    path = bfs(me.x, me.y, spot[0], spot[1]);
+    return;
+  }
   if (chairAt(tx, ty) && chairBusy(tx, ty)) { path = sitTarget = null; return toast('Cette chaise est déjà prise'); }
   sitTarget = chairAt(tx, ty) ? [tx, ty] : null;
   if (sitTarget && tx === me.x && ty === me.y) { sitTarget = null; return sitOn(tx, ty); }
@@ -1324,6 +1339,46 @@ canvas.addEventListener('click', (e) => {
 // Chaises : E pour s'asseoir / se lever, ou clic sur une chaise
 // ============================================================
 let sitTarget = null;
+let airTarget = false;
+
+// ============================================================
+// Pupitre : E (ou clic dessus) pour parler à tout le monde
+// ============================================================
+function freeLecternSpot() {
+  const taken = (x, y) => someoneAt(x, y, (u) => isOnAir(u));
+  if (LECTERN_SPOTS.some(([x, y]) => x === me.x && y === me.y) && !taken(me.x, me.y)) return [me.x, me.y];
+  return LECTERN_SPOTS.find(([x, y]) => !taken(x, y)) || null;
+}
+
+async function startOnAir() {
+  const spot = freeLecternSpot();
+  if (!spot) return toast('Quelqu\'un est déjà au pupitre');
+  if (!micTrack && !(await initMic())) return;
+  path = null; sitTarget = null; airTarget = false;
+  const moved = spot[0] !== me.x || spot[1] !== me.y;
+  me.x = spot[0]; me.y = spot[1];
+  me.dir = 'down';
+  me.seated = false; me.crouch = false;
+  me.onAir = true;
+  nextStepAt = performance.now() + STEP_MS;
+  sendMove();
+  if (moved) onMyMove();
+  pushState();
+  toast('📢 Vous parlez à tout le monde. E pour rendre la parole.');
+}
+
+function stopOnAir() {
+  if (!me.onAir) return;
+  me.onAir = false;
+  pushState();
+}
+
+function interact() {
+  if (!me || typing()) return;
+  if (me.onAir) return stopOnAir();
+  if (nearLectern(me.x, me.y) && !me.seated) return startOnAir();
+  toggleSit();
+}
 const someoneAt = (x, y, pred) => [...users.values()].some((u) => !u.isMe && u.x === x && u.y === y && pred(u));
 // On peut traverser les gens ; seule une chaise où quelqu'un est assis est réservée
 const chairBusy = (x, y) => someoneAt(x, y, (u) => u.seated);
@@ -1462,6 +1517,8 @@ function drawDashFx(u, now) {
 }
 
 function onMyMove() {
+  // Quitter sa place derrière le pupitre rend la parole
+  if (me.onAir && !LECTERN_SPOTS.some(([x, y]) => x === me.x && y === me.y)) stopOnAir();
   const prevZone = me.zone;
   me.zone = zoneAt(me.x, me.y);
   if (me.zone !== prevZone) onZoneChange();
@@ -1477,7 +1534,7 @@ function step(now) {
     dir = nx > me.x ? 'right' : nx < me.x ? 'left' : ny > me.y ? 'down' : 'up';
   }
   if (!dir) return;
-  if (heldDir()) sitTarget = null;
+  if (heldDir()) { sitTarget = null; airTarget = false; }
   const [dx, dy] = DELTA[dir];
   const nx = me.x + dx, ny = me.y + dy;
   const changed = me.dir !== dir || me.seated;
@@ -1501,6 +1558,7 @@ function step(now) {
   }
   sendMove();
   onMyMove();
+  if (airTarget && !path?.length) { airTarget = false; if (LECTERN_SPOTS.some(([x, y]) => x === nx && y === ny)) startOnAir(); }
 }
 
 // ============================================================
@@ -1652,7 +1710,10 @@ function draw() {
 const coarse = matchMedia('(pointer: coarse)');
 function drawSitHint(zoom) {
   if (coarse.matches || me.walk > 0 || typing()) return;
-  const text = me.seated ? 'Se lever' : chairNearMe() ? "S'asseoir" : null;
+  const text = me.onAir ? 'Rendre la parole'
+    : me.seated ? 'Se lever'
+    : nearLectern(me.x, me.y) ? 'Prendre la parole (tout le monde)'
+    : chairNearMe() ? "S'asseoir" : null;
   if (!text) return;
   const sx = (me.rx * TILE + TILE / 2 - cam.x) * zoom;
   const sy = ((me.ry + 1) * TILE - cam.y) * zoom + 6;
@@ -1671,5 +1732,5 @@ function drawSitHint(zoom) {
 
 // Accès de débogage : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {
-  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, sitOn: (x, y) => sitOn(x, y), toggleSit: () => toggleSit(), rejoin: () => rejoin(), relaunch: () => relaunch(), get tr() { return tr; }, place: (x, y) => { me.x = me.rx = x; me.y = me.ry = y; sendMove(); onMyMove(); }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
+  window.rt = { users, links, get room() { return room; }, get path() { return path; }, get cam() { return cam; }, get me() { return me; }, sitOn: (x, y) => sitOn(x, y), toggleSit: () => toggleSit(), rejoin: () => rejoin(), relaunch: () => relaunch(), get tr() { return tr; }, place: (x, y) => { me.x = me.rx = x; me.y = me.ry = y; sendMove(); onMyMove(); }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
 }
