@@ -6,7 +6,7 @@ import { $, ofName, toast } from './dom.js';
 import { updateUI } from './hud.js';
 import { broadcast } from './net.js';
 import { S, users } from './state.js';
-import { closeFocus } from './videos.js';
+import { closeFocus, renderVideos } from './videos.js';
 import { zoneType } from './world.js';
 
 const BOARD_W = 1600, BOARD_H = 900;
@@ -113,6 +113,7 @@ export function refreshBoard() {
     renderPenTools();
   }
   if (boardShown) { if (S.focusKey && !pip) closeFocus(); fitBoard(); scheduleBoardDraw(); }
+  renderVideos(); // l'écran du pupitre en PiP se place sous le tableau en PiP
   updateUI();
 }
 

@@ -251,6 +251,21 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #board.pip #boardWrap { height: 118px; }
 }
 
+/* ---------- Écran diffusé depuis le pupitre (PiP, un clic l'agrandit) ---------- */
+#airPip { position: absolute; top: 60px; left: 14px; z-index: 29; display: flex; flex-direction: column; gap: 8px; }
+.air-card {
+  width: 320px; padding: 6px; border-radius: 12px; cursor: zoom-in;
+  background: rgba(20, 23, 45, .94); border: 2px solid var(--yellow); box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+}
+.air-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.air-head b { flex: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.air-head button { height: 26px; padding: 0 8px; border-radius: 8px; background: var(--panel-3); font-weight: 700; font-size: 12px; }
+.air-card video { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: contain; background: #000; border-radius: 8px; }
+@media (max-width: 560px) {
+  #airPip { top: calc(54px + env(safe-area-inset-top)); left: 10px; }
+  .air-card { width: 210px; }
+}
+
 /* ---------- Mains levées ---------- */
 #hands {
   position: absolute; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 8;

@@ -24,8 +24,11 @@ export async function launchBrowser() {
   return puppeteer.launch({
     executablePath,
     headless: 'new',
-    // micro factice (bip périodique) et autorisations accordées d'office
-    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
+    // micro factice (bip périodique), autorisations accordées d'office, écran partagé choisi automatiquement
+    args: [
+      '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required',
+      '--auto-select-desktop-capture-source=Entire screen',
+    ],
   });
 }
 

@@ -71,6 +71,29 @@ const scenarios = {
     t.check(!(await seen(b, 'Alice')).onAir, 's\'éloigner rend la parole');
   },
 
+  async 'écran du pupitre'(t) {
+    const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
+    await waitPeers([a, b, c]);
+    await place(a, 6, 3); await place(b, 40, 11); await place(c, 10, 8);
+    await wait(600);
+    await a.keyboard.press('KeyE');
+    await wait(800);
+    await a.click('#shareBtn');
+    await wait(3500);
+    const state = (p) => p.evaluate(() => ({ pip: !document.querySelector('#airPip').hidden && !!document.querySelector('#airPip .air-card'), focus: !document.querySelector('#focus').hidden }));
+    const sb = await state(b), sc = await state(c);
+    t.check(sb.pip && !sb.focus, 'écran diffusé : en PiP dans le couloir');
+    t.check(sc.pip && !sc.focus, 'écran diffusé : en PiP aussi dans le bureau principal (pas d\'ouverture automatique)');
+    await b.click('#airPip .air-card');
+    await wait(300);
+    const big = await state(b);
+    t.check(big.focus && !big.pip, 'clic : affiché en grand');
+    await b.click('#focus button');
+    await wait(300);
+    const back = await state(b);
+    t.check(back.pip && !back.focus, 'fermer le grand format : retour en PiP');
+  },
+
   async 'chaises'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
