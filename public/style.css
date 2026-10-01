@@ -234,18 +234,20 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .board-actions button { height: 32px; padding: 0 12px; border-radius: 8px; background: var(--panel-3); font-weight: 700; font-size: 13px; }
 #boardClose { background: var(--red); color: #fff; }
 #boardWrap { flex: 1; min-height: 0; display: grid; place-items: center; }
+/* Mode PiP : petite fenêtre flottante en haut à gauche, toujours à jour ; un clic l'agrandit */
+#board.pip {
+  top: 60px; left: 14px; right: auto; bottom: auto; width: 320px; padding: 6px; gap: 4px; border-radius: 12px;
+}
+#board.pip .board-head b { font-size: 12px; }
+#board.pip .owner-only { display: none !important; }
+#board.pip .board-actions button { height: 26px; padding: 0 8px; font-size: 12px; }
+#board.pip #boardWrap { flex: none; height: 180px; }
+#board.pip #boardCanvas { cursor: zoom-in; }
 #boardCanvas { background: #fff; border-radius: 8px; touch-action: none; box-shadow: 0 4px 14px rgba(0, 0, 0, .3); }
 #board.owner #boardCanvas { cursor: crosshair; }
-#boardPill {
-  position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 6;
-  background: var(--green); color: #10213a; font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 999px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, .3);
-}
 @media (max-width: 560px) {
   #board { top: calc(54px + env(safe-area-inset-top)); left: 6px; right: 6px; bottom: calc(68px + env(safe-area-inset-bottom)); padding: 6px; }
-  #boardPill { top: calc(100px + env(safe-area-inset-top)); font-size: 13px; }
-}
-
+  
 /* ---------- Mains levées ---------- */
 #hands {
   position: absolute; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 8;

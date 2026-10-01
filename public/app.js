@@ -1437,7 +1437,13 @@ const BOARD_SIZES = [4, 9, 18];
 const ERASER = { c: '#ffffff', w: 40 };
 const boards = new Map(); // zone -> { owner, strokes: Map(id -> { c, w, pts: [x, y, x, y…] }) }
 const boardZone = (z) => ['class', 'main'].includes(zoneType(z));
-const boardMinimized = new Set(); // pièces dont on a réduit le tableau
+const boardPip = new Set(); // pièces dont on regarde le tableau en mode PiP (petite fenêtre)
+// Bureau du prof : seul endroit d'où l'on peut ouvrir le tableau de la pièce
+const TEACHER_AREAS = { class: { x0: 66, x1: 70, y0: 1, y1: 2 }, main: { x0: 6, x1: 9, y0: 1, y1: 1 } };
+const atTeacherDesk = () => {
+  const a = me && TEACHER_AREAS[me.zone];
+  return !!a && me.x >= a.x0 && me.x <= a.x1 && me.y >= a.y0 && me.y <= a.y1;
+};
 let boardShown = null;            // pièce dont le tableau est affiché en grand
 const pen = { c: BOARD_COLORS[0], w: BOARD_SIZES[1], eraser: false };
 let drawingStroke = null, pendingPts = [], strokeSeq = 0, flushTimer = null, boardDrawQueued = false;
@@ -1462,7 +1468,7 @@ function onBoardMsg(d, { peerId }) {
   const z = String(d?.z || '');
   if (!boardZone(z) || !users.has(peerId)) return;
   const b = boards.get(z);
-  if (d.t === 'open') { boards.set(z, { owner: peerId, strokes: new Map() }); boardMinimized.delete(z); }
+  if (d.t === 'open') { boards.set(z, { owner: peerId, strokes: new Map() }); boardPip.delete(z); }
   else if (d.t === 'sync' && Array.isArray(d.strokes)) {
     const nb = { owner: peerId, strokes: new Map() };
     for (const st of d.strokes.slice(-5000)) addSeg(nb, st);
@@ -1489,12 +1495,11 @@ function dropBoardsOf(id) {
 }
 
 function openBoard() {
-  if (!me || !boardZone(me.zone)) return;
-  if (!boards.has(me.zone)) {
-    boards.set(me.zone, { owner: myId, strokes: new Map() });
-    broadcast('wb', { t: 'open', z: me.zone });
-  }
-  boardMinimized.delete(me.zone);
+  if (!me || !boardZone(me.zone) || boards.has(me.zone)) return;
+  if (!atTeacherDesk()) return toast('Le tableau blanc s\'ouvre depuis le bureau du prof.');
+  boards.set(me.zone, { owner: myId, strokes: new Map() });
+  broadcast('wb', { t: 'open', z: me.zone });
+  boardPip.delete(me.zone);
   refreshBoard();
 }
 
@@ -1505,29 +1510,31 @@ function closeMyBoard(z) {
   refreshBoard();
 }
 
-function minimizeBoard() {
-  if (boardShown) boardMinimized.add(boardShown);
+// Grand format ↔ mode PiP (petite fenêtre flottante, toujours à jour)
+function togglePip() {
+  if (!boardShown) return;
+  if (boardPip.has(boardShown)) boardPip.delete(boardShown); else boardPip.add(boardShown);
   refreshBoard();
 }
 
-// Affiche le tableau de ma pièce (sauf si je l'ai réduit), met à jour la barre d'outils
+// Le tableau de ma pièce est toujours visible tant qu'il est ouvert : en grand ou en PiP
 function refreshBoard() {
   if (!me) return;
   const b = boards.get(me.zone);
-  boardShown = b && !boardMinimized.has(me.zone) ? me.zone : null;
+  boardShown = b ? me.zone : null;
+  const pip = !!b && boardPip.has(me.zone);
   const ov = $('#board');
   ov.hidden = !boardShown;
-  const pill = $('#boardPill');
-  pill.hidden = !(b && !boardShown);
+  ov.classList.toggle('pip', pip);
+  $('#boardMin').textContent = pip ? 'Agrandir' : 'Mode PiP';
   if (b) {
     const owner = users.get(b.owner);
     const mine = b.owner === myId;
     $('#boardTitle').textContent = mine ? 'Votre tableau blanc' : `Tableau blanc ${ofName(owner?.name || '…')}`;
-    pill.textContent = `📋 Tableau blanc${mine ? '' : ` ${ofName(owner?.name || '')}`} — afficher`;
     ov.classList.toggle('owner', mine);
     renderPenTools();
   }
-  if (boardShown) { if (focusKey) closeFocus(); fitBoard(); scheduleBoardDraw(); }
+  if (boardShown) { if (focusKey && !pip) closeFocus(); fitBoard(); scheduleBoardDraw(); }
   updateUI();
 }
 
@@ -1580,6 +1587,7 @@ function flushStroke() {
   pendingPts = [];
 }
 bcanvas.addEventListener('pointerdown', (e) => {
+  if (boardPip.has(boardShown)) return togglePip(); // en PiP, un clic agrandit
   if (boards.get(boardShown)?.owner !== myId) return;
   e.preventDefault();
   bcanvas.setPointerCapture(e.pointerId);
@@ -1620,9 +1628,8 @@ function renderPenTools() {
   renderPenTools();
 }
 
-$('#boardBtn').onclick = () => (boardShown ? minimizeBoard() : openBoard());
-$('#boardPill').onclick = openBoard;
-$('#boardMin').onclick = minimizeBoard;
+$('#boardBtn').onclick = () => (boardShown ? togglePip() : openBoard());
+$('#boardMin').onclick = togglePip;
 $('#boardClose').onclick = () => closeMyBoard(boardShown);
 addEventListener('resize', () => { if (boardShown) fitBoard(); });
 
@@ -1898,9 +1905,10 @@ function onZoneChange(initial = false) {
 function updateUI() {
   if (!me) return;
   const bb = $('#boardBtn');
-  bb.hidden = !boardZone(me.zone);
+  // Visible au bureau du prof (pour l'ouvrir) ou quand un tableau est ouvert (grand format / PiP)
+  bb.hidden = !boards.has(me.zone) && !atTeacherDesk();
   bb.classList.toggle('active', boards.has(me.zone));
-  bb.title = boards.has(me.zone) ? 'Afficher le tableau blanc' : 'Ouvrir un tableau blanc pour la pièce';
+  bb.title = !boards.has(me.zone) ? 'Ouvrir le tableau blanc' : boardPip.has(me.zone) ? 'Agrandir le tableau blanc' : 'Tableau blanc en mode PiP';
   const zt = zoneType(me.zone);
   const mic = $('#micBtn');
   mic.classList.toggle('active', micOn && zt !== 'open');
@@ -2235,12 +2243,20 @@ function drawDashFx(u, now) {
   ctx.globalAlpha = 1;
 }
 
+let wasAtDesk = false;
+function notifyTeacherDesk() {
+  const at = atTeacherDesk();
+  if (at && !wasAtDesk && !boards.has(me.zone)) toast('📋 Bureau du prof : le bouton tableau de la barre ouvre le tableau blanc pour toute la pièce.');
+  wasAtDesk = at;
+}
+
 function onMyMove() {
   // Quitter sa place derrière le pupitre rend la parole
   if (me.onAir && !LECTERN_SPOTS.some(([x, y]) => x === me.x && y === me.y)) stopOnAir();
   const prevZone = me.zone;
   me.zone = zoneAt(me.x, me.y);
   if (me.zone !== prevZone) onZoneChange();
+  notifyTeacherDesk();
   updateRouting();
 }
 
