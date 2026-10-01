@@ -80,6 +80,7 @@
       <div><kbd>N</kbd> maintenu : talkie-walkie, parler à proximité</div>
       <div><kbd>M</kbd> : micro (bureaux, classe &amp; bureau principal)</div>
       <div><kbd>E</kbd> au pupitre du bureau principal : parler à tout le monde</div>
+      <div><kbd>1</kbd>…<kbd>6</kbd> : réactions · <kbd>H</kbd> : lever la main</div>
       <div><kbd>Entrée</kbd> : écrire dans le chat</div>
     </div>
 
@@ -126,6 +127,9 @@
         <button id="dashBtn" class="round touch-only" title="Dash">
           <svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
         </button>
+        <button id="reactBtn" class="round" title="Réactions (1 à 6) et main levée (H)">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+        </button>
         <button id="pttBtn" class="ptt" title="Maintenir pour parler à proximité">
           <kbd>N</kbd><span>Parler à proximité</span>
         </button>
@@ -143,6 +147,11 @@
         </button>
       </div>
     </nav>
+
+    <div id="reactMenu" hidden>
+      <div class="r-emojis"></div>
+      <button id="handToggle" type="button">✋ Lever la main</button>
+    </div>
 
     <div id="focus" hidden>
       <video autoplay playsinline muted></video>

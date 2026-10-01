@@ -534,7 +534,7 @@ let room = null;
 let net = null;
 let joinedAt = 0;
 
-const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, seated: me.seated, sitAt: me.sitAt || 0, crouch: !!me.crouch, onAir: !!me.onAir, mic: micOn, ptt: pttHeld, sharing });
+const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, seated: me.seated, sitAt: me.sitAt || 0, crouch: !!me.crouch, onAir: !!me.onAir, hand: !!me.hand, mic: micOn, ptt: pttHeld, sharing });
 
 function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
@@ -559,6 +559,9 @@ function joinNet() {
     move: room.makeAction('move', { onMessage: onRemoteMove }),
     state: room.makeAction('state', { onMessage: onRemoteState }),
     chat: room.makeAction('chat', { onMessage: (d, { peerId }) => users.has(peerId) && onChat(d?.channel, d?.msg, peerId) }),
+    react: room.makeAction('react', {
+      onMessage: (d, { peerId }) => { const u = users.get(peerId); if (u && REACTIONS.includes(d?.e)) addReaction(u, d.e); },
+    }),
     history: room.makeAction('history', { kind: 'request', onRequest: (d) => chatStore.get(String(d?.channel)) || [] }),
   };
   room.onPeerJoin = (id) => { helloAsked.set(id, performance.now()); net.hello.send(profile(), { target: id }).catch(() => {}); };
@@ -697,7 +700,7 @@ function onHello(d, { peerId }) {
   u.sitAt = Number(d?.sitAt) || 0;
   u.crouch = !!d?.crouch;
   if (d?.ask) net?.hello.send(profile(), { target: peerId }).catch(() => {});
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir });
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand });
   users.set(peerId, u);
   resolveOverlap(u);
   if (!known) {
@@ -728,7 +731,8 @@ function onRemoteState(d, { peerId }) {
   if (!u) return;
   const wasTalking = pttReaches(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir });
+  if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === me.zone) toast(`✋ ${u.name} lève la main`); }
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand });
   const talking = pttReaches(u);
   if (talking && !wasTalking) walkieBeep('start', 0.12);
   if (wasTalking && !talking) walkieBeep('end', 0.12);
@@ -773,7 +777,10 @@ function onPeerStream(stream, peerId) {
     $('#audios').append(el);
     el.play().catch(() => {});
     L.audioEl = el;
+    L.audioStream = stream;
+    L.fx = null;
     L.analyser = makeAnalyser(stream);
+    setSpeakerFx(L, isOnAir(users.get(peerId)));
   } else {
     L.videoStream = stream;
     renderVideos();
@@ -784,6 +791,7 @@ function closeLink(id) {
   const L = links.get(id);
   if (!L) return;
   links.delete(id);
+  setSpeakerFx(L, false);
   L.audioEl?.remove();
   L.micOut?.getTracks().forEach((t) => t.stop());
   L.screenOut?.getTracks().forEach((t) => t.stop());
@@ -815,6 +823,7 @@ function applySenders(u) {
 function updateRouting() {
   if (!me) return;
   for (const u of users.values()) if (!u.isMe) applySenders(u);
+  for (const [id, L] of links) setSpeakerFx(L, isOnAir(users.get(id)));
   renderVideos();
   updateUI();
 }
@@ -824,7 +833,7 @@ function updateRouting() {
 // ============================================================
 function pushState() {
   me.mic = micOn; me.ptt = pttHeld; me.sharing = sharing;
-  broadcast('state', { mic: micOn, ptt: pttHeld, sharing, onAir: !!me.onAir });
+  broadcast('state', { mic: micOn, ptt: pttHeld, sharing, onAir: !!me.onAir, hand: !!me.hand });
   updateRouting();
   renderPeople();
 }
@@ -943,6 +952,132 @@ function drawWalkie(u, cx, by, dir, now) {
     ctx.arc(ax + 0.5, dy - 5, 3 + phase * 9, a0, a0 + (2 * Math.PI) / 3);
     ctx.stroke();
   }
+}
+
+// ============================================================
+// Pupitre : effet « haut-parleur » sur la voix diffusée à tout le monde.
+// Seulement pendant la diffusion : la voix passe alors par Web Audio (filtre
+// de sonorisation, légère saturation, écho de salle) et l'élément <audio> est coupé.
+// Si Web Audio n'est pas disponible, on garde le son normal.
+// ============================================================
+let roomImpulse = null;
+function getRoomImpulse() {
+  if (roomImpulse) return roomImpulse;
+  const len = Math.floor(audioCtx.sampleRate * 0.7);
+  roomImpulse = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = roomImpulse.getChannelData(c);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  return roomImpulse;
+}
+
+function setSpeakerFx(L, on) {
+  if (!L?.audioEl) return;
+  const ready = audioCtx && audioCtx.state === 'running' && L.audioStream;
+  if (on && ready && !L.fx) {
+    try {
+      const src = audioCtx.createMediaStreamSource(L.audioStream);
+      const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 350;
+      const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3800;
+      const mid = audioCtx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 1800; mid.gain.value = 6; mid.Q.value = 0.9;
+      const shaper = audioCtx.createWaveShaper();
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < curve.length; i++) { const x = (i / (curve.length - 1)) * 2 - 1; curve[i] = Math.tanh(2.2 * x) / Math.tanh(2.2); }
+      shaper.curve = curve;
+      const dry = audioCtx.createGain(); dry.gain.value = 0.7;
+      const verb = audioCtx.createConvolver(); verb.buffer = getRoomImpulse();
+      const wet = audioCtx.createGain(); wet.gain.value = 0.22;
+      src.connect(hp).connect(lp).connect(mid).connect(shaper);
+      shaper.connect(dry).connect(audioCtx.destination);
+      shaper.connect(verb).connect(wet).connect(audioCtx.destination);
+      L.fx = { src, out: [dry, wet] };
+      L.audioEl.muted = true;
+    } catch {
+      L.fx = null;
+      L.audioEl.muted = false;
+    }
+  } else if (!on && L.fx) {
+    try { L.fx.src.disconnect(); L.fx.out.forEach((n) => n.disconnect()); } catch {}
+    L.fx = null;
+    L.audioEl.muted = false;
+  }
+}
+
+// Ondes de haut-parleur des deux côtés de l'orateur au pupitre
+function drawSpeakerWaves(cx, cy, now) {
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const phase = (now / 800 + i / 3) % 1;
+    ctx.strokeStyle = `rgba(255,207,92,${0.9 * (1 - phase)})`;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      const a0 = side > 0 ? -Math.PI / 4 : (3 * Math.PI) / 4;
+      ctx.arc(cx, cy, 12 + phase * 14, a0, a0 + Math.PI / 2);
+      ctx.stroke();
+    }
+  }
+}
+
+// ============================================================
+// Réactions (1 à 6) et main levée (H)
+// ============================================================
+const REACTIONS = ['👍', '❤️', '😂', '🎉', '👏', '😮'];
+const REACT_MS = 3000;
+let lastReactAt = 0;
+
+function addReaction(u, e) {
+  u.reacts = [...(u.reacts || []), { e, t: performance.now() }].slice(-5);
+}
+
+function sendReaction(e) {
+  if (!me || !REACTIONS.includes(e) || performance.now() - lastReactAt < 250) return;
+  lastReactAt = performance.now();
+  addReaction(me, e);
+  broadcast('react', { e });
+}
+
+function toggleHand() {
+  if (!me) return;
+  me.hand = !me.hand;
+  if (me.hand) me.handAt = performance.now();
+  pushState();
+  renderReactMenu();
+}
+
+// Au-dessus de l'étiquette : la main levée (fixe) puis les réactions qui montent et s'effacent
+function drawHandAndReactions(u, sx, top, now) {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  let base = top;
+  if (u.hand) {
+    const k = Math.min(1, (now - (u.handAt || 0)) / 250);
+    const size = 20 * (k < 1 ? 0.5 + 0.7 * k : 1);
+    ctx.save();
+    ctx.translate(sx, base);
+    ctx.rotate(Math.sin(now / 220) * 0.18);
+    ctx.font = `${size}px sans-serif`;
+    ctx.fillText('✋', 0, 0);
+    ctx.restore();
+    base -= 24;
+  }
+  if (u.reacts?.length) {
+    u.reacts = u.reacts.filter((r) => now - r.t < REACT_MS);
+    u.reacts.forEach((r, i) => {
+      const age = (now - r.t) / REACT_MS;
+      const pop = age < 0.07 ? 0.4 + (age / 0.07) * 0.9 : age < 0.12 ? 1.3 - ((age - 0.07) / 0.05) * 0.3 : 1;
+      ctx.globalAlpha = age > 0.7 ? (1 - age) / 0.3 : 1;
+      ctx.font = `${Math.round(24 * pop)}px sans-serif`;
+      ctx.fillText(r.e, sx + Math.sin(r.t + i) * 10, base - age * 36);
+    });
+    ctx.globalAlpha = 1;
+  }
+  ctx.textBaseline = 'middle';
+}
+
+function renderReactMenu() {
+  const hb = $('#handToggle');
+  if (hb) hb.textContent = me?.hand ? '✋ Baisser la main' : '✋ Lever la main';
+  $('#reactBtn').classList.toggle('active', !!me?.hand);
 }
 
 // ============================================================
@@ -1164,7 +1299,7 @@ function renderPeople() {
     const z = document.createElement('div'); z.className = 'p-zone'; z.textContent = MAP.zoneById[u.zone]?.name || '';
     info.append(n, z);
     const icons = document.createElement('div'); icons.className = 'p-icons';
-    icons.innerHTML = (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
+    icons.innerHTML = (u.hand ? '<span class="p-hand">✋</span>' : '') + (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
     li.append(c, info, icons);
     ul.append(li);
   }
@@ -1226,6 +1361,15 @@ function toast(text) {
 }
 
 $('#micBtn').onclick = toggleMic;
+REACTIONS.forEach((e, i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = e; b.title = `${e} (touche ${i + 1})`;
+  b.onclick = () => { sendReaction(e); $('#reactMenu').hidden = true; };
+  $('#reactMenu .r-emojis').append(b);
+});
+$('#reactBtn').onclick = (e) => { e.stopPropagation(); $('#reactMenu').hidden = !$('#reactMenu').hidden; renderReactMenu(); };
+$('#handToggle').onclick = () => { toggleHand(); $('#reactMenu').hidden = true; };
+addEventListener('pointerdown', (e) => { if (!e.target.closest('#reactMenu, #reactBtn')) $('#reactMenu').hidden = true; });
 $('#inviteBtn').onclick = () => shareLink(ROOM_ID);
 $('#dashBtn').onclick = () => dash();
 if (!navigator.mediaDevices?.getDisplayMedia) $('#shareBtn').hidden = true; // mobiles : pas de partage d'écran
@@ -1264,6 +1408,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
   if (e.code === 'KeyE') { if (!e.repeat) interact(); return; }
   if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
+  if (e.code === 'KeyH') { if (!e.repeat) toggleHand(); return; }
+  const n = /^(Digit|Numpad)([1-6])$/.exec(e.code);
+  if (n) { if (!e.repeat) sendReaction(REACTIONS[n[2] - 1]); return; }
   if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }
   if (DIRS[e.code]) {
     e.preventDefault();
@@ -1668,6 +1815,7 @@ function draw() {
     drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched);
     if (chair) drawChairBack(ctx, chair);
     if (u.ptt) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
+    if (isOnAir(u)) drawSpeakerWaves(cx, by - 24, now);
     if (u.level > 0.04) {
       ctx.strokeStyle = '#06d6a0'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.roundRect(cx - 9, by - 33 + (chair ? 0 : 0), 18, 16, 4); ctx.stroke();
@@ -1683,14 +1831,15 @@ function draw() {
     const sy = (u.ry * TILE - cam.y) * zoom - 6 * zoom;
     const tx = isTransmitting(u);
     const inRange = pttHeld && !u.isMe && sendsAudio(me, u);
-    const label = u.name;
+    const onAir = isOnAir(u);
+    const label = onAir ? `📢 ${u.name}` : u.name;
     const tw = ctx.measureText(label).width;
-    const extra = (tx ? 14 : 0) + (u.sharing ? 14 : 0);
+    const extra = (tx && !onAir ? 14 : 0) + (u.sharing ? 14 : 0);
     const w = tw + 16 + extra, h = 20;
-    ctx.fillStyle = inRange ? 'rgba(6,214,160,.95)' : 'rgba(32,37,64,.88)';
+    ctx.fillStyle = onAir ? '#ffcf5c' : inRange ? 'rgba(6,214,160,.95)' : 'rgba(32,37,64,.88)';
     ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - h, w, h, 10); ctx.fill();
     let ix = sx - w / 2 + 10;
-    if (tx) {
+    if (tx && !onAir) {
       ctx.fillStyle = u.level > 0.04 ? '#06d6a0' : '#8ef0d3';
       ctx.beginPath(); ctx.arc(ix + 2, sy - h / 2, 4, 0, Math.PI * 2); ctx.fill();
       ix += 14;
@@ -1700,8 +1849,10 @@ function draw() {
       ctx.fillRect(ix - 3, sy - h / 2 - 4, 10, 7);
       ix += 14;
     }
-    ctx.fillStyle = inRange ? '#10213a' : '#fff';
+    ctx.fillStyle = inRange || onAir ? '#10213a' : '#fff';
     ctx.fillText(label, ix + tw / 2 - 2, sy - h / 2 + 0.5);
+    drawHandAndReactions(u, sx, sy - h - 4, now);
+    ctx.font = '600 12px "DM Sans", sans-serif';
   }
   drawSitHint(zoom);
 }
