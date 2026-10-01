@@ -299,6 +299,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #bar .round, #bar .ptt { width: 36px; height: 36px; border-radius: 10px; }
   #bar, .bar-center, .bar-right { gap: 4px; }
   #inviteBtn { display: none; } /* toujours accessible depuis l'écran de connexion et le bandeau d'attente */
+  #helpBtn { display: none !important; } /* aide clavier : accessible via le profil sur téléphone */
 }
 @media (max-width: 560px) {
   .me-pill { display: none; }

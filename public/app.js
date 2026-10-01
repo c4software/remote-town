@@ -580,6 +580,13 @@ function showHelp() {
   try { localStorage.removeItem('rt-help'); } catch {}
   $('#help').hidden = false;
   $('#help').classList.add('forced');
+  syncHelpBtn();
+}
+
+// L'icône « ? » de la barre n'apparaît que lorsque l'aide est fermée (ou masquée sur petit écran)
+function syncHelpBtn() {
+  const help = $('#help');
+  $('#helpBtn').hidden = !help.hidden && getComputedStyle(help).display !== 'none';
 }
 
 $('#profileCancel').onclick = () => closeProfile();
@@ -884,6 +891,7 @@ function startApp() {
   document.fonts?.ready.then(() => { mapCanvas = renderMap(); });
   onZoneChange(true);
   renderChat(); renderPeople(); updateUI();
+  syncHelpBtn();
   requestAnimationFrame(loop);
 }
 
@@ -1600,7 +1608,9 @@ const pttBtn = $('#pttBtn');
 pttBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); pttBtn.setPointerCapture(e.pointerId); setPtt(true); });
 pttBtn.addEventListener('pointerup', () => setPtt(false));
 pttBtn.addEventListener('pointercancel', () => setPtt(false));
-$('.help-close').onclick = () => { $('#help').hidden = true; $('#help').classList.remove('forced'); try { localStorage.setItem('rt-help', '1'); } catch {} };
+$('.help-close').onclick = () => { $('#help').hidden = true; $('#help').classList.remove('forced'); try { localStorage.setItem('rt-help', '1'); } catch {} syncHelpBtn(); };
+$('#helpBtn').onclick = showHelp;
+addEventListener('resize', syncHelpBtn);
 try { if (localStorage.getItem('rt-help')) $('#help').hidden = true; } catch {}
 
 // ============================================================
