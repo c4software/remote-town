@@ -1102,7 +1102,7 @@ function toggleHand() {
   me.hand = !me.hand;
   if (me.hand) me.handAt = performance.now();
   pushState();
-  renderReactMenu();
+  renderHandBtn();
 }
 
 // Au-dessus de l'étiquette : la main levée (fixe) puis les réactions qui montent et s'effacent
@@ -1134,10 +1134,10 @@ function drawHandAndReactions(u, sx, top, now) {
   ctx.textBaseline = 'middle';
 }
 
-function renderReactMenu() {
-  const hb = $('#handToggle');
-  if (hb) hb.textContent = me?.hand ? '✋ Baisser la main' : '✋ Lever la main';
-  $('#reactBtn').classList.toggle('active', !!me?.hand);
+function renderHandBtn() {
+  const b = $('#handBtn');
+  b.classList.toggle('active', !!me?.hand);
+  b.title = me?.hand ? 'Baisser la main (H)' : 'Lever la main (H)';
 }
 
 // ============================================================
@@ -1427,8 +1427,8 @@ REACTIONS.forEach((e, i) => {
   b.onclick = () => { sendReaction(e); $('#reactMenu').hidden = true; };
   $('#reactMenu .r-emojis').append(b);
 });
-$('#reactBtn').onclick = (e) => { e.stopPropagation(); $('#reactMenu').hidden = !$('#reactMenu').hidden; renderReactMenu(); };
-$('#handToggle').onclick = () => { toggleHand(); $('#reactMenu').hidden = true; };
+$('#reactBtn').onclick = (e) => { e.stopPropagation(); $('#reactMenu').hidden = !$('#reactMenu').hidden; };
+$('#handBtn').onclick = toggleHand;
 addEventListener('pointerdown', (e) => { if (!e.target.closest('#reactMenu, #reactBtn')) $('#reactMenu').hidden = true; });
 $('#inviteBtn').onclick = () => shareLink(ROOM_ID);
 $('#dashBtn').onclick = () => dash();

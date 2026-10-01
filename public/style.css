@@ -197,7 +197,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   background: var(--red); color: #fff; font: 700 11px/18px 'DM Sans', sans-serif; font-style: normal; text-align: center;
 }
 
-#reactBtn.active { background: var(--yellow); color: #2a2200; }
+#handBtn.active { background: var(--yellow); color: #2a2200; }
 #reactMenu {
   position: absolute; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 11;
   background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px;
@@ -206,8 +206,6 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .r-emojis { display: flex; gap: 4px; }
 .r-emojis button { width: 42px; height: 42px; border-radius: 10px; font-size: 22px; display: grid; place-items: center; }
 .r-emojis button:hover { background: var(--panel-2); transform: scale(1.12); }
-#handToggle { padding: 8px; border-radius: 10px; background: var(--panel-2); font-weight: 700; font-size: 14px; }
-#handToggle:hover { background: var(--panel-3); }
 #people .p-hand { font-size: 15px; line-height: 16px; }
 
 /* ---------- Panneau latéral ---------- */
@@ -264,7 +262,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .ptt span { display: none; }
   #help { display: none; }
 }
-@media (max-width: 400px) {
+@media (max-width: 420px) {
+  #bar .round, #bar .ptt { width: 36px; height: 36px; border-radius: 10px; }
+  #bar, .bar-center, .bar-right { gap: 4px; }
   #inviteBtn { display: none; } /* toujours accessible depuis l'écran de connexion et le bandeau d'attente */
 }
 @media (max-width: 560px) {
