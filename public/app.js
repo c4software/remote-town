@@ -145,6 +145,17 @@ function renderMap() {
   return c;
 }
 
+// Chaise tournée vers le haut (vue de dos) : son dossier est devant la personne
+// assise, il est donc redessiné par-dessus l'avatar.
+function drawChairBack(g, o) {
+  if (o.kind !== 'chair' || o.dir !== 'up') return;
+  const px = o.x * TILE, py = o.y * TILE;
+  g.fillStyle = shade(o.color, -30);
+  g.beginPath(); g.roundRect(px + 5, py + 14, 22, 13, 3); g.fill();
+  g.fillStyle = shade(o.color, 12);
+  g.beginPath(); g.roundRect(px + 7, py + 16, 18, 3, 1.5); g.fill();
+}
+
 function drawObject(g, o) {
   const px = o.x * TILE, py = o.y * TILE, w = o.w * TILE, h = o.h * TILE;
   const rect = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(x, y, ww, hh); };
@@ -169,11 +180,12 @@ function drawObject(g, o) {
     }
     case 'chair': {
       const seat = o.color, back = shade(o.color, -40);
-      rr(px + 7, py + 9, 18, 16, 4, seat);
+      if (o.dir === 'down') rr(px + 5, py + 1, 22, 11, 3, back); // dossier derrière l'assise
+      rr(px + 7, py + (o.dir === 'down' ? 9 : 7), 18, 16, 4, seat);
       rect(px + 9, py + 25, 2, 5, '#444'); rect(px + 21, py + 25, 2, 5, '#444');
       if (o.dir === 'right') rr(px + 4, py + 4, 5, 22, 2, back);
       if (o.dir === 'left') rr(px + 23, py + 4, 5, 22, 2, back);
-      if (o.dir === 'up') rr(px + 6, py + 21, 20, 6, 2, back);
+      drawChairBack(g, o);
       break;
     }
     case 'plant':
@@ -1324,6 +1336,7 @@ function draw() {
     const k = u.ptt && u.pttAt ? (now - u.pttAt) / 220 : 1;
     const lift = k < 1 ? Math.sin(Math.PI * k) * 4 : 0;
     drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift);
+    if (chair) drawChairBack(ctx, chair);
     if (u.ptt) drawWalkie(u, cx, by - lift, dir, now);
     if (u.level > 0.04) {
       ctx.strokeStyle = '#06d6a0'; ctx.lineWidth = 1.5;
