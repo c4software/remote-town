@@ -24,7 +24,7 @@ const PALETTE = {
 // Dessin des avatars
 // ============================================================
 // Accessoires choisis sur l'écran de connexion
-const DECOS = ['metal', 'unicorn'];
+const DECOS = ['metal', 'unicorn', 'cap', 'shades', 'glasses', 'tophat', 'headphones', 'crown', 'scarf'];
 const cleanDeco = (d) => (DECOS.includes(d) ? d : null);
 
 // 🤘 imprimé sur le t-shirt (vue de face). X = main, K = doigts repliés,
@@ -58,6 +58,65 @@ function drawMetalPrint(r, look, o) {
 }
 
 // Serre-tête licorne : bandeau, oreilles, fleurs et corne dorée torsadée
+// Autres accessoires. top = haut des cheveux, o = décalage vertical (assis, accroupi…)
+// Repères : tête de x -7 à 6, yeux à y -24+o (face : x -4 et 2 ; profil : x -6 ou 4).
+const frame = (r, x, y, w, h, c) => { r(x, y, w, 1, c); r(x, y + h - 1, w, 1, c); r(x, y, 1, h, c); r(x + w - 1, y, 1, h, c); };
+// Accessoires qui dépassent au-dessus de la tête : on remonte l'étiquette du nom d'autant
+const HAT_HEIGHT = { tophat: 8, crown: 5, unicorn: 6 };
+const ACCESSORIES = {
+  cap(r, dir, top) {
+    const c = '#e63946', d = '#a4161a';
+    r(-8, top - 1, 16, 5, c);
+    r(-1, top - 2, 2, 1, d);
+    if (dir === 'down') r(-8, top + 4, 16, 2, d);
+    if (dir === 'up') r(-3, top + 4, 6, 1, d);
+    if (dir === 'left') r(-12, top + 3, 6, 2, d);
+    if (dir === 'right') r(6, top + 3, 6, 2, d);
+  },
+  shades(r, dir, top, o) {
+    const k = '#14151f', shine = '#7f8ca8', y = -25 + o;
+    if (dir === 'down') { r(-5, y, 4, 3, k); r(1, y, 4, 3, k); r(-1, y + 1, 2, 1, k); r(-4, y, 1, 1, shine); r(2, y, 1, 1, shine); }
+    if (dir === 'left') { r(-7, y, 4, 3, k); r(-3, y, 7, 1, k); r(-6, y, 1, 1, shine); }
+    if (dir === 'right') { r(3, y, 4, 3, k); r(-4, y, 7, 1, k); r(5, y, 1, 1, shine); }
+  },
+  glasses(r, dir, top, o) {
+    const k = '#1d1e30', y = -25 + o;
+    if (dir === 'down') { frame(r, -5, y, 4, 5, k); frame(r, 1, y, 4, 5, k); r(-1, y + 1, 2, 1, k); }
+    if (dir === 'left') { frame(r, -7, y, 4, 5, k); r(-3, y + 1, 7, 1, k); }
+    if (dir === 'right') { frame(r, 3, y, 4, 5, k); r(-4, y + 1, 7, 1, k); }
+  },
+  tophat(r, dir, top) {
+    const k = '#1d1e30';
+    r(-9, top + 1, 18, 2, k);
+    r(-6, top - 8, 12, 9, k);
+    r(-6, top - 1, 12, 2, '#c0392b');
+    r(-5, top - 7, 1, 5, '#3a3d5c');
+  },
+  headphones(r, dir, top) {
+    const band = '#2b2d42', cup = '#06d6a0';
+    r(-7, top - 2, 14, 2, band);
+    r(-8, top, 1, 6, band); r(7, top, 1, 6, band);
+    if (dir === 'down' || dir === 'up') { r(-10, top + 5, 3, 6, cup); r(7, top + 5, 3, 6, cup); }
+    if (dir === 'left') r(0, top + 5, 4, 6, cup);
+    if (dir === 'right') r(-4, top + 5, 4, 6, cup);
+  },
+  crown(r, dir, top) {
+    const g = '#ffcf5c', d = '#d9a21b';
+    r(-6, top - 2, 12, 3, g);
+    r(-6, top - 5, 2, 3, g); r(-1, top - 5, 2, 3, g); r(4, top - 5, 2, 3, g);
+    r(-6, top, 12, 1, d);
+    if (dir !== 'up') { r(-1, top - 1, 2, 1, '#ef476f'); r(-4, top - 1, 1, 1, '#118ab2'); r(3, top - 1, 1, 1, '#06d6a0'); }
+  },
+  scarf(r, dir, top, o) {
+    const c = '#ef476f', w = '#fff3f5', y = -19 + o;
+    r(-8, y, 16, 3, c);
+    r(-8, y + 1, 16, 1, w);
+    if (dir === 'down') { r(2, y + 3, 3, 6, c); r(2, y + 5, 3, 1, w); }
+    if (dir === 'left') { r(1, y + 3, 3, 5, c); r(1, y + 5, 3, 1, w); }
+    if (dir === 'right') { r(-4, y + 3, 3, 5, c); r(-4, y + 5, 3, 1, w); }
+  },
+};
+
 function drawUnicornHeadband(r, dir, top) {
   const hx = dir === 'left' ? -3 : dir === 'right' ? 2 : 0;
   r(-7, top + 2, 14, 2, '#f9a8d4');
@@ -127,6 +186,7 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
   }
   if (look.deco === 'metal' && dir === 'down') drawMetalPrint(r, look, o);
   if (look.deco === 'unicorn') drawUnicornHeadband(r, dir, -31 + o);
+  if (ACCESSORIES[look.deco]) ACCESSORIES[look.deco](r, dir, -31 + o, o);
 }
 
 // ============================================================
@@ -1828,7 +1888,7 @@ function draw() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const u of list) {
     const sx = (u.rx * TILE + TILE / 2 - cam.x) * zoom;
-    const sy = (u.ry * TILE - cam.y) * zoom - 6 * zoom;
+    const sy = (u.ry * TILE - cam.y) * zoom - (6 + (HAT_HEIGHT[u.look?.deco] || 0)) * zoom;
     const tx = isTransmitting(u);
     const inRange = pttHeld && !u.isMe && sendsAudio(me, u);
     const onAir = isOnAir(u);
