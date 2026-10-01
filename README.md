@@ -21,7 +21,7 @@ Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans 
 
 À la connexion, on choisit le style (gars ou fille), les couleurs du haut, des cheveux et de la peau, et un accessoire : 🤘 t-shirt metal ou 🦄 serre-tête licorne. Tout est mémorisé dans le navigateur.
 
-Une case ne peut accueillir qu'une personne : on ne passe pas à travers les autres, et une chaise occupée est réservée.
+On peut traverser les autres personnages, mais une chaise occupée est réservée : impossible de s'y asseoir à deux.
 
 ## Chat
 
@@ -39,6 +39,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `Maj` maintenu | Courir |
 | `Espace` | Dash : bond de 3 cases, avec traînée |
 | `E` (ou clic sur une chaise) | S'asseoir / se lever |
+| `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin, personnage qui lève son talkie) |
 | `M` | Couper ou ouvrir le micro |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |

@@ -68,9 +68,9 @@ function drawUnicornHeadband(r, dir, top) {
   });
 }
 
-function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0) {
+function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0, crouch = false) {
   const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x), Math.round(by + y), w, h); };
-  const sit = seated ? 4 : 0;
+  const sit = seated ? 4 : crouch ? 5 : 0;
   const bob = walkFrame ? -1 : 0;
   const o = sit + bob;
 
@@ -80,7 +80,7 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
 
   const girl = look.style === 'girl';
   const dark = shade(look.shirt, -35);
-  if (!seated) {
+  if (!seated && !crouch) {
     const l = walkFrame === 1 ? 2 : 0, rr = walkFrame === 2 ? 2 : 0;
     r(-5, -8, 4, 7 - l, '#2f3150'); r(1, -8, 4, 7 - rr, '#2f3150');
     r(-5, -2 - l, 4, 2, '#1b1c2e'); r(1, -2 - rr, 4, 2, '#1b1c2e');
@@ -88,6 +88,10 @@ function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = fal
   }
   r(-7, -18 + o, 14, 11, look.shirt);
   r(-7, -9 + o, 14, 2, dark);
+  if (crouch) { // genoux pliés devant le corps
+    r(-7, -4, 5, 3, '#2f3150'); r(2, -4, 5, 3, '#2f3150');
+    r(-6, -1, 4, 1, '#1b1c2e'); r(2, -1, 4, 1, '#1b1c2e');
+  }
   if (dir === 'left' || dir === 'right') {
     r(dir === 'left' ? -2 : -1, -16 + o, 3, 8, dark);
     r(dir === 'left' ? -2 : -1, -9 + o, 3, 2, look.skin);
@@ -505,6 +509,17 @@ function sampleLevel(a) {
 // (Trystero : la signalisation WebRTC passe par des relais Nostr publics)
 // ============================================================
 const APP_ID = 'remote-town-c4software';
+// Relais Nostr choisis pour leur fiabilité (la sélection automatique de Trystero
+// en incluait des morts ou lents, d'où des participants qui ne se voyaient pas)
+const RELAYS = [
+  'wss://nos.lol',
+  'wss://relay.primal.net',
+  'wss://nostr.mom',
+  'wss://nostr.oxtr.dev',
+  'wss://relay.nostr.net',
+  'wss://relay.snort.social',
+  'wss://relay.damus.io',
+];
 let ROOM_ID = 'lobby';
 const COLOR = /^#[0-9a-f]{6}$/i;
 const DIR_NAMES = ['up', 'down', 'left', 'right'];
@@ -512,7 +527,7 @@ let room = null;
 let net = null;
 let joinedAt = 0;
 
-const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, seated: me.seated, mic: micOn, ptt: pttHeld, sharing });
+const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, seated: me.seated, sitAt: me.sitAt || 0, crouch: !!me.crouch, mic: micOn, ptt: pttHeld, sharing });
 
 function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
@@ -530,7 +545,7 @@ function connect(name) {
 }
 
 function joinNet() {
-  room = joinRoom({ appId: APP_ID }, ROOM_ID);
+  room = joinRoom({ appId: APP_ID, relayConfig: { urls: RELAYS } }, ROOM_ID);
   net = {
     hello: room.makeAction('hello', { onMessage: onHello }),
     move: room.makeAction('move', { onMessage: onRemoteMove }),
@@ -538,7 +553,7 @@ function joinNet() {
     chat: room.makeAction('chat', { onMessage: (d, { peerId }) => users.has(peerId) && onChat(d?.channel, d?.msg, peerId) }),
     history: room.makeAction('history', { kind: 'request', onRequest: (d) => chatStore.get(String(d?.channel)) || [] }),
   };
-  room.onPeerJoin = (id) => net.hello.send(profile(), { target: id }).catch(() => {});
+  room.onPeerJoin = (id) => { helloAsked.set(id, performance.now()); net.hello.send(profile(), { target: id }).catch(() => {}); };
   room.onPeerLeave = onPeerLeave;
   room.onPeerStream = onPeerStream;
 }
@@ -551,6 +566,7 @@ function joinNet() {
 let rejoining = false;
 let lastRejoin = 0;
 let aloneSince = 0; // 0 = pas seul
+const helloAsked = new Map(); // id du pair -> dernière présentation envoyée
 let connected = true;
 
 const relaysUp = () => {
@@ -589,7 +605,13 @@ function watchConnection() {
     connected = navigator.onLine && relaysUp();
     updatePresence();
     // Seul depuis un moment : on rejoint la salle (sans effet si elle est vraiment vide)
-    if (users.size <= 1 && aloneSince && performance.now() - aloneSince > 20000 && performance.now() - lastRejoin > 45000) rejoin();
+    if (users.size <= 1 && aloneSince && performance.now() - aloneSince > 8000 && performance.now() - lastRejoin > 30000) rejoin();
+    // Pair connecté mais jamais présenté (message perdu) : on se représente et on lui demande de faire pareil
+    for (const id of Object.keys(room?.getPeers?.() || {})) {
+      if (users.has(id) || performance.now() - (helloAsked.get(id) || 0) < 2000) continue;
+      helloAsked.set(id, performance.now());
+      net?.hello.send({ ...profile(), ask: true }, { target: id }).catch(() => {});
+    }
   }, 1000);
   addEventListener('online', () => setTimeout(rejoin, 1000));
   addEventListener('offline', () => { connected = false; updatePresence(); });
@@ -627,6 +649,8 @@ function onHello(d, { peerId }) {
   u.rx = u.x; u.ry = u.y;
   u.seated = !!d?.seated;
   u.sitAt = Number(d?.sitAt) || 0;
+  u.crouch = !!d?.crouch;
+  if (d?.ask) net?.hello.send(profile(), { target: peerId }).catch(() => {});
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
   users.set(peerId, u);
   resolveOverlap(u);
@@ -645,6 +669,7 @@ function onRemoteMove(d, { peerId }) {
   if (!setPos(u, d)) return;
   u.seated = !!d.seated;
   u.sitAt = Number(d.sitAt) || 0;
+  u.crouch = !!d.crouch;
   if (d.dash) startDash(u);
   if (Math.abs(u.rx - u.x) > 3 || Math.abs(u.ry - u.y) > 3) { u.rx = u.x; u.ry = u.y; }
   resolveOverlap(u);
@@ -1192,6 +1217,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyN') { e.preventDefault(); if (!e.repeat) setPtt(true); return; }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
   if (e.code === 'KeyE') { if (!e.repeat) toggleSit(); return; }
+  if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
   if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }
   if (DIRS[e.code]) {
     e.preventDefault();
@@ -1258,10 +1284,9 @@ canvas.addEventListener('click', (e) => {
 // ============================================================
 let sitTarget = null;
 const someoneAt = (x, y, pred) => [...users.values()].some((u) => !u.isMe && u.x === x && u.y === y && pred(u));
-// Une case avec quelqu'un dessus (assis ou debout) est infranchissable
-const occupied = (x, y) => someoneAt(x, y, () => true);
-const chairBusy = occupied;
-const canWalk = (x, y) => !isBlocked(x, y) && !occupied(x, y);
+// On peut traverser les gens ; seule une chaise où quelqu'un est assis est réservée
+const chairBusy = (x, y) => someoneAt(x, y, (u) => u.seated);
+const canWalk = (x, y) => !isBlocked(x, y);
 
 // Chaise sous soi, sinon devant soi, sinon sur les côtés
 function chairNearMe() {
@@ -1280,6 +1305,7 @@ function sitOn(x, y) {
   me.x = x; me.y = y;
   me.dir = chairAt(x, y).dir;
   me.seated = true;
+  me.crouch = false;
   me.sitAt = Date.now();
   nextStepAt = performance.now() + STEP_MS;
   sendMove();
@@ -1293,18 +1319,25 @@ function toggleSit() {
   if (c) sitOn(...c);
 }
 
-function sendMove(extra) {
-  broadcast('move', { x: me.x, y: me.y, dir: me.dir, seated: !!me.seated, sitAt: me.sitAt || 0, ...extra });
+// C : s'accroupir / se relever. Accroupi, on avance à pas de loup.
+const CROUCH_MS = 260;
+const myStepMs = () => (me.crouch ? CROUCH_MS : sprinting ? SPRINT_MS : STEP_MS);
+function toggleCrouch() {
+  if (!me || typing()) return;
+  me.crouch = !me.crouch;
+  if (me.crouch) me.seated = false;
+  sendMove();
 }
 
-// Deux personnes sur la même case (arrivées en même temps, ou à la connexion) :
-// une seule reste. Assis > debout ; entre deux assis, le premier arrivé ;
-// sinon, l'identifiant le plus petit. L'autre se décale sur la case libre la plus proche.
+function sendMove(extra) {
+  broadcast('move', { x: me.x, y: me.y, dir: me.dir, seated: !!me.seated, sitAt: me.sitAt || 0, crouch: !!me.crouch, ...extra });
+}
+
+// Deux personnes assises sur la même chaise au même moment : la première arrivée
+// (ou, à égalité, l'identifiant le plus petit) garde la place ; l'autre se lève à côté.
 function resolveOverlap(u) {
-  if (!me || u.isMe || u.x !== me.x || u.y !== me.y) return;
-  const iLose = me.seated && u.seated
-    ? me.sitAt > u.sitAt || (me.sitAt === u.sitAt && myId > u.id)
-    : me.seated ? false : u.seated ? true : myId > u.id;
+  if (!me?.seated || !u.seated || u.isMe || u.x !== me.x || u.y !== me.y) return;
+  const iLose = me.sitAt > u.sitAt || (me.sitAt === u.sitAt && myId > u.id);
   if (!iLose) return;
   const wasSeated = me.seated;
   me.seated = false;
@@ -1323,7 +1356,7 @@ function nearestFree(sx, sy) {
   let fallback = null;
   for (let i = 0; i < q.length && i < 400; i++) {
     const [x, y] = q[i];
-    if (i > 0 && canWalk(x, y)) {
+    if (i > 0 && canWalk(x, y) && !someoneAt(x, y, () => true)) {
       if (!chairAt(x, y)) return [x, y];
       fallback ||= [x, y];
     }
@@ -1346,7 +1379,7 @@ function dash() {
   me.dir = dir;
   if (!n) return;
   nextDashAt = now + DASH_COOLDOWN;
-  path = null; sitTarget = null; me.seated = false;
+  path = null; sitTarget = null; me.seated = false; me.crouch = false;
   startDash(me);
   me.x += dx * n; me.y += dy * n;
   nextStepAt = now + 120;
@@ -1410,21 +1443,19 @@ function step(now) {
   me.dir = dir;
   me.seated = false;
   if (!canWalk(nx, ny)) {
-    // Quelqu'un barre le trajet cliqué : on le contourne
-    const goal = path?.at(-1);
-    path = goal && occupied(nx, ny) ? bfs(me.x, me.y, goal[0], goal[1]) : null;
-    nextStepAt = now + STEP_MS;
+    path = null;
     if (changed) sendMove();
     return;
   }
   me.x = nx; me.y = ny;
   if (path) path.shift();
-  nextStepAt = now + (sprinting ? SPRINT_MS : STEP_MS);
+  nextStepAt = now + myStepMs();
   // Arrivé sur la chaise cliquée : on s'assoit
   if (sitTarget && !path?.length && sitTarget[0] === nx && sitTarget[1] === ny && !chairBusy(nx, ny)) {
     sitTarget = null;
     me.dir = chairAt(nx, ny).dir;
     me.seated = true;
+    me.crouch = false;
     me.sitAt = Date.now();
   }
   sendMove();
@@ -1444,7 +1475,10 @@ function loop(now) {
     const moving = u.rx !== u.x || u.ry !== u.y;
     // Rattrape plus vite si on a pris du retard ; très vite pendant un dash
     const lag = Math.max(Math.abs(u.x - u.rx), Math.abs(u.y - u.ry));
-    const speed = u.dashing ? dt / 30 : (dt / STEP_MS) * (u.isMe ? (sprinting ? STEP_MS / SPRINT_MS : 1) : Math.max(1, lag * 1.8));
+    const speed = u.dashing ? dt / 30
+      : u.isMe ? dt / myStepMs()
+      : u.crouch ? dt / CROUCH_MS
+      : (dt / STEP_MS) * Math.max(1, lag * 1.8);
     u.rx += Math.sign(u.x - u.rx) * Math.min(speed, Math.abs(u.x - u.rx));
     u.ry += Math.sign(u.y - u.ry) * Math.min(speed, Math.abs(u.y - u.ry));
     u.walk = moving ? u.walk + dt : 0;
@@ -1531,9 +1565,10 @@ function draw() {
     // Petit saut quand on appuie sur N
     const k = u.ptt && u.pttAt ? (now - u.pttAt) / 220 : 1;
     const lift = k < 1 ? Math.sin(Math.PI * k) * 4 : 0;
-    drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift);
+    const crouched = !!u.crouch && !chair;
+    drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched);
     if (chair) drawChairBack(ctx, chair);
-    if (u.ptt) drawWalkie(u, cx, by - lift, dir, now);
+    if (u.ptt) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
     if (u.level > 0.04) {
       ctx.strokeStyle = '#06d6a0'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.roundRect(cx - 9, by - 33 + (chair ? 0 : 0), 18, 16, 4); ctx.stroke();
