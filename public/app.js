@@ -417,14 +417,14 @@ let room = null;
 let net = null;
 let joinedAt = 0;
 
-const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, mic: micOn, ptt: pttHeld, sharing });
+const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me.dir, seated: me.seated, mic: micOn, ptt: pttHeld, sharing });
 
 function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
   myId = selfId;
   me = {
     id: myId, isMe: true, name, look: { ...look }, x, y, rx: x, ry: y, dir: 'down',
-    zone: zoneAt(x, y), mic: false, ptt: false, sharing: false, walk: 0, level: 0,
+    zone: zoneAt(x, y), seated: false, mic: false, ptt: false, sharing: false, walk: 0, level: 0,
   };
   users.set(myId, me);
   joinedAt = performance.now();
@@ -467,6 +467,7 @@ function onHello(d, { peerId }) {
   };
   if (!setPos(u, d) && !known) setPos(u, { x: MAP.spawns[0][0], y: MAP.spawns[0][1] });
   u.rx = u.x; u.ry = u.y;
+  u.seated = !!d?.seated;
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing });
   users.set(peerId, u);
   if (!known) {
@@ -482,6 +483,7 @@ function onRemoteMove(d, { peerId }) {
   if (!u) return;
   const prevZone = u.zone;
   if (!setPos(u, d)) return;
+  u.seated = !!d.seated;
   if (d.dash) startDash(u);
   if (Math.abs(u.rx - u.x) > 3 || Math.abs(u.ry - u.y) > 3) { u.rx = u.x; u.ry = u.y; }
   updateRouting();
@@ -948,11 +950,12 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Enter') { e.preventDefault(); if ($('#sidebar').classList.contains('closed') || activePanel !== 'chat') showPanel('chat'); else $('#chatInput').focus(); return; }
   if (e.code === 'KeyN') { e.preventDefault(); if (!e.repeat) setPtt(true); return; }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
+  if (e.code === 'KeyE') { if (!e.repeat) toggleSit(); return; }
   if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }
   if (DIRS[e.code]) {
     e.preventDefault();
     keys.add(DIRS[e.code]); path = null;
-    if (!e.repeat && me.dir !== DIRS[e.code]) { me.dir = DIRS[e.code]; broadcast('move', { x: me.x, y: me.y, dir: me.dir }); }
+    if (!e.repeat && (me.dir !== DIRS[e.code] || me.seated)) { me.dir = DIRS[e.code]; me.seated = false; sendMove(); }
   }
 });
 addEventListener('keyup', (e) => {
@@ -1003,8 +1006,49 @@ canvas.addEventListener('click', (e) => {
   document.activeElement?.blur();
   const tx = Math.floor((e.clientX / cam.zoom + cam.x) / TILE);
   const ty = Math.floor((e.clientY / cam.zoom + cam.y) / TILE);
+  sitTarget = chairAt(tx, ty) && !chairTaken(tx, ty) ? [tx, ty] : null;
+  if (sitTarget && tx === me.x && ty === me.y) { sitTarget = null; return sitOn(tx, ty); }
   path = bfs(me.x, me.y, tx, ty);
 });
+
+// ============================================================
+// Chaises : E pour s'asseoir / se lever, ou clic sur une chaise
+// ============================================================
+let sitTarget = null;
+const chairTaken = (x, y) => [...users.values()].some((u) => !u.isMe && u.seated && u.x === x && u.y === y);
+
+// Chaise sous soi, sinon devant soi, sinon sur les côtés
+function chairNearMe() {
+  const free = (x, y) => chairAt(x, y) && !chairTaken(x, y);
+  if (free(me.x, me.y)) return [me.x, me.y];
+  for (const d of [me.dir, ...DIR_NAMES.filter((n) => n !== me.dir)]) {
+    const [dx, dy] = DELTA[d];
+    if (free(me.x + dx, me.y + dy)) return [me.x + dx, me.y + dy];
+  }
+  return null;
+}
+
+function sitOn(x, y) {
+  const moved = x !== me.x || y !== me.y;
+  path = null;
+  me.x = x; me.y = y;
+  me.dir = chairAt(x, y).dir;
+  me.seated = true;
+  nextStepAt = performance.now() + STEP_MS;
+  sendMove();
+  if (moved) onMyMove();
+}
+
+function toggleSit() {
+  if (!me || typing()) return;
+  if (me.seated) { me.seated = false; sendMove(); return; }
+  const c = chairNearMe();
+  if (c) sitOn(...c);
+}
+
+function sendMove(extra) {
+  broadcast('move', { x: me.x, y: me.y, dir: me.dir, seated: !!me.seated, ...extra });
+}
 
 // Espace : bond de quelques cases dans la direction regardée (ou tenue)
 function dash() {
@@ -1017,11 +1061,11 @@ function dash() {
   me.dir = dir;
   if (!n) return;
   nextDashAt = now + DASH_COOLDOWN;
-  path = null;
+  path = null; sitTarget = null; me.seated = false;
   startDash(me);
   me.x += dx * n; me.y += dy * n;
   nextStepAt = now + 120;
-  broadcast('move', { x: me.x, y: me.y, dir, dash: true });
+  sendMove({ dash: true });
   onMyMove();
 }
 
@@ -1074,19 +1118,27 @@ function step(now) {
     dir = nx > me.x ? 'right' : nx < me.x ? 'left' : ny > me.y ? 'down' : 'up';
   }
   if (!dir) return;
+  if (heldDir()) sitTarget = null;
   const [dx, dy] = DELTA[dir];
   const nx = me.x + dx, ny = me.y + dy;
-  const turned = me.dir !== dir;
+  const changed = me.dir !== dir || me.seated;
   me.dir = dir;
+  me.seated = false;
   if (isBlocked(nx, ny)) {
     path = null;
-    if (turned) broadcast('move', { x: me.x, y: me.y, dir });
+    if (changed) sendMove();
     return;
   }
   me.x = nx; me.y = ny;
   if (path) path.shift();
   nextStepAt = now + (sprinting ? SPRINT_MS : STEP_MS);
-  broadcast('move', { x: nx, y: ny, dir });
+  // Arrivé sur la chaise cliquée : on s'assoit
+  if (sitTarget && !path?.length && sitTarget[0] === nx && sitTarget[1] === ny && !chairTaken(nx, ny)) {
+    sitTarget = null;
+    me.dir = chairAt(nx, ny).dir;
+    me.seated = true;
+  }
+  sendMove();
   onMyMove();
 }
 
@@ -1180,7 +1232,7 @@ function draw() {
   for (const u of list) {
     const cx = u.rx * TILE + TILE / 2, by = u.ry * TILE + TILE - 2;
     const moving = u.walk > 0;
-    const chair = !moving ? chairAt(u.x, u.y) : null;
+    const chair = u.seated && !moving ? chairAt(u.x, u.y) : null;
     const dir = chair ? chair.dir : u.dir;
     const frame = moving ? 1 + (Math.floor(u.walk / 120) % 2) : 0;
     if (u.level > 0.04) {
@@ -1223,9 +1275,31 @@ function draw() {
     ctx.fillStyle = inRange ? '#10213a' : '#fff';
     ctx.fillText(label, ix + tw / 2 - 2, sy - h / 2 + 0.5);
   }
+  drawSitHint(zoom);
+}
+
+// Petit indice sous ses pieds quand une chaise est à portée (clavier uniquement)
+const coarse = matchMedia('(pointer: coarse)');
+function drawSitHint(zoom) {
+  if (coarse.matches || me.walk > 0 || typing()) return;
+  const text = me.seated ? 'Se lever' : chairNearMe() ? "S'asseoir" : null;
+  if (!text) return;
+  const sx = (me.rx * TILE + TILE / 2 - cam.x) * zoom;
+  const sy = ((me.ry + 1) * TILE - cam.y) * zoom + 6;
+  ctx.font = '600 12px "DM Sans", sans-serif';
+  const tw = ctx.measureText(text).width;
+  const w = tw + 38, h = 22;
+  ctx.fillStyle = 'rgba(32,37,64,.92)';
+  ctx.beginPath(); ctx.roundRect(sx - w / 2, sy, w, h, 11); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.roundRect(sx - w / 2 + 5, sy + 4, 16, 14, 4); ctx.fill();
+  ctx.fillStyle = '#202540'; ctx.font = '700 10px "DM Sans", sans-serif';
+  ctx.fillText('E', sx - w / 2 + 13, sy + h / 2 + 0.5);
+  ctx.fillStyle = '#fff'; ctx.font = '600 12px "DM Sans", sans-serif';
+  ctx.fillText(text, sx - w / 2 + 27 + tw / 2, sy + h / 2 + 0.5);
 }
 
 // Accès de débogage : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {
-  window.rt = { users, links, get room() { return room; }, get me() { return me; }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
+  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
 }

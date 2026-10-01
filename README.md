@@ -28,6 +28,7 @@ Deux onglets : **la zone où vous êtes** (seules les personnes présentes le re
 | Flèches / WASD (ZQSD en AZERTY), clic | Se déplacer |
 | `Maj` maintenu | Courir |
 | `Espace` | Dash : bond de 3 cases, avec traînée |
+| `E` (ou clic sur une chaise) | S'asseoir / se lever |
 | `N` maintenu | Parler à proximité |
 | `M` | Couper ou ouvrir le micro |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
