@@ -124,6 +124,8 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #waiting.offline { border-color: var(--red); }
 #waiting button { padding: 6px 12px; border-radius: 999px; background: var(--panel-3); font-size: 13px; font-weight: 700; white-space: nowrap; }
 #waiting button:hover { background: var(--purple); }
+#waiting.offline #waitRetry { background: var(--red); color: #fff; }
+#waiting button:disabled { opacity: .6; cursor: wait; }
 .w-dots { display: flex; gap: 4px; }
 .w-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: wdot 1.2s infinite ease-in-out; }
 #waiting.offline .w-dots i { background: var(--red); }
@@ -260,7 +262,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #zoneTag small { display: none; }
   #waiting { top: calc(54px + env(safe-area-inset-top)); font-size: 12px; padding-left: 12px; }
   #waiting .w-text { min-width: 0; }
-  #waitReload { display: none; }
+  #waiting.offline #waitInvite { display: none; }
   #broadcast { top: calc(54px + env(safe-area-inset-top)); width: max-content; max-width: calc(100vw - 20px); font-size: 13px; }
   #videos { top: calc(100px + env(safe-area-inset-top)); }
   .vtile { width: 160px; }

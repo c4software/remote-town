@@ -1,4 +1,4 @@
-import { joinRoom, selfId, getRelaySockets } from './vendor/trystero-nostr.js';
+import * as trysteroModule from './vendor/trystero-nostr.js';
 import {
   TILE, MAP_W, MAP_H, PROX_RADIUS, T, MAP, shade,
   tileAt, isBlocked, zoneAt, chairAt, zoneType, sendsAudio, sendsVideo, canShareIn, ROOM_TYPES,
@@ -519,6 +519,8 @@ const RELAYS = [
   'wss://relay.nostr.net',
   'wss://relay.snort.social',
   'wss://relay.damus.io',
+  'wss://offchain.pub',
+  'wss://nostr.bitcoiner.social',
 ];
 let ROOM_ID = 'lobby';
 const COLOR = /^#[0-9a-f]{6}$/i;
@@ -531,7 +533,8 @@ const profile = () => ({ name: me.name, look: me.look, x: me.x, y: me.y, dir: me
 
 function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
-  myId = selfId;
+  myId = tr.selfId;
+  myIds.add(myId);
   me = {
     id: myId, isMe: true, name, look: { ...look }, x, y, rx: x, ry: y, dir: 'down',
     zone: zoneAt(x, y), seated: false, mic: false, ptt: false, sharing: false, walk: 0, level: 0,
@@ -545,7 +548,7 @@ function connect(name) {
 }
 
 function joinNet() {
-  room = joinRoom({ appId: APP_ID, relayConfig: { urls: RELAYS } }, ROOM_ID);
+  room = tr.joinRoom({ appId: APP_ID, relayConfig: { urls: RELAYS } }, ROOM_ID);
   net = {
     hello: room.makeAction('hello', { onMessage: onHello }),
     move: room.makeAction('move', { onMessage: onRemoteMove }),
@@ -568,10 +571,44 @@ let lastRejoin = 0;
 let aloneSince = 0; // 0 = pas seul
 const helloAsked = new Map(); // id du pair -> dernière présentation envoyée
 let connected = true;
+let relaysDownSince = 0;
+// Module Trystero courant : « Relancer la connexion » en charge une instance neuve,
+// car Trystero abandonne définitivement un relais après ~2 min d'échecs.
+let tr = trysteroModule;
+const myIds = new Set(); // nos identifiants successifs (un par instance de Trystero)
 
 const relaysUp = () => {
-  try { return Object.values(getRelaySockets()).some((s) => s.readyState === 1); } catch { return true; }
+  try { return Object.values(tr.getRelaySockets()).some((s) => s.readyState === 1); } catch { return true; }
 };
+
+async function relaunch() {
+  if (rejoining) return;
+  rejoining = true;
+  lastRejoin = performance.now();
+  const btn = $('#waitRetry');
+  btn.disabled = true; btn.textContent = 'Reconnexion…';
+  for (const id of [...users.keys()]) if (id !== myId) onPeerLeave(id, true);
+  room?.leave().catch(() => {});
+  room = null; net = null;
+  try {
+    tr = await import(`./vendor/trystero-nostr.js?instance=${Date.now()}`);
+  } catch {
+    toast('Impossible de relancer la connexion : vérifiez votre réseau.');
+  }
+  if (tr.selfId !== myId) {
+    users.delete(myId);
+    myId = me.id = tr.selfId;
+    myIds.add(myId);
+    users.set(myId, me);
+    helloAsked.clear();
+  }
+  relaysDownSince = 0;
+  connected = true;
+  joinNet();
+  rejoining = false;
+  btn.disabled = false;
+  renderPeople(); updatePresence();
+}
 
 async function rejoin() {
   if (rejoining || !room) return;
@@ -596,13 +633,17 @@ function updatePresence() {
   box.hidden = !show;
   box.classList.toggle('offline', !connected);
   $('#waiting .w-text').textContent = !connected
-    ? 'Connexion perdue : reconnexion en cours…'
+    ? 'Connexion aux relais perdue.'
     : 'En attente des autres participants… Vous serez reconnecté·e dès leur retour.';
+  if (!rejoining) $('#waitRetry').textContent = connected ? 'Relancer' : 'Relancer la connexion';
 }
 
 function watchConnection() {
   setInterval(() => {
-    connected = navigator.onLine && relaysUp();
+    // Relais tous injoignables depuis plus de 8 s (le temps qu'ils s'ouvrent au démarrage)
+    if (relaysUp()) relaysDownSince = 0;
+    else if (!relaysDownSince) relaysDownSince = performance.now();
+    connected = navigator.onLine && (!relaysDownSince || performance.now() - relaysDownSince < 8000);
     updatePresence();
     // Seul depuis un moment : on rejoint la salle (sans effet si elle est vraiment vide)
     if (users.size <= 1 && aloneSince && performance.now() - aloneSince > 8000 && performance.now() - lastRejoin > 30000) rejoin();
@@ -619,7 +660,7 @@ function watchConnection() {
     if (!document.hidden && users.size <= 1 && performance.now() - lastRejoin > 5000) rejoin();
   });
   $('#waitInvite').onclick = () => shareLink(ROOM_ID);
-  $('#waitReload').onclick = () => location.reload();
+  $('#waitRetry').onclick = relaunch;
 }
 
 function broadcast(action, data) { net?.[action].send(data).catch(() => {}); }
@@ -1017,8 +1058,8 @@ function onChat(channel, msg, peerId) {
   if (!key) return;
   msg = chatList(key).find((m) => m.id === msg.id) || msg;
   const visible = !$('#sidebar').classList.contains('closed') && chat.tab === key && activePanel === 'chat';
-  if (!visible && msg.from !== myId) chat.unread[key]++;
-  if (!visible && msg.from !== myId && $('#sidebar').classList.contains('closed')) {
+  if (!visible && !myIds.has(msg.from)) chat.unread[key]++;
+  if (!visible && !myIds.has(msg.from) && $('#sidebar').classList.contains('closed')) {
     toast(`💬 ${msg.name} (${key === 'global' ? 'tout le monde' : MAP.zoneById[channel].name}) : ${msg.text.slice(0, 80)}`);
   }
   renderChat();
@@ -1046,7 +1087,7 @@ function renderChat() {
     av.style.background = m.color; av.textContent = m.name.slice(0, 1).toUpperCase();
     const body = document.createElement('div'); body.className = 'msg-body';
     const head = document.createElement('div'); head.className = 'msg-head';
-    const b = document.createElement('b'); b.textContent = m.from === myId ? `${m.name} (vous)` : m.name;
+    const b = document.createElement('b'); b.textContent = myIds.has(m.from) ? `${m.name} (vous)` : m.name;
     const t = document.createElement('time'); t.textContent = fmtTime(m.ts);
     head.append(b, t);
     const text = document.createElement('div'); text.className = 'msg-text'; text.textContent = m.text;
@@ -1630,5 +1671,5 @@ function drawSitHint(zoom) {
 
 // Accès de débogage : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {
-  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, sitOn: (x, y) => sitOn(x, y), toggleSit: () => toggleSit(), rejoin: () => rejoin(), place: (x, y) => { me.x = me.rx = x; me.y = me.ry = y; sendMove(); onMyMove(); }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
+  window.rt = { users, links, get room() { return room; }, get cam() { return cam; }, get me() { return me; }, sitOn: (x, y) => sitOn(x, y), toggleSit: () => toggleSit(), rejoin: () => rejoin(), relaunch: () => relaunch(), get tr() { return tr; }, place: (x, y) => { me.x = me.rx = x; me.y = me.ry = y; sendMove(); onMyMove(); }, walkTo: (x, y) => (path = bfs(me.x, me.y, x, y)) };
 }
