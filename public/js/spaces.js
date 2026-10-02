@@ -127,6 +127,28 @@ export function drawPortalOpen(now) {
   }
 }
 
+// Écriteau en bois accroché au mur à droite de la porte, avec le nom de l'espace en
+// cours. Dessiné en pixels écran (texte net à tout zoom) ; au plus trois cases de mur (la porte du bureau 2 suit).
+export function drawSpaceSign(zoom) {
+  const X = (PORTAL.x + 1) * TILE + 4, Y = PORTAL.y * TILE + 13, MAX_W = 3 * TILE - 12, H = 12; // en pixels du monde
+  ctx.font = `700 ${6 * zoom}px "DM Sans", sans-serif`;
+  let name = roomName(S.roomId);
+  const fits = (t) => ctx.measureText(t).width <= (MAX_W - 8) * zoom;
+  if (!fits(name)) { while (name.length > 1 && !fits(`${name}…`)) name = name.slice(0, -1); name += '…'; }
+  const w = ctx.measureText(name).width / zoom + 8;
+  const sx = (X - S.cam.x) * zoom, sy = (Y - S.cam.y) * zoom, cx = sx + (w / 2) * zoom;
+  // ficelle et clou
+  ctx.strokeStyle = '#5a3a24'; ctx.lineWidth = Math.max(1, zoom * 0.6);
+  ctx.beginPath(); ctx.moveTo(sx + 3 * zoom, sy + zoom); ctx.lineTo(cx, sy - 4 * zoom); ctx.lineTo(sx + (w - 3) * zoom, sy + zoom); ctx.stroke();
+  ctx.fillStyle = '#4a4e69'; ctx.fillRect(cx - zoom, sy - 5 * zoom, 2 * zoom, 2 * zoom);
+  // planche
+  ctx.fillStyle = '#7a5134'; ctx.beginPath(); ctx.roundRect(sx, sy, w * zoom, H * zoom, 2 * zoom); ctx.fill();
+  ctx.fillStyle = '#c9965f'; ctx.beginPath(); ctx.roundRect(sx + zoom, sy + zoom, (w - 2) * zoom, (H - 2) * zoom, 1.5 * zoom); ctx.fill();
+  ctx.fillStyle = 'rgba(122,81,52,.35)'; ctx.fillRect(sx + 2 * zoom, sy + (H / 2) * zoom, (w - 4) * zoom, Math.max(1, zoom * 0.5));
+  ctx.fillStyle = '#3b2414'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(name, cx, sy + (H / 2 + 0.5) * zoom);
+}
+
 // Fermeture puis ouverture de l'écran en cercle autour de la porte, en pixels écran
 export function drawWarpOverlay(now, zoom) {
   if (!S.warp) return;

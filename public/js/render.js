@@ -9,7 +9,7 @@ import { links } from './media.js';
 import { chairNearMe, myStepMs, step } from './movement.js';
 import { isTransmitting } from './panel.js';
 import { drawHandAndReactions, sixSevenPump } from './social.js';
-import { drawPortalOpen, drawWarpOverlay, warpPose } from './spaces.js';
+import { drawPortalOpen, drawSpaceSign, drawWarpOverlay, warpPose } from './spaces.js';
 import { S, users } from './state.js';
 import { MAP, PROX_RADIUS, TILE, chairAt, isOnAir, nearLectern, nearPortal, sendsAudio, shade, sideBySide } from './world.js';
 
@@ -217,6 +217,7 @@ function draw() {
 
   // Étiquettes (nom) en coordonnées écran, nettes à tout zoom
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawSpaceSign(zoom);
   ctx.font = '600 12px "DM Sans", sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const u of list) {
