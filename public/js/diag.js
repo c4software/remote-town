@@ -34,9 +34,9 @@ const fmt = (a) => (a instanceof Error ? `${a.name}: ${a.message}` : typeof a ==
 const safeJson = (a) => { try { return JSON.stringify(a); } catch { return String(a); } };
 const clock = () => new Date().toTimeString().slice(0, 8);
 
-// Clic sur le bouton : produire, copier, envoyer
+// Bouton (masqué pour l'instant) ou commande /diag du chat : produire, copier, envoyer
 let running = false;
-async function runDiag() {
+export async function runDiag() {
   if (running) return;
   running = true;
   toast('🩺 Diagnostic en cours (quelques secondes)…');

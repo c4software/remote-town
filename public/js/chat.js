@@ -1,5 +1,6 @@
 // Chat : canal de la zone courante et canal « Tout le monde ».
 import { COLOR } from './config.js';
+import { runDiag } from './diag.js';
 import { $, cleanName, toast } from './dom.js';
 import { joinFromPanel } from './movement.js';
 import { S, myIds, users } from './state.js';
@@ -132,7 +133,9 @@ export function initChat() {
     const input = $('#chatInput');
     const text = input.value.trim();
     if (!text) return;
-    sendChat(text);
     input.value = '';
+    // Commande /diag : diagnostic de la connexion (diag.js), jamais envoyée aux autres
+    if (text.toLowerCase() === '/diag') return runDiag();
+    sendChat(text);
   });
 }

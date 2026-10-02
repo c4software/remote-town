@@ -410,7 +410,11 @@ const scenarios = {
     await a.browserContext().overridePermissions(t.url, ['clipboard-read', 'clipboard-write']);
     await a.waitForFunction(() => !document.querySelector('#waiting').hidden, { timeout: 15000 }); // seule depuis 3 s
     await a.bringToFront(); // le presse-papiers exige une page au premier plan
-    await a.evaluate(() => document.querySelector('#waitDiag').click()); // bouton masqué : déclenché directement
+    // Commande /diag dans le chat (les boutons sont masqués)
+    await a.evaluate(() => document.querySelector('.chat-tabs [data-chan=global]')?.click());
+    await a.click('#chatInput');
+    await a.type('#chatInput', '/diag');
+    await a.keyboard.press('Enter');
     await a.waitForFunction(() => rt.lastDiag.length > 0, { timeout: 20000 });
     await wait(500);
     const text = await a.evaluate(() => rt.lastDiag);
@@ -433,6 +437,7 @@ const scenarios = {
       t.check(block.includes('Nom : Alice') && block.includes('===== FIN ====='), 'diagnostic journalisé par le relais');
     }
     await a.click('#mePill'); await wait(200);
+    t.check(await a.$eval('#messages', (e) => !e.innerText.includes('/diag')), '/diag n\'est pas envoyé comme message');
     t.check(await a.$eval('#waitDiag', (e) => e.offsetParent === null) && await a.$eval('#profileDiag', (e) => e.offsetParent === null), 'boutons Diagnostic masqués');
   },
 
