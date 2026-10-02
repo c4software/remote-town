@@ -268,6 +268,39 @@ const scenarios = {
     t.check(await a.$eval('#help', (e) => e.hidden), 'la croix ferme l\'aide');
   },
 
+  // Avec NET=http://localhost:8090 et DIAG_LOG=<sortie du relais local>, vérifie aussi
+  // que le relais a journalisé le diagnostic (sinon, seulement le texte produit)
+  async 'diagnostic'(t) {
+    const a = await join(t, 'Alice');
+    await a.browserContext().overridePermissions(t.url, ['clipboard-read', 'clipboard-write']);
+    await a.waitForFunction(() => !document.querySelector('#waiting').hidden, { timeout: 15000 }); // seule depuis 3 s
+    await a.bringToFront(); // le presse-papiers exige une page au premier plan
+    await a.click('#waitDiag');
+    await a.waitForFunction(() => rt.lastDiag.length > 0, { timeout: 20000 });
+    await wait(500);
+    const text = await a.evaluate(() => rt.lastDiag);
+    const toasts = await a.evaluate(() => document.querySelector('#toasts').innerText);
+    // Presse-papiers refusé (Chrome sans interface) : la fenêtre de secours montre le texte
+    const shown = await a.evaluate(() => !document.querySelector('#diagBox').hidden && document.querySelector('#diagText').value === rt.lastDiag);
+    for (const h of ['Page modifiée le', 'Navigateur', 'Salle : ', 'Nom : Alice', 'Relais de mise en relation', 'Personnes vues : 0', 'Liaisons WebRTC', 'Test ICE', 'Micro : ', 'Console Trystero']) {
+      t.check(text.includes(h), `diagnostic : rubrique « ${h.trim()} »`);
+    }
+    // Pas d'adresse IP (un numéro de version « Chrome/141.0.0.0 » n'en est pas une)
+    t.check(!/(?<![a-z]\/)\b(?:\d{1,3}\.){3}\d{1,3}\b/i.test(text), 'diagnostic : aucune adresse IPv4');
+    t.check(!/\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b|::[0-9a-f]/i.test(text), 'diagnostic : aucune adresse IPv6');
+    t.check(/host [1-9]/.test(text), 'diagnostic : test ICE avec des candidats host');
+    t.check(toasts.includes('Diagnostic copié') || shown, 'diagnostic copié, ou affiché à copier à la main');
+    await a.evaluate(() => document.querySelector('#diagClose').click());
+    if (process.env.NET && process.env.DIAG_LOG) {
+      t.check(toasts.includes('envoyé'), 'diagnostic envoyé au relais (toast)');
+      const log = (await import('node:fs')).readFileSync(process.env.DIAG_LOG, 'utf8');
+      const block = log.split('===== DIAGNOSTIC').at(-1) || '';
+      t.check(block.includes('Nom : Alice') && block.includes('===== FIN ====='), 'diagnostic journalisé par le relais');
+    }
+    await a.click('#mePill'); await wait(200);
+    t.check(await a.$eval('#profileDiag', (e) => e.offsetParent !== null), 'bouton Diagnostic dans l\'écran du personnage');
+  },
+
   async 'reconnexion'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);

@@ -50,6 +50,7 @@ Modules de `public/js/` :
 | `emotes.js` | Émotes animées (travail, AFK…) : roue du clic droit, dessin au-dessus du nom |
 | `board.js` | Tableau blanc (classe, bureau principal) |
 | `videos.js` | Partages d'écran reçus, affichage en grand, projection |
+| `diag.js` | Bouton « 🩺 Diagnostic » : rapport texte sur la connexion (page, navigateur, relais, liaisons par pair, test ICE, console Trystero), sans adresse IP, copié et envoyé à notre relais (`POST /diag`) |
 
 ### Règles qui gardent le code sain
 
@@ -65,7 +66,7 @@ Modules de `public/js/` :
 - `net.js` rejoint une salle Trystero (`S.tr.joinRoom`) identifiée par `APP_ID` + nom de salle. Chaque participant est relié directement à tous les autres (maillage, pas d'hôte).
 - **Mise en relation (signalisation)** : notre relais Nostr (`relay/`, adresse `NET_URL` dans `config.js`) est placé en tête de la liste, suivi des relais publics `RELAYS` qui restent en secours (`relayUrls()` dans `net.js`) : si le nôtre est injoignable ou refuse, la connexion se fait quand même par eux. Le relais n'accepte que les pages de `NET_HOSTS` (variable `ALLOWED_ORIGINS` côté serveur) ; depuis une autre page, relais publics seuls. Il faut garder `NET_HOSTS` et `ALLOWED_ORIGINS` (`relay/server.mjs`, `relay/docker-compose.yml`) en cohérence.
 - **ICE** : `prepareIce()` demande `${netUrl()}/turn` (liste `iceServers`, repli silencieux), puis `iceServers()` y ajoute les STUN publics gratuits de `STUN_SERVERS` (`config.js`), le tout passé à Trystero dans `turnConfig`, concaténé à ses STUN par défaut. Pas de TURN pour l'instant (liaisons directes constatées) ; `/turn` renvoie une liste vide.
-- **Diagnostic** : badge « relais » dans la liste des participants quand une liaison passe par TURN (`checkLinks` dans `net.js`, `panel.js`) ; `?relay` force `iceTransportPolicy: 'relay'` pour vérifier un TURN ; `?net=https://…` avec `?debug` pointe vers un autre relais ; `NET=http://localhost:8090 npm run test:e2e -- connexion` fait passer les tests de bout en bout par un relais local (`cd relay && PORT=8090 ALLOWED_ORIGINS='http://localhost:*' node server.mjs`).
+- **Diagnostic** : bouton « 🩺 Diagnostic » (`diag.js`, dans le bandeau d'attente et l'écran du personnage) à demander à une personne qui se retrouve seule : il copie un rapport lisible (jamais d'adresse IP : seuls les types de candidats ICE sont gardés, et toute IP est masquée par sécurité) et l'envoie à notre relais, qui l'écrit dans son journal. Pour les lire : `ssh -p 1036 vbrosseau@94.130.59.245 'docker logs remote-town-relay 2>&1 | sed -n "/===== DIAGNOSTIC/,/===== FIN/p" | tail -200'`. Lecture : « aucun srflx » au test ICE = UDP bloqué (il faudrait un TURN) ; « Page modifiée le » ancienne = page en cache ; une personne « vue sans liaison » = fantôme. Badge « relais » dans la liste des participants quand une liaison passe par TURN (`linkTypes` / `checkLinks` dans `net.js`, `panel.js`) ; `?relay` force `iceTransportPolicy: 'relay'` pour vérifier un TURN ; `?net=https://…` avec `?debug` pointe vers un autre relais ; `NET=http://localhost:8090 npm run test:e2e -- connexion` fait passer les tests de bout en bout par un relais local (`cd relay && PORT=8090 ALLOWED_ORIGINS='http://localhost:*' node server.mjs`).
 - Actions Trystero (dans `joinNet`) et charge utile :
 
 | Action | Contenu | Envoyée |
@@ -95,6 +96,8 @@ Modules de `public/js/` :
 
 **Modifier la carte** : `world.js` (`build()` : sols, zones, mobilier via `obj()`), le dessin du mobilier dans `map-render.js` (`drawObject`). `npm test` vérifie que toutes les zones et chaises restent accessibles.
 
+**Ajouter une route HTTP au relais** (`relay/server.mjs`, comme `/turn` et `/diag`) : vérifier l'origine (`allowed`), répondre avec les en-têtes CORS, borner la taille et la fréquence, ne rien écrire ailleurs que sur la sortie standard (conteneur en lecture seule), puis redéployer **seulement ce service** (voir `relay/README.md`).
+
 **Ajouter un bouton à la barre du bas** : `index.html` (`#bar`), le branchement dans `hud.js` (`initHud`), le style dans `style.css`. Vérifier que la barre tient sur un téléphone de 360 px de large (boutons réduits sous 420 px).
 
 ## Tests et vérifications
@@ -105,6 +108,7 @@ npm test           # tests unitaires de world.js (aussi en CI, bloque le déploi
 npm install        # une fois, pour puppeteer-core
 npm run test:e2e   # scénarios de bout en bout (Chrome sans interface, plusieurs participants)
 npm run test:e2e -- tableau   # un seul scénario (filtre sur le nom)
+NET=http://localhost:8090 DIAG_LOG=/tmp/relay.log npm run test:e2e -- diagnostic   # avec un relais local (voir relay/README.md)
 ```
 
 - Les tests de bout en bout (`tests/e2e/run.mjs`) démarrent leur propre serveur, ouvrent plusieurs Chrome avec un micro factice et pilotent les participants via `window.rt` (page ouverte avec `?debug`, voir `main.js`). Pour un nouveau comportement, ajouter un scénario ou une vérification `t.check(condition, 'libellé')`.

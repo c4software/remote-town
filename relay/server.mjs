@@ -25,6 +25,10 @@ const PING_MS = 25000;      // garde la connexion ouverte derrière le reverse p
 const MAX_CONNS = Number(process.env.MAX_CONNS) || 1000;
 const MAX_PER_IP = Number(process.env.MAX_PER_IP) || 150;
 const MAX_TOPICS = 32;      // sujets (« #x ») par filtre
+// Diagnostics (bouton « 🩺 Diagnostic » de l'application, POST /diag) : écrits dans le
+// journal, bornés en taille et en fréquence par adresse pour ne pas l'inonder
+const DIAG_MAX = 8 * 1024;
+const DIAG_EVERY_MS = 60000;
 
 const allowed = (origin) => ALLOWED.some((re) => re.test(origin || ''));
 // Adresse réelle du client : transmise par Nginx Proxy Manager (seul à joindre le conteneur)
@@ -34,9 +38,11 @@ const clientIp = (req) => String(req.headers['x-real-ip'] || req.socket.remoteAd
 const stats = { msgIn: 0, msgOut: 0, refused: {} };
 const refuse = (why) => { stats.refused[why] = (stats.refused[why] || 0) + 1; };
 const perIp = new Map(); // ip -> connexions ouvertes
+const diagAt = new Map(); // ip -> heure du dernier diagnostic reçu
 
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
+  if (req.url === '/diag') return onDiag(req, res);
   // L'application demande aussi des serveurs TURN au même service : aucun ici (liste vide)
   if (req.url === '/turn' && allowed(req.headers.origin)) {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': req.headers.origin, Vary: 'Origin' });
@@ -45,6 +51,40 @@ const http = createServer((req, res) => {
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('Introuvable');
 });
+
+// Diagnostic envoyé par l'application : un bloc délimité dans le journal, lisible avec
+// docker logs. L'adresse du client ne sert qu'au compteur, elle n'est pas écrite.
+function onDiag(req, res) {
+  const origin = req.headers.origin;
+  if (!allowed(origin)) { refuse('origine'); res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Origine refusée'); }
+  const headers = {
+    'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': origin, Vary: 'Origin',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600',
+  };
+  const reply = (code, text) => { res.writeHead(code, headers); res.end(text); };
+  if (req.method === 'OPTIONS') return reply(204, '');
+  if (req.method !== 'POST') return reply(405, 'Méthode non autorisée');
+  const ip = clientIp(req);
+  const now = Date.now();
+  for (const [k, at] of diagAt) if (now - at > DIAG_EVERY_MS) diagAt.delete(k);
+  if (diagAt.has(ip)) { refuse('diagnostic'); return reply(429, 'Un diagnostic par minute'); }
+  if (Number(req.headers['content-length']) > DIAG_MAX) { req.resume(); return reply(413, 'Diagnostic trop long'); }
+  const chunks = []; let size = 0;
+  req.on('data', (c) => {
+    size += c.length;
+    if (size > DIAG_MAX) { if (!res.writableEnded) reply(413, 'Diagnostic trop long'); req.destroy(); return; }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    if (res.writableEnded) return;
+    diagAt.set(ip, now);
+    // Texte brut seulement : caractères de contrôle retirés (sauf retours à la ligne et
+    // tabulations), et les délimiteurs du bloc ne peuvent pas être imités
+    const text = Buffer.concat(chunks).toString('utf8').replace(/[^\P{C}\n\t]/gu, '').replace(/={5,}/g, '-----').trim();
+    console.log(`===== DIAGNOSTIC ${new Date(now).toISOString()} =====\n${text}\n===== FIN =====`);
+    reply(200, 'merci');
+  });
+}
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE });
 http.on('upgrade', (req, socket, head) => {

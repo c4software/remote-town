@@ -43,8 +43,8 @@ export function connect(name) {
 // peu avant leur expiration. Sans réponse, on se connecte sans TURN (comme avant).
 // ============================================================
 // Service réseau : NET_URL depuis les pages de NET_HOSTS, ou ?net=… en mode ?debug
-// (tests avec un relais local)
-function netUrl() {
+// (tests avec un relais local). Exporté pour le diagnostic (diag.js), qui lui envoie son rapport.
+export function netUrl() {
   const q = new URLSearchParams(location.search);
   if (q.has('debug') && q.get('net')) return q.get('net').replace(/\/$/, '');
   return NET_HOSTS.includes(location.hostname) ? NET_URL.replace(/\/$/, '') : '';
@@ -70,7 +70,7 @@ export function prepareIce() {
 
 // Serveurs ICE passés à Trystero (ajoutés à ses STUN par défaut) : ceux de /turn, puis
 // nos STUN publics de secours s'ils n'y figurent pas déjà
-function iceServers() {
+export function iceServers() {
   const got = ice?.servers || [];
   const urls = new Set(got.flatMap((s) => s.urls));
   return got.concat(STUN_SERVERS.filter((s) => !urls.has(s.urls)));
@@ -197,17 +197,24 @@ function updatePresence() {
 // Diagnostic affiché dans la liste des participants : la connexion avec chaque
 // personne est-elle directe, ou relayée par le serveur TURN ?
 let ticks = 0;
+// Types (host / srflx / relay…) de la paire de candidats retenue pour une liaison,
+// [local, distant], ou null tant qu'aucune paire n'est choisie. Jamais d'adresse.
+export async function linkTypes(pc) {
+  if (!pc?.getStats) return null;
+  const stats = await pc.getStats();
+  let pair = null;
+  stats.forEach((s) => { if (s.type === 'transport' && s.selectedCandidatePairId) pair = stats.get(s.selectedCandidatePairId); });
+  if (!pair) stats.forEach((s) => { if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pair = s; });
+  if (!pair) return null;
+  return [stats.get(pair.localCandidateId)?.candidateType, stats.get(pair.remoteCandidateId)?.candidateType];
+}
 async function checkLinks() {
   for (const [id, pc] of Object.entries(S.room?.getPeers?.() || {})) {
     const u = users.get(id);
-    if (!u || !pc?.getStats) continue;
+    if (!u) continue;
     try {
-      const stats = await pc.getStats();
-      let pair = null;
-      stats.forEach((s) => { if (s.type === 'transport' && s.selectedCandidatePairId) pair = stats.get(s.selectedCandidatePairId); });
-      if (!pair) stats.forEach((s) => { if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pair = s; });
-      if (!pair) continue;
-      const types = [stats.get(pair.localCandidateId)?.candidateType, stats.get(pair.remoteCandidateId)?.candidateType];
+      const types = await linkTypes(pc);
+      if (!types) continue;
       const link = types.includes('relay') ? 'relay' : 'direct';
       if (u.link !== link) { u.link = link; renderPeople(); }
     } catch {}

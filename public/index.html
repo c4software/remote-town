@@ -88,6 +88,7 @@
           <div class="profile-actions" id="profileActions" hidden>
             <button type="button" class="btn-ghost" id="profileCancel">Annuler</button>
             <button type="button" class="btn-ghost" id="profileHelp">❔ Afficher l'aide</button>
+            <button type="button" class="btn-ghost" id="profileDiag" title="Copier un rapport sur la connexion, à envoyer en cas de problème">🩺 Diagnostic</button>
           </div>
           <p class="join-note" id="joinNote">Le micro vous sera demandé : il reste coupé tant que vous ne parlez pas. Tout passe en pair-à-pair, sans serveur.</p>
         </form>
@@ -106,6 +107,16 @@
       <span class="w-text"></span>
       <button id="waitInvite" type="button">Inviter</button>
       <button id="waitRetry" type="button">Relancer</button>
+      <button id="waitDiag" type="button" title="Copier un rapport sur la connexion, à envoyer en cas de problème">🩺 Diagnostic</button>
+    </div>
+    <!-- Diagnostic affiché quand le presse-papiers est refusé : texte sélectionné, à copier à la main -->
+    <div id="diagBox" hidden>
+      <div class="diag-card">
+        <h3>🩺 Diagnostic</h3>
+        <p>Le presse-papiers n'est pas accessible : copiez ce texte (Ctrl + C) et envoyez-le.</p>
+        <textarea id="diagText" readonly spellcheck="false"></textarea>
+        <button type="button" class="btn-ghost" id="diagClose">Fermer</button>
+      </div>
     </div>
     <div id="videos"></div>
     <div id="airPip" hidden></div>

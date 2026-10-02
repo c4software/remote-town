@@ -36,7 +36,7 @@ Deux onglets : **la zone où vous êtes** (seules les personnes présentes le re
 
 ## Attente et reconnexion
 
-Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le départ d'une personne ne coupe pas les autres. Quand on se retrouve seul, un bandeau « En attente des autres participants… » s'affiche, et on retrouve automatiquement les autres dès leur retour. Si la connexion saute (réseau, onglet en veille), l'app rejoint la salle d'elle-même ; le bandeau propose aussi d'inviter ou de relancer la connexion.
+Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le départ d'une personne ne coupe pas les autres. Quand on se retrouve seul, un bandeau « En attente des autres participants… » s'affiche, et on retrouve automatiquement les autres dès leur retour. Si la connexion saute (réseau, onglet en veille), l'app rejoint la salle d'elle-même ; le bandeau propose aussi d'inviter ou de relancer la connexion. Si vous restez seul·e alors que d'autres sont là, le bouton « 🩺 Diagnostic » (dans le bandeau et dans l'écran du personnage) copie un rapport sur votre connexion (navigateur, relais, liaisons, test réseau, sans adresse IP) et l'envoie à notre relais : transmettez-le à la personne qui anime l'espace.
 
 ## Commandes
 
@@ -90,6 +90,7 @@ public/
     main.js        point d'entrée : branche les modules, accès ?debug
     state.js       état partagé (S, users, keys, myIds)
     config.js      constantes (vitesses, palettes, relais, STUN, clavier)
+    diag.js        bouton Diagnostic : rapport sur la connexion, copié et envoyé au relais
     world.js       carte, zones, règles « qui entend / voit qui » (module pur)
     dom.js         utilitaires d'interface ($, toast…)
     avatar.js      dessin des personnages et accessoires

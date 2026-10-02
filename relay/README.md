@@ -6,7 +6,7 @@ Relais Nostr minimal utilisé par Trystero pour la signalisation WebRTC (qui se 
 
 ## Fonctionnement
 
-- `server.mjs` : serveur HTTP + WebSocket (`ws`). Seul `/relay` accepte les WebSocket, et seulement depuis les pages listées dans la variable d'environnement `ALLOWED_ORIGINS` (origines séparées par des virgules, `:*` = n'importe quel port ; défaut : `https://distance.brosseau.ovh,https://c4software.github.io`). `/health` répond `ok`, et `/turn` une liste vide de serveurs TURN (l'application en demande au même service ; aucun TURN n'est hébergé ici).
+- `server.mjs` : serveur HTTP + WebSocket (`ws`). Seul `/relay` accepte les WebSocket, et seulement depuis les pages listées dans la variable d'environnement `ALLOWED_ORIGINS` (origines séparées par des virgules, `:*` = n'importe quel port ; défaut : `https://distance.brosseau.ovh,https://c4software.github.io`). `/health` répond `ok`, et `/turn` une liste vide de serveurs TURN (l'application en demande au même service ; aucun TURN n'est hébergé ici). `POST /diag` reçoit le rapport du bouton « 🩺 Diagnostic » de l'application (texte brut) et l'écrit dans le journal, entre `===== DIAGNOSTIC <date> =====` et `===== FIN =====`.
 - Messages Nostr gérés : `REQ`, `EVENT`, `CLOSE` (ceux qu'utilise Trystero). Chaque événement est transmis aux abonnés dont le filtre correspond.
 - Garde-fous : messages de 64 Ko au plus, 32 abonnements et 200 messages par seconde par connexion, connexions mortes fermées par ping toutes les 25 s.
 
@@ -17,6 +17,12 @@ Le relais ne stocke rien, n'a aucun secret et ne touche à aucun fichier : le ri
 - **Abonnements précis seulement** : chaque filtre doit porter une liste « #x » de sujets (les salles), comme ceux de Trystero. Un filtre vide ou large, qui recevrait les messages de toutes les salles, est refusé (`CLOSED`).
 - **Plafonds de connexions** : `MAX_CONNS` au total (1000 par défaut) et `MAX_PER_IP` par adresse (150 par défaut, de quoi accueillir une salle entière derrière la même IP). L'adresse réelle vient de l'en-tête `X-Real-IP` posé par Nginx Proxy Manager, seul à joindre le conteneur. Au-delà : refus 503.
 - **Conteneur durci** (`docker-compose.yml`) : système de fichiers en lecture seule, aucune capacité Linux, pas d'élévation de privilèges, 128 Mo et 64 processus au plus, utilisateur non-root, aucun port publié.
+- **Diagnostics** (`POST /diag`) : origine autorisée seulement (403 sinon), 8 Ko au plus (413), un par minute et par adresse (429). Le texte est écrit tel quel dans le journal (caractères de contrôle retirés), sans l'adresse du client, qui ne sert qu'au compteur en mémoire. L'application n'y met aucune adresse IP. Pour les lire :
+
+  ```bash
+  ssh -p 1036 vbrosseau@94.130.59.245 'docker logs remote-town-relay 2>&1 | sed -n "/===== DIAGNOSTIC/,/===== FIN/p" | tail -200'
+  ```
+
 - **Journal** (`docker logs remote-town-relay`) : une ligne par minute quand il y a de l'activité, avec connexions, adresses, messages reçus et envoyés, et les refus par motif (origine, plafond, débit, abonnements, filtre large).
 
 L'accès aux salles n'est pas protégé (qui connaît le nom d'une salle peut y entrer) : c'est le principe de l'application, que le relais ne change pas.
@@ -50,6 +56,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -H 'Origin: https://distance.brosseau.o
 cd relay && npm install && PORT=8090 ALLOWED_ORIGINS='http://localhost:*' node server.mjs
 # dans un autre terminal, depuis la racine : scénarios de bout en bout à travers ce relais
 NET=http://localhost:8090 npm run test:e2e -- connexion
+# le scénario « diagnostic » vérifie aussi le bloc journalisé si on lui donne la sortie du relais
+# (relais lancé avec … node server.mjs > /tmp/relay.log) : DIAG_LOG=/tmp/relay.log NET=http://localhost:8090 npm run test:e2e -- diagnostic
 ```
 
 Pour tester le relais **seul**, vider temporairement `RELAYS` dans `config.js` (sans le commiter). Pour vérifier le secours sur les relais publics, pointer vers un relais injoignable : `NET=http://localhost:1 npm run test:e2e -- connexion`.

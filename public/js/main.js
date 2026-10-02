@@ -3,6 +3,7 @@
 // tout ce qui touche à la page est dans leur fonction init…(), appelée ici.
 import { initBoard } from './board.js';
 import { initChat } from './chat.js';
+import { diagnostic, initDiag, lastDiag } from './diag.js';
 import { initEmotes } from './emotes.js';
 import { initHud } from './hud.js';
 import { initInput } from './input.js';
@@ -24,6 +25,7 @@ initVideos();
 initInput();
 initEmotes();
 initSpaces();
+initDiag();
 
 // Accès de débogage (utilisé par les tests automatisés) : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {
@@ -42,5 +44,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     toggleSit: () => toggleSit(),
     rejoin: () => rejoin(),
     relaunch: () => relaunch(),
+    diag: () => diagnostic(),
+    get lastDiag() { return lastDiag(); },
   };
 }
