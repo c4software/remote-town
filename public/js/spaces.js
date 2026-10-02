@@ -6,7 +6,7 @@ import { portalMusic } from './audio.js';
 import { chat, chatStore, renderChat } from './chat.js';
 import { $, toast } from './dom.js';
 import { pushState, setPtt, stopShare } from './media.js';
-import { onMyMove, sendMove } from './movement.js';
+import { onMyMove, sendMove, stepAsideIfTaken } from './movement.js';
 import { switchRoom } from './net.js';
 import { rememberRoom } from './profile.js';
 import { canvas, ctx } from './render.js';
@@ -14,7 +14,7 @@ import { cleanRoom, forgetSpace, rememberSpace, roomName, roomUrl, savedSpaces }
 import { S, keys } from './state.js';
 import { PORTAL, PORTAL_SPOT, TILE } from './world.js';
 
-const OUT_MS = 900, IN_MS = 900, MIN_WAIT_MS = 500;
+const OUT_MS = 900, IN_MS = 900, MIN_WAIT_MS = 500, FIRST_WAIT_MS = 1100;
 
 export const spacesOpen = () => !$('#spaces').hidden;
 
@@ -93,13 +93,29 @@ async function warp(id) {
   history.replaceState(null, '', roomUrl(id));
   rememberSpace(id);
   rememberRoom(id);
+  await emerge();
+  toast(`🚪 Bienvenue dans « ${roomName(id)} »`);
+}
+
+// Sortie de la porte, dans l'espace où l'on arrive. Si quelqu'un se tient déjà
+// devant la porte, on fait un pas de côté pour ne pas se superposer.
+async function emerge() {
   Object.assign(S.me, { x: PORTAL_SPOT[0], y: PORTAL_SPOT[1], rx: PORTAL_SPOT[0], ry: PORTAL_SPOT[1], dir: 'down' });
   onMyMove();
   S.warp = { ...S.warp, phase: 'in', at: performance.now() };
   await wait(IN_MS);
   S.warp = null;
+  stepAsideIfTaken();
   sendMove();
-  toast(`🚪 Bienvenue dans « ${roomName(id)} »`);
+}
+
+// Première arrivée (après « Rejoindre l'espace ») : même passage, déjà dans la porte.
+// L'écran noir laisse aussi le temps aux connexions de s'établir.
+export async function firstArrival() {
+  portalMusic();
+  S.warp = { phase: 'wait', at: performance.now(), name: roomName(S.roomId), title: 'Bienvenue dans' };
+  await wait(FIRST_WAIT_MS);
+  await emerge();
 }
 
 // Pendant le passage : mon personnage entre dans la porte (monte et s'efface),
@@ -170,7 +186,7 @@ export function drawWarpOverlay(now, zoom) {
     ctx.globalAlpha = textAlpha;
     ctx.fillStyle = '#c8b6ff'; ctx.font = '600 14px "DM Sans", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('🚪 En route vers', innerWidth / 2, innerHeight / 2 - 14);
+    ctx.fillText(`🚪 ${S.warp.title || 'En route vers'}`, innerWidth / 2, innerHeight / 2 - 14);
     ctx.fillStyle = '#fff'; ctx.font = '700 22px "DM Sans", sans-serif';
     ctx.fillText(S.warp.name, innerWidth / 2, innerHeight / 2 + 14);
     ctx.globalAlpha = 1;

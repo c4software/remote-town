@@ -139,6 +139,13 @@ export function toggleSit() {
   if (c) sitOn(...c);
 }
 
+// Quelqu'un d'autre sur ma case (en sortant de la porte des espaces) : un pas de côté
+export function stepAsideIfTaken() {
+  if (!someoneAt(S.me.x, S.me.y, () => true)) return;
+  const spot = nearestFree(S.me.x, S.me.y);
+  if (spot) { S.me.x = spot[0]; S.me.y = spot[1]; onMyMove(); }
+}
+
 // Deux personnes assises sur la même chaise au même moment : la première arrivée
 // (ou, à égalité, l'identifiant le plus petit) garde la place ; l'autre se lève à côté.
 export function resolveOverlap(u) {

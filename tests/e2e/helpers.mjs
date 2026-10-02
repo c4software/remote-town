@@ -41,7 +41,7 @@ export async function join(ctx, name, { viewport = { width: 1300, height: 820 },
   await page.type('#nameInput', name);
   if (setup) await setup(page);
   await page.click('.btn-primary');
-  await page.waitForFunction(() => window.rt?.me);
+  await page.waitForFunction(() => window.rt?.me && !rt.warp); // arrivée par la porte terminée
   await page.evaluate(() => { document.querySelector('#help').hidden = true; });
   return page;
 }

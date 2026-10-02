@@ -6,6 +6,7 @@ import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
 import { APP_ID, COLOR, DIR_NAMES, RELAYS } from './config.js';
 import { $, toast } from './dom.js';
+import { cleanEmote } from './emotes.js';
 import { startApp } from './hud.js';
 import { closeLink, onPeerStream, updateRouting } from './media.js';
 import { resolveOverlap, startDash } from './movement.js';
@@ -13,14 +14,15 @@ import { renderPeople } from './panel.js';
 import { look } from './profile.js';
 import { shareLink } from './rooms.js';
 import { REACTIONS, addReaction, onJingle } from './social.js';
-import { cleanEmote } from './emotes.js';
+import { firstArrival } from './spaces.js';
 import { S, myIds, users } from './state.js';
-import { MAP, isBlocked, zoneAt } from './world.js';
+import { MAP, PORTAL_SPOT, isBlocked, zoneAt } from './world.js';
 
 export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, emote: S.me.emote || null, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
 
+// On arrive par la porte des espaces, comme en changeant d'espace (firstArrival)
 export function connect(name) {
-  const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
+  const [x, y] = PORTAL_SPOT;
   S.myId = S.tr.selfId;
   myIds.add(S.myId);
   S.me = {
@@ -33,6 +35,7 @@ export function connect(name) {
   addEventListener('pagehide', () => S.room?.leave());
   watchConnection();
   startApp();
+  firstArrival();
 }
 
 function joinNet() {

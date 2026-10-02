@@ -103,6 +103,8 @@ const scenarios = {
     const other = `${t.room}-b`;
     const c = await join({ ...t, room: other }, 'Chloé');
     await waitPeers([a, b]);
+    t.check((await me(b)).x !== 24 || (await me(b)).y !== 9 || (await me(a)).x !== 24 || (await me(a)).y !== 9, 'arrivée par la porte : on ne se superpose pas');
+    await place(c, 30, 10); // libère la case devant la porte
     await place(a, 24, 9);
     await wait(600);
     await a.keyboard.press('KeyE');

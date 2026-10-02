@@ -34,6 +34,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     get room() { return S.room; },
     get tr() { return S.tr; },
     get path() { return S.path; },
+    get warp() { return S.warp; },
     get cam() { return S.cam; },
     walkTo: (x, y) => (S.path = bfs(S.me.x, S.me.y, x, y)),
     place: (x, y) => { S.me.x = S.me.rx = x; S.me.y = S.me.ry = y; sendMove(); onMyMove(); },
