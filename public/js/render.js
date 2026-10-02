@@ -1,7 +1,7 @@
 // Rendu de la scène à chaque frame : caméra, personnages, effets, étiquettes.
 import { sampleLevel } from './audio.js';
 import { HAT_HEIGHT, drawAvatar } from './avatar.js';
-import { CROUCH_MS, DELTA, HOP_MS, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './config.js';
+import { CROUCH_MS, DELTA, HOP_MS, STAMINA, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './config.js';
 import { $, typing } from './dom.js';
 import { drawEmote } from './emotes.js';
 import { drawChairBack } from './map-render.js';
@@ -249,8 +249,24 @@ function draw() {
     drawHandAndReactions(u, sx, drawEmote(u, sx, sy - h - 2, now), now);
     ctx.font = '600 12px "DM Sans", sans-serif';
   }
+  drawStamina(zoom);
   drawSitHint(zoom);
   drawWarpOverlay(now, zoom);
+}
+
+// Jauge d'endurance sous ses pieds, seulement quand elle n'est pas pleine : verte, puis
+// jaune, rouge (et clignotante) quand on est essoufflé·e
+function drawStamina(zoom) {
+  if (S.stamina >= STAMINA.max || S.warp) return;
+  const k = S.stamina / STAMINA.max;
+  const w = 40, h = 6;
+  const sx = (S.me.rx * TILE + TILE / 2 - S.cam.x) * zoom - w / 2;
+  const sy = ((S.me.ry + 1) * TILE - S.cam.y) * zoom - 1;
+  ctx.fillStyle = 'rgba(20,23,45,.75)';
+  ctx.beginPath(); ctx.roundRect(sx - 1, sy - 1, w + 2, h + 2, 3); ctx.fill();
+  const blink = S.exhausted && Math.floor(performance.now() / 250) % 2;
+  ctx.fillStyle = S.exhausted ? (blink ? '#ef476f' : '#a4161a') : k > 0.5 ? '#06d6a0' : '#ffd166';
+  if (k > 0) { ctx.beginPath(); ctx.roundRect(sx, sy, w * k, h, 2); ctx.fill(); }
 }
 
 // Petit indice sous ses pieds quand une chaise est à portée (clavier uniquement)

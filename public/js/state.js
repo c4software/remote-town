@@ -45,6 +45,9 @@ export const S = {
   nextStepAt: 0,
   nextDashAt: 0,
   sprinting: false, // Maj maintenu
+  stamina: 100,     // endurance (0 à STAMINA.max) : courir la vide, marcher ou s'arrêter la recharge
+  exhausted: false, // essoufflé·e : plus de course avant d'être remonté·e à STAMINA.recoverAt
+  lastSprintAt: 0,  // dernier pas de course (la récupération attend STAMINA.regenDelay)
 
   // --- Affichage ---
   mapCanvas: null,  // carte pré-rendue

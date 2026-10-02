@@ -37,7 +37,7 @@ Modules de `public/js/` :
 | `avatar.js` | Dessin des personnages et accessoires (fonctions pures sur un contexte canvas) |
 | `map-render.js` | Dessin de la carte, pré-calculé une fois |
 | `render.js` | Boucle `requestAnimationFrame`, caméra, personnages, effets, étiquettes |
-| `movement.js` | Pas à pas, trajets (BFS), chaises, pupitre, accroupi, dash, rejoindre quelqu'un |
+| `movement.js` | Pas à pas, trajets (BFS), chaises, pupitre, accroupi, dash, rejoindre quelqu'un, endurance (course limitée, `STAMINA` dans `config.js`) |
 | `input.js` | Raccourcis clavier, toucher la carte (mobile : sur ordinateur, déplacement au clavier uniquement, le clic de souris ne déplace pas) |
 | `net.js` | Connexion Trystero, messages reçus, présence, attente, reconnexion |
 | `media.js` | Flux par pair (micro / écran), volume des voix, actions M / N / partage |

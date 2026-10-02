@@ -3,7 +3,7 @@
 import { initMic } from './audio.js';
 import { atTeacherDesk, boards } from './board.js';
 import { renderChat } from './chat.js';
-import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STEP_MS } from './config.js';
+import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STAMINA, STEP_MS } from './config.js';
 import { $, toast, typing } from './dom.js';
 import { clearEmoteOnMove } from './emotes.js';
 import { onZoneChange } from './hud.js';
@@ -19,7 +19,30 @@ import { LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearLectern, 
 // ============================================================
 // On peut traverser les gens : seuls les murs et le mobilier bloquent
 const canWalk = (x, y) => !isBlocked(x, y);
-export const myStepMs = () => (S.me.crouch ? CROUCH_MS : S.sprinting ? SPRINT_MS : STEP_MS);
+// Course : Maj maintenue, et pas essoufflé·e
+const running = () => S.sprinting && !S.exhausted && !S.me.crouch;
+export const myStepMs = () => (S.me.crouch ? CROUCH_MS : running() ? SPRINT_MS : STEP_MS);
+
+// Endurance : chaque pas de course en consomme, elle remonte quand on ne court plus
+let lastRegenAt = 0;
+let lastStepAt = 0;
+function regenStamina(now) {
+  const dt = lastRegenAt ? Math.min(now - lastRegenAt, 250) : 0;
+  lastRegenAt = now;
+  if (now - S.lastSprintAt < STAMINA.regenDelay) return;
+  const walking = now - lastStepAt < 2 * STEP_MS; // on reprend son souffle moins vite en marchant
+  const rate = STAMINA.regenPerS * (walking ? STAMINA.walkRegenFactor : 1);
+  S.stamina = Math.min(STAMINA.max, S.stamina + (rate * dt) / 1000);
+  if (S.exhausted && S.stamina >= STAMINA.recoverAt) S.exhausted = false;
+}
+function spendStamina(now) {
+  S.lastSprintAt = now;
+  S.stamina = Math.max(0, S.stamina - STAMINA.sprintCost);
+  if (S.stamina === 0 && !S.exhausted) {
+    S.exhausted = true;
+    toast('😮‍💨 Essoufflé·e : reprenez votre souffle avant de recourir');
+  }
+}
 
 export function sendMove(extra) {
   broadcast('move', { x: S.me.x, y: S.me.y, dir: S.me.dir, seated: !!S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, ...extra });
@@ -52,6 +75,7 @@ export function bfs(sx, sy, tx, ty) {
 
 // Appelé à chaque frame : avance d'une case (clavier ou trajet) quand c'est l'heure
 export function step(now) {
+  regenStamina(now);
   if (now < S.nextStepAt || S.warp) return;
   let dir = typing() ? null : heldDir();
   if (dir) S.path = null;
@@ -74,6 +98,8 @@ export function step(now) {
   S.me.x = nx; S.me.y = ny;
   clearEmoteOnMove();
   if (S.path) S.path.shift();
+  if (running()) spendStamina(now);
+  lastStepAt = now;
   S.nextStepAt = now + myStepMs();
   // Arrivé sur la chaise cliquée : on s'assoit
   if (S.sitTarget && !S.path?.length && S.sitTarget[0] === nx && S.sitTarget[1] === ny && !chairBusy(nx, ny)) {

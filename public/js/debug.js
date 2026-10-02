@@ -21,6 +21,7 @@ export function initDebug() {
     get path() { return S.path; },
     get warp() { return S.warp; },
     get cam() { return S.cam; },
+    get stamina() { return { value: S.stamina, exhausted: S.exhausted }; },
     walkTo: (x, y) => (S.path = bfs(S.me.x, S.me.y, x, y)),
     place: (x, y) => { S.me.x = S.me.rx = x; S.me.y = S.me.ry = y; sendMove(); onMyMove(); },
     sitOn: (x, y) => sitOn(x, y),

@@ -190,6 +190,36 @@ const scenarios = {
     t.check(!!(await seen(c, 'Alice')), 'Chloé voit toujours Alice');
   },
 
+  async 'fatigue'(t) {
+    const a = await join(t, 'Alice');
+    await place(a, 17, 10);
+    await wait(300);
+    const st = () => a.evaluate(() => rt.stamina);
+    // Course d'un bout à l'autre du couloir, puis retour : l'endurance s'épuise
+    await a.keyboard.down('Shift');
+    await a.keyboard.down('ArrowRight'); await wait(3200); await a.keyboard.up('ArrowRight');
+    const half = await st();
+    t.check(half.value < 60 && !half.exhausted, `courir vide l'endurance (${Math.round(half.value)} après un aller)`);
+    // Retour : on guette l'essoufflement pendant la course
+    await a.keyboard.down('ArrowLeft');
+    const out = await a.evaluate(() => new Promise((res) => {
+      const t0 = performance.now();
+      const tick = () => (rt.stamina.exhausted ? res(true) : performance.now() - t0 > 3500 ? res(false) : setTimeout(tick, 50));
+      tick();
+    }));
+    t.check(out, 'aller-retour en courant : essoufflé·e');
+    // Essoufflé·e : Maj ne fait plus courir (un pas de marche dure 140 ms au lieu de 65)
+    const x0 = (await me(a)).x;
+    await wait(1000);
+    const moved = x0 - (await me(a)).x;
+    await a.keyboard.up('ArrowLeft');
+    t.check(moved > 0 && moved <= 8, `essoufflé·e : on marche au lieu de courir (${moved} cases en 1 s)`);
+    await a.keyboard.up('Shift');
+    await wait(3000);
+    const rest = await st();
+    t.check(!rest.exhausted && rest.value >= 40, `au repos : souffle repris (${Math.round(rest.value)})`);
+  },
+
   async 'toucher sur mobile'(t) {
     // Sur écran tactile, toucher la carte déplace toujours le personnage (pas de clavier)
     const m = await join(t, 'Mobile', { viewport: { width: 390, height: 780, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } });

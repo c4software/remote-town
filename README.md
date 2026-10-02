@@ -43,7 +43,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | Touche | Action |
 | --- | --- |
 | Flèches / WASD (ZQSD en AZERTY) | Se déplacer (sur ordinateur, au clavier uniquement ; sur mobile, en touchant la carte) |
-| `Maj` maintenu | Courir |
+| `Maj` maintenu | Courir, dans la limite de son endurance : une jauge sous les pieds se vide en courant (~4 s) ; essoufflé·e, on ne peut plus courir avant d'avoir repris son souffle (plus vite à l'arrêt qu'en marchant) |
 | `Espace` | Dash : bond de 3 cases, avec traînée |
 | `E` (sur mobile : toucher une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
 | `J` (au pupitre) | Jingle d'annonce : un carillon joué chez tout le monde |

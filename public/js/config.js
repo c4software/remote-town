@@ -5,6 +5,10 @@ import { MAP_H, MAP_W, TILE } from './world.js';
 export const STEP_MS = 140;      // durée d'un pas
 export const SPRINT_MS = 65;     // Maj maintenu : courir
 export const CROUCH_MS = 260;    // C : accroupi, on avance à pas de loup
+// Fatigue : courir vide l'endurance (~4 s de course) ; on la récupère à l'arrêt (~4 s), deux
+// fois moins vite en marchant. À zéro, essoufflé·e : plus de course avant d'être remonté·e à
+// recoverAt.
+export const STAMINA = { max: 100, sprintCost: 1.6, regenPerS: 25, walkRegenFactor: 0.5, regenDelay: 600, recoverAt: 40 };
 export const DASH_TILES = 3;     // Espace : bond de 3 cases
 export const DASH_COOLDOWN = 450;
 export const TRAIL_MS = 260;     // durée de la traînée du dash
