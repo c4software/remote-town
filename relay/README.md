@@ -7,7 +7,7 @@ Relais Nostr minimal utilisé par Trystero pour la signalisation WebRTC (qui se 
 ## Fonctionnement
 
 - `server.mjs` : serveur HTTP + WebSocket (`ws`). Seul `/relay` accepte les WebSocket, et seulement depuis les pages listées dans la variable d'environnement `ALLOWED_ORIGINS` (origines séparées par des virgules, `:*` = n'importe quel port ; défaut : `https://distance.brosseau.ovh,https://c4software.github.io`). `/health` répond `ok`, et `/turn` une liste vide de serveurs TURN (l'application en demande au même service ; aucun TURN n'est hébergé ici). `POST /diag` reçoit le rapport du bouton « 🩺 Diagnostic » de l'application (texte brut) et l'écrit dans le journal, entre `===== DIAGNOSTIC <date> =====` et `===== FIN =====`.
-- Messages Nostr gérés : `REQ`, `EVENT`, `CLOSE` (ceux qu'utilise Trystero). Chaque événement est transmis aux abonnés dont le filtre correspond.
+- Messages Nostr gérés : `REQ`, `EVENT`, `CLOSE` (ceux qu'utilise Trystero). Chaque événement est transmis aux abonnés dont le filtre correspond. Les dates `since` / `until` des filtres sont **ignorées** : rien n'est stocké, et Trystero y met l'heure de l'ordinateur local ; une horloge en avance (53 s constatées) faisait filtrer toutes les réponses des autres, et la personne restait seule sans erreur.
 - Garde-fous : messages de 64 Ko au plus, 32 abonnements et 200 messages par seconde par connexion, connexions mortes fermées par ping toutes les 25 s.
 
 ## Sécurité

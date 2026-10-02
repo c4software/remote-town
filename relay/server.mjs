@@ -162,13 +162,15 @@ function send(ws, msg) {
 const precise = (f) => f && typeof f === 'object' && Array.isArray(f['#x']) && f['#x'].length > 0
   && f['#x'].length <= MAX_TOPICS && f['#x'].every((t) => typeof t === 'string' && t.length <= 128);
 
-// Filtre Nostr (NIP-01) : ids, authors, kinds, since, until et étiquettes « #x »
+// Filtre Nostr (NIP-01) : ids, authors, kinds et étiquettes « #x ».
+// since / until sont volontairement ignorés : rien n'est stocké, seuls des événements en
+// direct sont transmis, et Trystero met dans since l'heure de l'ordinateur local. Une
+// horloge en avance (53 s constatées) faisait filtrer toutes les réponses des autres : la
+// personne restait seule, sans erreur.
 export function matches(f, ev) {
   if (f.ids && !f.ids.includes(ev.id)) return false;
   if (f.authors && !f.authors.includes(ev.pubkey)) return false;
   if (f.kinds && !f.kinds.includes(ev.kind)) return false;
-  if (f.since && ev.created_at < f.since) return false;
-  if (f.until && ev.created_at > f.until) return false;
   for (const [key, values] of Object.entries(f)) {
     if (key[0] !== '#' || !Array.isArray(values)) continue;
     const tag = key.slice(1);
