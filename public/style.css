@@ -232,6 +232,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .r-emojis button { width: 42px; height: 42px; border-radius: 10px; font-size: 22px; display: grid; place-items: center; }
 .r-emojis button:hover { background: var(--panel-2); transform: scale(1.12); }
 #people .p-hand { font-size: 15px; line-height: 16px; }
+#people .p-link { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--panel-3); color: var(--muted); }
 
 /* ---------- Porte des espaces : changer d'espace de travail ---------- */
 #spaces { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px; background: rgba(10, 12, 28, .55); }

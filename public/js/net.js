@@ -4,7 +4,7 @@ import { pttReaches, walkieBeep } from './audio.js';
 import { lookBody, lookHead } from './avatar.js';
 import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
-import { APP_ID, COLOR, DIR_NAMES, RELAYS } from './config.js';
+import { APP_ID, COLOR, DIR_NAMES, NET_URL, RELAYS } from './config.js';
 import { $, toast } from './dom.js';
 import { cleanEmote } from './emotes.js';
 import { startApp } from './hud.js';
@@ -31,15 +31,48 @@ export function connect(name) {
   };
   users.set(S.myId, S.me);
   S.joinedAt = performance.now();
-  joinNet();
+  joinNet(); // identifiants TURN déjà demandés au clic (prepareIce dans profile.js)
   addEventListener('pagehide', () => S.room?.leave());
   watchConnection();
   startApp();
   firstArrival();
 }
 
+// ============================================================
+// Serveurs TURN : identifiants temporaires demandés au service réseau, gardés jusqu'à
+// peu avant leur expiration. Sans réponse, on se connecte sans TURN (comme avant).
+// ============================================================
+// Service réseau : NET_URL, ou ?net=… en mode ?debug (tests avec un service local)
+function netUrl() {
+  const q = new URLSearchParams(location.search);
+  return ((q.has('debug') && q.get('net')) || NET_URL).replace(/\/$/, '');
+}
+const relayUrls = () => (netUrl() ? [`${netUrl().replace(/^http/, 'ws')}/relay`, ...RELAYS] : RELAYS);
+
+let ice = null; // { servers, until }
+let iceLoading = null; // demande en cours (une seule à la fois)
+const validIce = (s) => s && (typeof s.urls === 'string' || Array.isArray(s.urls));
+export function prepareIce() {
+  if (!netUrl() || (ice && Date.now() < ice.until)) return Promise.resolve();
+  iceLoading ||= (async () => {
+    try {
+      const res = await fetch(`${netUrl()}/turn`, { signal: AbortSignal.timeout(4000) });
+      const d = await res.json();
+      const servers = (Array.isArray(d.iceServers) ? d.iceServers : [d.iceServers]).filter(validIce);
+      if (servers.length) ice = { servers, until: Date.now() + (Number(d.ttl) || 3600) * 1000 * 0.8 };
+    } catch {}
+    iceLoading = null;
+  })();
+  return iceLoading;
+}
+
+// ?relay : n'utiliser que le serveur TURN (pour vérifier qu'il fonctionne)
 function joinNet() {
-  S.room = S.tr.joinRoom({ appId: APP_ID, relayConfig: { urls: RELAYS } }, S.roomId);
+  const relayOnly = new URLSearchParams(location.search).has('relay');
+  S.room = S.tr.joinRoom({
+    appId: APP_ID, relayConfig: { urls: relayUrls() }, turnConfig: ice?.servers || [],
+    ...(relayOnly && { rtcConfig: { iceTransportPolicy: 'relay' } }),
+  }, S.roomId);
   S.net = {
     hello: S.room.makeAction('hello', { onMessage: onHello }),
     move: S.room.makeAction('move', { onMessage: onRemoteMove }),
@@ -97,6 +130,7 @@ export async function relaunch() {
   }
   relaysDownSince = 0;
   connected = true;
+  await prepareIce();
   joinNet();
   rejoining = false;
   btn.disabled = false;
@@ -111,6 +145,7 @@ export async function rejoin() {
   const old = S.room;
   S.room = null; S.net = null;
   await Promise.race([old.leave().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+  await prepareIce();
   joinNet();
   rejoining = false;
   updatePresence();
@@ -128,6 +163,7 @@ export async function switchRoom(id) {
   S.roomId = id;
   helloAsked.clear();
   aloneSince = 0;
+  await prepareIce();
   joinNet();
   rejoining = false;
   updatePresence();
@@ -148,12 +184,34 @@ function updatePresence() {
   if (!rejoining) $('#waitRetry').textContent = connected ? 'Relancer' : 'Relancer la connexion';
 }
 
+// Diagnostic affiché dans la liste des participants : la connexion avec chaque
+// personne est-elle directe, ou relayée par le serveur TURN ?
+let ticks = 0;
+async function checkLinks() {
+  for (const [id, pc] of Object.entries(S.room?.getPeers?.() || {})) {
+    const u = users.get(id);
+    if (!u || !pc?.getStats) continue;
+    try {
+      const stats = await pc.getStats();
+      let pair = null;
+      stats.forEach((s) => { if (s.type === 'transport' && s.selectedCandidatePairId) pair = stats.get(s.selectedCandidatePairId); });
+      if (!pair) stats.forEach((s) => { if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pair = s; });
+      if (!pair) continue;
+      const types = [stats.get(pair.localCandidateId)?.candidateType, stats.get(pair.remoteCandidateId)?.candidateType];
+      const link = types.includes('relay') ? 'relay' : 'direct';
+      if (u.link !== link) { u.link = link; renderPeople(); }
+    } catch {}
+  }
+}
+
 function watchConnection() {
   setInterval(() => {
     // Relais tous injoignables depuis plus de 8 s (le temps qu'ils s'ouvrent au démarrage)
     if (relaysUp()) relaysDownSince = 0;
     else if (!relaysDownSince) relaysDownSince = performance.now();
     connected = navigator.onLine && (!relaysDownSince || performance.now() - relaysDownSince < 8000);
+    if (ice && Date.now() > ice.until) prepareIce(); // pour les prochaines connexions
+    if (++ticks % 5 === 0) checkLinks();
     updatePresence();
     // Seul depuis un moment : on rejoint la salle (sans effet si elle est vraiment vide)
     if (users.size <= 1 && aloneSince && performance.now() - aloneSince > 8000 && performance.now() - lastRejoin > 30000) rejoin();

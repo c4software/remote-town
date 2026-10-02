@@ -37,7 +37,9 @@ export async function join(ctx, name, { viewport = { width: 1300, height: 820 },
   const page = await (await ctx.browser.createBrowserContext()).newPage();
   await page.setViewport(viewport);
   page.on('pageerror', (e) => ctx.errors.push(`${name} : ${e.message}`));
-  await page.goto(`${ctx.url}?debug&room=${ctx.room}`);
+  // NET=http://localhost:8787 : passer par un service réseau (worker/) lancé à part
+  const net = process.env.NET ? `&net=${encodeURIComponent(process.env.NET)}` : '';
+  await page.goto(`${ctx.url}?debug&room=${ctx.room}${net}`);
   await page.type('#nameInput', name);
   if (setup) await setup(page);
   await page.click('.btn-primary');

@@ -5,7 +5,7 @@ import { cleanBody, cleanHead, drawAvatar, lookBody, lookHead } from './avatar.j
 import { PALETTE } from './config.js';
 import { $ } from './dom.js';
 import { showHelp } from './hud.js';
-import { connect, profile } from './net.js';
+import { connect, prepareIce, profile } from './net.js';
 import { renderPeople } from './panel.js';
 import { canvas } from './render.js';
 import { cleanRoom, rememberSpace, roomName, roomUrl, shareLink } from './rooms.js';
@@ -211,7 +211,7 @@ export function initProfile() {
     rememberSpace(S.roomId);
     S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     // On attend que le cercle noir ait recouvert l'écran (et l'accord pour le micro)
-    await Promise.all([initMic(), new Promise((r) => setTimeout(r, 800))]);
+    await Promise.all([initMic(), prepareIce(), new Promise((r) => setTimeout(r, 800))]);
     connect(name);
   });
 }

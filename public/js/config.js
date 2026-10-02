@@ -24,18 +24,21 @@ export const COLOR = /^#[0-9a-f]{6}$/i; // validation des couleurs reçues du r�
 // --- Réseau pair-à-pair (Trystero : la signalisation WebRTC passe par des relais Nostr publics) ---
 export const APP_ID = 'remote-town-c4software';
 // Relais choisis pour leur fiabilité (la sélection automatique de Trystero
-// en incluait des morts ou lents, d'où des participants qui ne se voyaient pas)
+// en incluait des morts ou lents, d'où des participants qui ne se voyaient pas).
+// Retirés : offchain.pub et nostr.bitcoiner.social (comptes « de confiance » seulement),
+// relay.damus.io (nous bannit pour excès de requêtes), nos.lol et nostr.mom (exigent
+// une preuve de travail que Trystero ne fournit pas).
 export const RELAYS = [
-  'wss://nos.lol',
   'wss://relay.primal.net',
-  'wss://nostr.mom',
   'wss://nostr.oxtr.dev',
   'wss://relay.nostr.net',
   'wss://relay.snort.social',
-  'wss://relay.damus.io',
-  'wss://offchain.pub',
-  'wss://nostr.bitcoiner.social',
 ];
+// Notre service réseau (dossier worker/) : un relais de mise en relation sans quota par
+// adresse IP (placé avant les relais publics, qui restent en secours) et les identifiants
+// TURN (relais du son et de l'image quand la connexion directe est impossible).
+// Vide = relais publics seuls, sans TURN.
+export const NET_URL = '';
 
 // --- Clavier et directions ---
 export const DIRS = {

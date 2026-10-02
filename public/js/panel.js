@@ -42,6 +42,7 @@ export function renderPeople() {
     info.append(n, z);
     const icons = document.createElement('div'); icons.className = 'p-icons';
     icons.innerHTML = (u.emote ? `<span class="p-hand" title="${EMOTES.find((x) => x.id === u.emote).label}">${emoteIcon(u.emote)}</span>` : '')
+      + (u.link === 'relay' ? '<span class="p-link" title="Connexion relayée par le serveur TURN (connexion directe impossible)">relais</span>' : '')
       + (u.hand ? '<span class="p-hand">✋</span>' : '') + (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
     li.append(c, info, icons);
     if (u.isMe) { li.className = 'me-row'; li.title = 'Modifier mon personnage'; li.onclick = openProfile; }

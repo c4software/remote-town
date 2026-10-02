@@ -1,0 +1,15 @@
+# Service réseau de Remote Town : relais de mise en relation et identifiants TURN
+# (voir worker/README.md)
+name = "remote-town-net"
+main = "index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "Relay"
+
+# Offre gratuite : Durable Objects avec stockage SQLite (inutilisé ici, mais requis)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Relay"]
