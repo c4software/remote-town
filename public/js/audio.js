@@ -118,16 +118,17 @@ function toWav(buf) {
   pcm.forEach((v, i) => view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 0x7fff, true));
   return new Blob([view], { type: 'audio/wav' });
 }
-function chimeUrl(notes, volume) {
-  const key = `${notes}|${volume}`;
+// Son rendu une seule fois (au premier usage : quelques millisecondes) → URL d'un WAV
+function rendered(key, seconds, build) {
   if (!chimes.has(key)) {
-    const rate = 44100, off = new OfflineAudioContext(1, Math.ceil(rate * ((notes.length - 1) * NOTE_GAP + NOTE_LEN)), rate);
-    scheduleChime(off, notes, volume, 0);
-    // Rendu au premier carillon : quelques millisecondes
+    const rate = 44100, off = new OfflineAudioContext(1, Math.ceil(rate * seconds), rate);
+    build(off);
     chimes.set(key, off.startRendering().then((buf) => URL.createObjectURL(toWav(buf))));
   }
   return chimes.get(key);
 }
+const chimeUrl = (notes, volume) =>
+  rendered(`${notes}|${volume}`, (notes.length - 1) * NOTE_GAP + NOTE_LEN, (off) => scheduleChime(off, notes, volume, 0));
 export function chime(notes, volume) {
   chimeUrl(notes, volume)
     .then((url) => new Audio(url).play())
@@ -136,6 +137,60 @@ export function chime(notes, volume) {
       S.audioCtx.resume?.();
       scheduleChime(S.audioCtx, notes, volume, S.audioCtx.currentTime + 0.02);
     });
+}
+
+// Musique de transition de la porte des espaces (~3,6 s, jouée seulement chez la
+// personne qui passe la porte) : souffle qui monte, nappe d'accord, arpège
+// ascendant façon harpe, souffle qui redescend et petite cloche à l'arrivée.
+const PORTAL_SECONDS = 3.6;
+function schedulePortalMusic(ac) {
+  const out = ac.createGain();
+  out.gain.value = 1.4; // pic ≈ 0,35 : audible sans couvrir les voix
+  out.connect(ac.destination);
+  const tone = (freq, at, len, amp, type = 'sine', attack = 0.01) => {
+    const osc = ac.createOscillator();
+    osc.type = type; osc.frequency.value = freq;
+    const env = ac.createGain();
+    env.gain.setValueAtTime(0, at);
+    env.gain.linearRampToValueAtTime(amp, at + attack);
+    env.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    osc.connect(env).connect(out);
+    osc.start(at); osc.stop(at + len + 0.05);
+  };
+  // Souffle : bruit filtré dont la fréquence balaie vers le haut, puis vers le bas
+  const whoosh = (at, len, from, to, amp) => {
+    const n = Math.floor(ac.sampleRate * len), buf = ac.createBuffer(1, n, ac.sampleRate), data = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const band = ac.createBiquadFilter(); band.type = 'bandpass'; band.Q.value = 1.2;
+    band.frequency.setValueAtTime(from, at); band.frequency.exponentialRampToValueAtTime(to, at + len);
+    const env = ac.createGain();
+    env.gain.setValueAtTime(0, at);
+    env.gain.linearRampToValueAtTime(amp, at + len * 0.6);
+    env.gain.linearRampToValueAtTime(0, at + len);
+    src.connect(band).connect(env).connect(out);
+    src.start(at);
+  };
+  whoosh(0, 1.0, 250, 3200, 0.22);
+  // Nappe : do majeur 7e (do, mi, sol, si), attaque lente
+  for (const f of [261.63, 329.63, 392, 493.88]) {
+    tone(f, 0.05, 3.2, 0.035, 'triangle', 0.5);
+    tone(f * 1.003, 0.05, 3.2, 0.025, 'sine', 0.5); // léger désaccord : nappe plus ample
+  }
+  // Arpège ascendant, puis quelques notes qui retombent
+  const arp = [523.25, 659.25, 783.99, 987.77, 1174.66, 1318.51, 1567.98, 2093];
+  arp.forEach((f, i) => { tone(f, 0.15 + i * 0.1, 0.9, 0.09); tone(f * 2, 0.15 + i * 0.1, 0.4, 0.02); });
+  [1567.98, 1318.51, 987.77].forEach((f, i) => tone(f, 1.25 + i * 0.13, 0.8, 0.06));
+  whoosh(1.9, 0.9, 3000, 500, 0.14);
+  // Arrivée : petite cloche (sol et do), avec ses harmoniques
+  for (const [f, at] of [[783.99, 2.3], [1046.5, 2.42]]) {
+    tone(f, at, 1.2, 0.12); tone(f * 2.01, at, 0.7, 0.04); tone(f * 3.02, at, 0.4, 0.015);
+  }
+}
+export function portalMusic() {
+  rendered('portal', PORTAL_SECONDS, schedulePortalMusic)
+    .then((url) => new Audio(url).play())
+    .catch(() => {}); // pas de musique plutôt qu'une erreur
 }
 
 // ============================================================

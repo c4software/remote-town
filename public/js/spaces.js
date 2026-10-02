@@ -2,6 +2,7 @@
 // la page. Fenêtre de choix (identifiant saisi ou espace enregistré), puis passage de la
 // porte animé : on y entre, l'écran se referme en cercle, on ressort dans l'autre espace,
 // même personne, même apparence.
+import { portalMusic } from './audio.js';
 import { chat, chatStore, renderChat } from './chat.js';
 import { $, toast } from './dom.js';
 import { pushState, setPtt, stopShare } from './media.js';
@@ -79,6 +80,7 @@ async function warp(id) {
   S.path = null; S.portalTarget = false;
   Object.assign(S.me, { x: PORTAL_SPOT[0], y: PORTAL_SPOT[1], dir: 'up', seated: false, crouch: false });
   sendMove();
+  portalMusic();
   S.warp = { phase: 'out', at: performance.now(), name: roomName(id) };
   await wait(OUT_MS);
   S.warp = { ...S.warp, phase: 'wait', at: performance.now() };
