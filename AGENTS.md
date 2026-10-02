@@ -20,6 +20,7 @@ Contraintes à respecter :
 public/index.html   structure de la page (écran du personnage, barre, panneaux)
 public/style.css    styles (variables CSS dans :root, sections commentées)
 public/js/main.js   point d'entrée
+relay/              relais de mise en relation auto-hébergé (Node + ws, Docker), voir relay/README.md
 ```
 
 Modules de `public/js/` :
@@ -62,6 +63,9 @@ Modules de `public/js/` :
 ## Modèle réseau
 
 - `net.js` rejoint une salle Trystero (`S.tr.joinRoom`) identifiée par `APP_ID` + nom de salle. Chaque participant est relié directement à tous les autres (maillage, pas d'hôte).
+- **Mise en relation (signalisation)** : notre relais Nostr (`relay/`, adresse `NET_URL` dans `config.js`) est placé en tête de la liste, suivi des relais publics `RELAYS` qui restent en secours (`relayUrls()` dans `net.js`) : si le nôtre est injoignable ou refuse, la connexion se fait quand même par eux. Le relais n'accepte que les pages de `NET_HOSTS` (variable `ALLOWED_ORIGINS` côté serveur) ; depuis une autre page, relais publics seuls. Il faut garder `NET_HOSTS` et `ALLOWED_ORIGINS` (`relay/server.mjs`, `relay/docker-compose.yml`) en cohérence.
+- **ICE** : `prepareIce()` demande `${netUrl()}/turn` (liste `iceServers`, repli silencieux), puis `iceServers()` y ajoute les STUN publics gratuits de `STUN_SERVERS` (`config.js`), le tout passé à Trystero dans `turnConfig`, concaténé à ses STUN par défaut. Pas de TURN pour l'instant (liaisons directes constatées) ; `/turn` renvoie une liste vide.
+- **Diagnostic** : badge « relais » dans la liste des participants quand une liaison passe par TURN (`checkLinks` dans `net.js`, `panel.js`) ; `?relay` force `iceTransportPolicy: 'relay'` pour vérifier un TURN ; `?net=https://…` avec `?debug` pointe vers un autre relais ; `NET=http://localhost:8090 npm run test:e2e -- connexion` fait passer les tests de bout en bout par un relais local (`cd relay && PORT=8090 ALLOWED_ORIGINS='http://localhost:*' node server.mjs`).
 - Actions Trystero (dans `joinNet`) et charge utile :
 
 | Action | Contenu | Envoyée |
@@ -124,3 +128,4 @@ npm run test:e2e -- tableau   # un seul scénario (filtre sur le nom)
 - **Places assises** : `MAP.chairs` contient les chaises et chaque case des canapés (`world.js`). Pour une place orientée vers le haut, le dossier est redessiné par-dessus la personne assise (`drawChairBack`), sinon elle semble assise dans le mauvais sens.
 - **Partage d'écran et tableau blanc** sont limités aux pièces (`canShareIn`, `boardZone`) ; le tableau ne s'ouvre qu'au bureau du prof (`TEACHER_AREAS` dans `board.js`).
 - **Historique du chat** : il n'existe que chez les participants connectés ; il disparaît quand la salle se vide.
+- **Relais Nostr publics** : certains refusent Trystero (preuve de travail exigée, « web of trust ») ou limitent par adresse IP (une salle pleine derrière le même réseau d'école dépassait leurs quotas : participants invisibles ou au compte-gouttes). D'où notre relais en tête et `RELAYS` réduit à ceux qui marchent ; avant d'en ajouter un, le tester avec plusieurs participants depuis la même IP.

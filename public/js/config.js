@@ -37,8 +37,14 @@ export const RELAYS = [
 // Notre relais de mise en relation (dossier relay/, auto-hébergé) : sans quota par adresse
 // IP, placé avant les relais publics, qui restent en secours. S'il fournit aussi /turn
 // (identifiants TURN temporaires), le son et l'image passent par un relais TURN quand la
-// connexion directe est impossible ; sinon on s'en passe. Vide = relais publics seuls.
-export const NET_URL = '';
+// connexion directe est impossible ; sinon on s'en passe. Utilisé seulement depuis les
+// pages de NET_HOSTS (le relais refuse les autres) ; ailleurs, relais publics seuls.
+export const NET_URL = 'https://relay.brosseau.ovh';
+export const NET_HOSTS = ['distance.brosseau.ovh', 'c4software.github.io'];
+// Serveurs STUN publics gratuits (sans identifiants) : secours pour trouver son adresse
+// publique quand /turn ne répond pas. Trystero en inclut déjà (Google et Cloudflare) ;
+// on déclare le nôtre explicitement pour ne pas dépendre de la liste interne du bundle.
+export const STUN_SERVERS = [{ urls: 'stun:stun.cloudflare.com:3478' }];
 
 // --- Clavier et directions ---
 export const DIRS = {

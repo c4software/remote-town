@@ -59,11 +59,11 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 
 ## Comment ça marche
 
-- La mise en relation WebRTC passe par des relais [Nostr](https://nostr.com) publics grâce à [Trystero](https://github.com/dmotz/trystero) (embarqué dans `public/vendor/`). Les relais ne voient que les messages de mise en relation (chiffrés), jamais l'audio, la vidéo ou le chat.
+- La mise en relation WebRTC passe par un relais [Nostr](https://nostr.com) grâce à [Trystero](https://github.com/dmotz/trystero) (embarqué dans `public/vendor/`) : le nôtre (dossier `relay/`, sans quota par adresse IP, pour les salles pleines derrière un même réseau), avec des relais publics en secours. Les relais ne voient que les messages de mise en relation (chiffrés), jamais l'audio, la vidéo ou le chat.
 - Chaque participant est connecté à tous les autres (maillage). Ça tient pour quelques dizaines de personnes.
 - Pour chaque pair, on envoie une copie de son micro et de son écran, activée ou coupée selon les règles de zone (`public/js/world.js`). Il n'y a pas de renégociation, donc `N` répond tout de suite.
 - Les règles sont appliquées par le navigateur de chacun : c'est fait pour une équipe de confiance, pas pour un espace public.
-- Derrière certains réseaux d'entreprise (NAT strict), un serveur TURN est nécessaire : à configurer via `turnConfig` dans l'appel `joinRoom` de `public/js/net.js`.
+- Pour trouver son adresse publique, l'app s'appuie sur des serveurs STUN gratuits (Google, Cloudflare). Derrière certains réseaux d'entreprise (NAT strict), un serveur TURN est nécessaire : l'app en demande au relais (`/turn`) et s'en passe s'il n'en fournit pas. Dans la liste des participants, un badge « relais » signale une liaison qui passe par TURN.
 
 ## Développement
 
@@ -89,7 +89,7 @@ public/
   js/
     main.js        point d'entrée : branche les modules, accès ?debug
     state.js       état partagé (S, users, keys, myIds)
-    config.js      constantes (vitesses, palettes, relais, clavier)
+    config.js      constantes (vitesses, palettes, relais, STUN, clavier)
     world.js       carte, zones, règles « qui entend / voit qui » (module pur)
     dom.js         utilitaires d'interface ($, toast…)
     avatar.js      dessin des personnages et accessoires
@@ -108,6 +108,7 @@ public/
     social.js      réactions, main levée, bulles
     board.js       tableau blanc
     videos.js      partages d'écran reçus, projection
+relay/             relais de mise en relation auto-hébergé (Node, Docker)
 tests/
   world.test.js    tests unitaires (npm test)
   e2e/             tests de bout en bout (npm run test:e2e)

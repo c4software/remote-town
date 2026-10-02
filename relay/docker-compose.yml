@@ -1,12 +1,15 @@
-# Relais Remote Town, derrière Nginx Proxy Manager (réseau Docker server_default).
-# Pas de port publié : le proxy joint le conteneur par son nom (remote-town-relay:8080).
+# Relais Remote Town, inclus dans ~/server/docker-compose.yml (services/remote-town-relay).
+# Pas de port publié : Nginx Proxy Manager le joint par son nom (remote-town-relay:8080)
+# sur le réseau du projet (server_default).
 services:
-  relay:
+  remote-town-relay:
     build: .
     container_name: remote-town-relay
     restart: unless-stopped
-    networks: [server_default]
-
-networks:
-  server_default:
-    external: true
+    environment:
+      - ALLOWED_ORIGINS=https://distance.brosseau.ovh,https://c4software.github.io
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "1"

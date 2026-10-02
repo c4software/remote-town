@@ -11,12 +11,11 @@ import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 
 const PORT = Number(process.env.PORT) || 8080;
-// Pages autorisées (le site publié, l'instance de l'équipe et le serveur de développement)
-const ALLOWED = [
-  /^https:\/\/c4software\.github\.io$/,
-  /^https:\/\/distance\.brosseau\.ovh$/,
-  /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
-];
+// Pages autorisées, séparées par des virgules ; « * » à la place du port = n'importe quel port
+// (tests en local : ALLOWED_ORIGINS=http://localhost:*)
+const ALLOWED = (process.env.ALLOWED_ORIGINS || 'https://distance.brosseau.ovh,https://c4software.github.io').split(',')
+  .map((o) => o.trim()).filter(Boolean)
+  .map((o) => new RegExp(`^${o.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/:\*$/, ':\\d+')}$`));
 const MAX_MESSAGE = 64 * 1024;
 const MAX_SUBS = 32;        // abonnements par connexion
 const MAX_RATE = 200;       // messages par seconde et par connexion (rafales d'offres à l'arrivée), au-delà : ignorés
@@ -26,6 +25,11 @@ const allowed = (origin) => ALLOWED.some((re) => re.test(origin || ''));
 
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
+  // L'application demande aussi des serveurs TURN au même service : aucun ici (liste vide)
+  if (req.url === '/turn' && allowed(req.headers.origin)) {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': req.headers.origin, Vary: 'Origin' });
+    return res.end(JSON.stringify({ iceServers: [] }));
+  }
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('Introuvable');
 });

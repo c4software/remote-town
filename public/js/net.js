@@ -4,7 +4,7 @@ import { pttReaches, walkieBeep } from './audio.js';
 import { lookBody, lookHead } from './avatar.js';
 import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
-import { APP_ID, COLOR, DIR_NAMES, NET_URL, RELAYS } from './config.js';
+import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, RELAYS, STUN_SERVERS } from './config.js';
 import { $, toast } from './dom.js';
 import { cleanEmote } from './emotes.js';
 import { startApp } from './hud.js';
@@ -42,10 +42,12 @@ export function connect(name) {
 // Serveurs TURN : identifiants temporaires demandés au service réseau, gardés jusqu'à
 // peu avant leur expiration. Sans réponse, on se connecte sans TURN (comme avant).
 // ============================================================
-// Service réseau : NET_URL, ou ?net=… en mode ?debug (tests avec un service local)
+// Service réseau : NET_URL depuis les pages de NET_HOSTS, ou ?net=… en mode ?debug
+// (tests avec un relais local)
 function netUrl() {
   const q = new URLSearchParams(location.search);
-  return ((q.has('debug') && q.get('net')) || NET_URL).replace(/\/$/, '');
+  if (q.has('debug') && q.get('net')) return q.get('net').replace(/\/$/, '');
+  return NET_HOSTS.includes(location.hostname) ? NET_URL.replace(/\/$/, '') : '';
 }
 const relayUrls = () => (netUrl() ? [`${netUrl().replace(/^http/, 'ws')}/relay`, ...RELAYS] : RELAYS);
 
@@ -66,11 +68,19 @@ export function prepareIce() {
   return iceLoading;
 }
 
+// Serveurs ICE passés à Trystero (ajoutés à ses STUN par défaut) : ceux de /turn, puis
+// nos STUN publics de secours s'ils n'y figurent pas déjà
+function iceServers() {
+  const got = ice?.servers || [];
+  const urls = new Set(got.flatMap((s) => s.urls));
+  return got.concat(STUN_SERVERS.filter((s) => !urls.has(s.urls)));
+}
+
 // ?relay : n'utiliser que le serveur TURN (pour vérifier qu'il fonctionne)
 function joinNet() {
   const relayOnly = new URLSearchParams(location.search).has('relay');
   S.room = S.tr.joinRoom({
-    appId: APP_ID, relayConfig: { urls: relayUrls() }, turnConfig: ice?.servers || [],
+    appId: APP_ID, relayConfig: { urls: relayUrls() }, turnConfig: iceServers(),
     ...(relayOnly && { rtcConfig: { iceTransportPolicy: 'relay' } }),
   }, S.roomId);
   S.net = {
