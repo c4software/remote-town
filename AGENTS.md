@@ -45,7 +45,7 @@ Modules de `public/js/` :
 | `panel.js` | Panneau latéral, liste des participants |
 | `chat.js` | Chat de zone et global, historique |
 | `social.js` | Réactions, main levée, bulles des mains levées, jingle du pupitre |
-| `spaces.js` | Porte des espaces (couloir) : fenêtre de choix, espaces enregistrés, passage animé d'un espace à l'autre |
+| `spaces.js` | Porte des espaces (couloir) : fenêtre de choix, espaces enregistrés, passage animé d'un espace à l'autre (`S.warp`), arrivée initiale par la porte (`firstArrival`), écriteau du nom de l'espace |
 | `emotes.js` | Émotes animées (travail, AFK…) : roue du clic droit, dessin au-dessus du nom |
 | `board.js` | Tableau blanc (classe, bureau principal) |
 | `videos.js` | Partages d'écran reçus, affichage en grand, projection |
@@ -77,6 +77,7 @@ Modules de `public/js/` :
 
 - **Médias** : pour chaque pair, on crée au besoin une copie (`clone()`) de notre piste micro / écran, ajoutée une seule fois (`addStream`), puis activée ou coupée (`enabled`) selon `sendsAudio` / `sendsVideo` (`applySenders` dans `media.js`). Pas de renégociation : `N` est instantané. `updateRouting()` recalcule tout après chaque déplacement ou changement d'état.
 - **Changement d'espace** : `switchRoom(id)` (porte du couloir, `spaces.js`) quitte la salle et en rejoint une autre avec le même identifiant de pair ; le chat de l'ancien espace est vidé.
+- **Arrivée** : tout le monde arrive devant la porte des espaces (`PORTAL_SPOT`). Au clic sur « Rejoindre l'espace », `profile.js` fait grandir le cercle noir `#cover` depuis le point cliqué et lance la musique (dans le geste de l'utilisateur, sinon le navigateur bloque le son) ; `connect()` attend la fin du cercle, puis `firstArrival()` reprend le même écran noir sur le canevas, retire `#cover` et fait sortir le personnage de la porte.
 - **Reconnexion** : `rejoin()` (seul trop longtemps, retour du réseau) et `relaunch()` (bouton « Relancer la connexion », charge une instance neuve de Trystero). Les relais utilisés sont listés dans `config.js` (`RELAYS`).
 
 ## Recettes
@@ -102,6 +103,7 @@ npm run test:e2e -- tableau   # un seul scénario (filtre sur le nom)
 ```
 
 - Les tests de bout en bout (`tests/e2e/run.mjs`) démarrent leur propre serveur, ouvrent plusieurs Chrome avec un micro factice et pilotent les participants via `window.rt` (page ouverte avec `?debug`, voir `main.js`). Pour un nouveau comportement, ajouter un scénario ou une vérification `t.check(condition, 'libellé')`.
+- `join()` attend la fin de l'arrivée par la porte (`rt.warp` nul, ~2 s) : avant, la position serait écrasée par la sortie de la porte. Tout le monde arrivant devant la porte, éloigner un participant (`place`) si le scénario a besoin de cette case libre.
 - Ils passent par les relais Nostr publics : un échec de connexion ponctuel peut venir du réseau. Relancer avant de conclure.
 - Le micro factice émet un bip périodique : pour savoir si quelqu'un est entendu, utiliser `hears()` (niveau maximal sur ~2,4 s), pas une mesure instantanée.
 - Après une modification de `style.css`, vérifier que les accolades sont équilibrées : une accolade perdue dans un bloc `@media` a déjà rendu le panneau latéral invisible sur ordinateur (v1.19.0).
