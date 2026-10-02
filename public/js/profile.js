@@ -33,33 +33,40 @@ function savePrefs() {
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
-// Aperçu animé : le personnage marche sur place et fait un tour sur lui-même,
-// en restant surtout de face (les imprimés des t-shirts ne se voient que de face)
-const PREVIEW_TURN = [['down', 2400], ['left', 700], ['up', 700], ['right', 700]];
-const PREVIEW_CYCLE = PREVIEW_TURN.reduce((t, [, ms]) => t + ms, 0);
+// Aperçu : immobile et de face. Changer de vêtement lui fait faire un tour sur
+// lui-même, qui finit de face (les imprimés des t-shirts ne se voient que de face) ;
+// un clic le fait sauter.
+const TURN = [['left', 450], ['up', 450], ['right', 450], ['down', 450]];
+const TURN_MS = TURN.reduce((t, [, ms]) => t + ms, 0);
 const WALK = [1, 2]; // mêmes pas que sur la carte
+const HOP_MS = 380, HOP_HEIGHT = 5;
 const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-let previewLoop = 0;
+let turnAt = -Infinity, hopAt = -Infinity, previewLoop = 0;
 function previewPose(now) {
-  if (calm()) return { dir: 'down', step: 0 };
-  let t = now % PREVIEW_CYCLE;
-  const [dir] = PREVIEW_TURN.find(([, ms]) => (t -= ms) < 0);
-  return { dir, step: WALK[Math.floor(now / 200) % WALK.length] };
+  let t = now - turnAt;
+  const turning = t < TURN_MS;
+  const [dir] = turning ? TURN.find(([, ms]) => (t -= ms) < 0) : ['down'];
+  const k = (now - hopAt) / HOP_MS;
+  const lift = k < 1 ? Math.sin(Math.PI * k) * HOP_HEIGHT : 0;
+  return { dir, lift, step: turning ? WALK[Math.floor(now / 200) % WALK.length] : 0, busy: turning || k < 1 };
 }
+// Renvoie vrai tant qu'une animation est en cours
 function drawPreview() {
   const c = $('#preview'), g = c.getContext('2d');
-  const { dir, step } = previewPose(performance.now());
+  const { dir, step, lift, busy } = previewPose(performance.now());
   g.clearRect(0, 0, c.width, c.height);
-  g.save(); g.scale(3, 3); drawAvatar(g, look, 16, 37, dir, step); g.restore();
+  g.save(); g.scale(3, 3); drawAvatar(g, look, 16, 45, dir, step, false, lift); g.restore();
+  return busy;
 }
-// Tourne tant que l'écran du personnage est affiché, s'arrête tout seul ensuite
 function animatePreview() {
-  if ($('#join').hidden) { previewLoop = 0; return; }
-  drawPreview();
-  previewLoop = requestAnimationFrame(animatePreview);
+  previewLoop = drawPreview() && !$('#join').hidden ? requestAnimationFrame(animatePreview) : 0;
 }
-function startPreview() {
-  if (!previewLoop && !calm()) previewLoop = requestAnimationFrame(animatePreview);
+function playPreview(move) {
+  if (move === 'turn') {
+    if (calm()) return drawPreview();
+    turnAt = performance.now();
+  } else hopAt = performance.now();
+  if (!previewLoop) previewLoop = requestAnimationFrame(animatePreview);
 }
 
 // L'écran de connexion sert aussi à modifier son personnage une fois dans l'espace
@@ -86,7 +93,6 @@ export function openProfile() {
   $('#joinSubmit').textContent = 'Enregistrer';
   $('#profileActions').hidden = false;
   $('#join').hidden = false;
-  startPreview();
   $('#reactMenu').hidden = true;
   keys.clear();
 }
@@ -130,7 +136,8 @@ export function initProfile() {
       b.onclick = () => {
         look[part] = col;
         box.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
-        drawPreview();
+        if (part === 'shirt') playPreview('turn');
+        else drawPreview();
         savePrefs();
       };
       box.append(b);
@@ -151,13 +158,13 @@ export function initProfile() {
       b.onclick = () => {
         look[part] = clean(b.dataset.v);
         document.querySelectorAll(`#${part}Chips button`).forEach((x) => x.classList.toggle('sel', x === b));
-        drawPreview();
+        playPreview('turn');
         savePrefs();
       };
     });
   }
   drawPreview();
-  startPreview();
+  $('#preview').onclick = () => playPreview('hop');
   document.fonts?.ready.then(drawPreview);
   savePrefs(); // garde la couleur tirée au hasard dès la première visite
 
