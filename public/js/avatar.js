@@ -3,7 +3,7 @@
 import { shade } from './world.js';
 
 // Accessoires choisis sur l'écran de connexion : un pour la tête, un pour le corps
-const HEADS = ['unicorn', 'cap', 'shades', 'glasses', 'tophat', 'headphones', 'crown', 'beanie', 'partyhat', 'catears', 'flower'];
+const HEADS = ['unicorn', 'cap', 'shades', 'glasses', 'specs', 'tophat', 'headphones', 'crown', 'beanie', 'partyhat', 'catears', 'flower'];
 const BODIES = ['metal', 'claude', 'codex', 'linux', 'windows', 'macos', 'scarf', 'tie', 'bowtie', 'backpack', 'cape', 'medal'];
 export const cleanHead = (d) => (HEADS.includes(d) ? d : null);
 export const cleanBody = (d) => (BODIES.includes(d) ? d : null);
@@ -108,6 +108,12 @@ function drawMetalPrint(r, look, o) {
 
 // Accessoires de tête. top = haut des cheveux, o = décalage vertical (assis, accroupi…)
 // Repères : tête de x -7 à 6, yeux à y -24+o (face : x -4 et 2 ; profil : x -6 ou 4).
+// Monture arrondie 5×5 (sans les coins) et verre légèrement teinté, avec un reflet
+function roundLens(r, x, y, k) {
+  r(x + 1, y, 3, 1, k); r(x + 1, y + 4, 3, 1, k); r(x, y + 1, 1, 3, k); r(x + 4, y + 1, 1, 3, k);
+  r(x + 1, y + 1, 3, 3, 'rgba(214,236,255,.35)');
+  r(x + 1, y + 1, 1, 1, 'rgba(255,255,255,.8)');
+}
 const frame = (r, x, y, w, h, c) => { r(x, y, w, 1, c); r(x, y + h - 1, w, 1, c); r(x, y, 1, h, c); r(x + w - 1, y, 1, h, c); };
 // Accessoires qui dépassent au-dessus de la tête : on remonte l'étiquette du nom d'autant
 export const HAT_HEIGHT = { tophat: 8, crown: 5, unicorn: 6, partyhat: 10, beanie: 3, catears: 3 };
@@ -133,6 +139,13 @@ const HEAD_ACC = {
     if (dir === 'down') { frame(r, -5, y, 4, 5, k); frame(r, 1, y, 4, 5, k); r(-1, y + 1, 2, 1, k); }
     if (dir === 'left') { frame(r, -7, y, 4, 5, k); r(-3, y + 1, 7, 1, k); }
     if (dir === 'right') { frame(r, 3, y, 4, 5, k); r(-4, y + 1, 7, 1, k); }
+  },
+  // Lunettes de vue : monture fine, les yeux restent visibles derrière les verres
+  specs(r, dir, top, o) {
+    const k = '#33261d', y = -25 + o;
+    if (dir === 'down') { roundLens(r, -6, y, k); roundLens(r, 1, y, k); r(-2, y + 1, 3, 1, k); }
+    if (dir === 'left') { roundLens(r, -8, y, k); r(-4, y + 1, 8, 1, k); }
+    if (dir === 'right') { roundLens(r, 3, y, k); r(-5, y + 1, 8, 1, k); }
   },
   tophat(r, dir, top) {
     const k = '#1d1e30';

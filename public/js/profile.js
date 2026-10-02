@@ -33,10 +33,33 @@ function savePrefs() {
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
+// Aperçu animé : le personnage marche sur place et fait un tour sur lui-même,
+// en restant surtout de face (les imprimés des t-shirts ne se voient que de face)
+const PREVIEW_TURN = [['down', 2400], ['left', 700], ['up', 700], ['right', 700]];
+const PREVIEW_CYCLE = PREVIEW_TURN.reduce((t, [, ms]) => t + ms, 0);
+const WALK = [1, 2]; // mêmes pas que sur la carte
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+let previewLoop = 0;
+function previewPose(now) {
+  if (calm()) return { dir: 'down', step: 0 };
+  let t = now % PREVIEW_CYCLE;
+  const [dir] = PREVIEW_TURN.find(([, ms]) => (t -= ms) < 0);
+  return { dir, step: WALK[Math.floor(now / 200) % WALK.length] };
+}
 function drawPreview() {
   const c = $('#preview'), g = c.getContext('2d');
+  const { dir, step } = previewPose(performance.now());
   g.clearRect(0, 0, c.width, c.height);
-  g.save(); g.scale(3, 3); drawAvatar(g, look, 16, 37, 'down'); g.restore();
+  g.save(); g.scale(3, 3); drawAvatar(g, look, 16, 37, dir, step); g.restore();
+}
+// Tourne tant que l'écran du personnage est affiché, s'arrête tout seul ensuite
+function animatePreview() {
+  if ($('#join').hidden) { previewLoop = 0; return; }
+  drawPreview();
+  previewLoop = requestAnimationFrame(animatePreview);
+}
+function startPreview() {
+  if (!previewLoop && !calm()) previewLoop = requestAnimationFrame(animatePreview);
 }
 
 // L'écran de connexion sert aussi à modifier son personnage une fois dans l'espace
@@ -63,6 +86,7 @@ export function openProfile() {
   $('#joinSubmit').textContent = 'Enregistrer';
   $('#profileActions').hidden = false;
   $('#join').hidden = false;
+  startPreview();
   $('#reactMenu').hidden = true;
   keys.clear();
 }
@@ -133,6 +157,7 @@ export function initProfile() {
     });
   }
   drawPreview();
+  startPreview();
   document.fonts?.ready.then(drawPreview);
   savePrefs(); // garde la couleur tirée au hasard dès la première visite
 
