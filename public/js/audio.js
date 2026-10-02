@@ -83,27 +83,59 @@ export function walkieBeep(kind, volume) {
   }
 }
 
-// Carillon : notes successives, sinusoïdes et deux harmoniques, envoyées directement
-// aux haut-parleurs (sans toucher au son des voix)
-export function chime(notes, volume) {
-  if (!S.audioCtx) return;
-  S.audioCtx.resume?.();
-  const t0 = S.audioCtx.currentTime + 0.02;
+// Carillon : notes successives, sinusoïdes et deux harmoniques. Rendu une fois
+// en WAV puis joué par un élément <audio>, comme les voix : il sort ainsi par le
+// même chemin qu'elles, quel que soit l'état du contexte Web Audio (suspendu,
+// resté sur une ancienne sortie…), et ne touche pas au son des voix.
+const NOTE_GAP = 0.32, NOTE_LEN = 1.35;
+const chimes = new Map();
+function scheduleChime(ac, notes, volume, t0) {
   notes.forEach((freq, i) => {
-    const at = t0 + i * 0.32;
+    const at = t0 + i * NOTE_GAP;
     for (const [mult, amp] of [[1, 1], [2, 0.25], [3, 0.08]]) {
-      const osc = S.audioCtx.createOscillator();
+      const osc = ac.createOscillator();
       osc.type = 'sine';
       osc.frequency.value = freq * mult;
-      const env = S.audioCtx.createGain();
+      const env = ac.createGain();
       env.gain.setValueAtTime(0, at);
       env.gain.linearRampToValueAtTime(volume * amp, at + 0.01);
-      env.gain.exponentialRampToValueAtTime(0.0001, at + 1.3);
-      osc.connect(env).connect(S.audioCtx.destination);
+      env.gain.exponentialRampToValueAtTime(0.0001, at + NOTE_LEN - 0.05);
+      osc.connect(env).connect(ac.destination);
       osc.start(at);
-      osc.stop(at + 1.35);
+      osc.stop(at + NOTE_LEN);
     }
   });
+}
+// AudioBuffer mono → fichier WAV 16 bits
+function toWav(buf) {
+  const pcm = buf.getChannelData(0), view = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const text = (at, str) => [...str].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)));
+  text(0, 'RIFF'); view.setUint32(4, 36 + pcm.length * 2, true); text(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, buf.sampleRate, true); view.setUint32(28, buf.sampleRate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  text(36, 'data'); view.setUint32(40, pcm.length * 2, true);
+  pcm.forEach((v, i) => view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 0x7fff, true));
+  return new Blob([view], { type: 'audio/wav' });
+}
+function chimeUrl(notes, volume) {
+  const key = `${notes}|${volume}`;
+  if (!chimes.has(key)) {
+    const rate = 44100, off = new OfflineAudioContext(1, Math.ceil(rate * ((notes.length - 1) * NOTE_GAP + NOTE_LEN)), rate);
+    scheduleChime(off, notes, volume, 0);
+    // Rendu au premier carillon : quelques millisecondes
+    chimes.set(key, off.startRendering().then((buf) => URL.createObjectURL(toWav(buf))));
+  }
+  return chimes.get(key);
+}
+export function chime(notes, volume) {
+  chimeUrl(notes, volume)
+    .then((url) => new Audio(url).play())
+    .catch(() => { // repli : directement par Web Audio
+      if (!S.audioCtx) return;
+      S.audioCtx.resume?.();
+      scheduleChime(S.audioCtx, notes, volume, S.audioCtx.currentTime + 0.02);
+    });
 }
 
 // ============================================================

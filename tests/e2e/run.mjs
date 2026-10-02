@@ -83,8 +83,21 @@ const scenarios = {
     t.check((await seen(b, 'Alice')).onAir, 'E près du pupitre : en direct');
     t.check(await hears(b, 'Alice'), 'entendu depuis le couloir');
     t.check(await b.$eval('#broadcast', (e) => !e.hidden), 'bandeau « en direct »');
+    // Compte les carillons réellement lus (fichier WAV joué par un élément <audio>)
+    const spyChime = (p) => p.evaluate(() => {
+      window.chimesPlayed = 0;
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () {
+        const r = play.call(this);
+        if (this.src.startsWith('blob:')) r.then(() => window.chimesPlayed++, () => {});
+        return r;
+      };
+    });
+    await spyChime(a); await spyChime(b);
     await a.keyboard.press('KeyJ');
     await wait(800);
+    t.check(await a.evaluate(() => window.chimesPlayed === 1), 'J au pupitre : Alice entend son propre jingle');
+    t.check(await b.evaluate(() => window.chimesPlayed === 1), 'J au pupitre : Bob entend le jingle');
     const jingleAt = () => b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').jingleAt || 0);
     const firstJingle = await jingleAt();
     t.check(firstJingle > 0, 'J au pupitre : Bob reçoit le jingle');

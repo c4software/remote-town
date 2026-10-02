@@ -53,7 +53,7 @@ export function onJingle(u) {
 }
 function playJingle(u) {
   const now = performance.now();
-  if (now - (u.jingleAt || 0) < JINGLE_GAP) return false;
+  if (now - (u.jingleAt ?? -Infinity) < JINGLE_GAP) return false;
   u.jingleAt = now;
   chime(JINGLE, 0.2);
   toast(u.isMe ? '🔔 Annonce : tout le monde entend le jingle' : `🔔 Annonce ${ofName(u.name)}`);
