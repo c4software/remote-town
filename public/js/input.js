@@ -4,6 +4,7 @@ import { $, toast, typing } from './dom.js';
 import { setPtt, toggleMic } from './media.js';
 import { bfs, chairBusy, dash, freeLecternSpot, interact, jump, sendMove, sitOn, startOnAir, stopOnAir, toggleCrouch } from './movement.js';
 import { showPanel } from './panel.js';
+import { togglePip } from './pip.js';
 import { closeProfile } from './profile.js';
 import { canvas } from './render.js';
 import { REACTIONS, sendJingle, sendReaction, setDab, setSixSeven, toggleHand } from './social.js';
@@ -57,6 +58,7 @@ export function initInput() {
     if (e.code === 'KeyH') { if (!e.repeat) toggleHand(); return; }
     if (e.code === 'KeyB') { if (!e.repeat) setDab(true); return; }
     if (e.code === 'KeyJ') { if (!e.repeat) sendJingle(); return; }
+    if (e.code === 'KeyP') { if (!e.repeat) togglePip(); return; }
     const n = /^(Digit|Numpad)([1-7])$/.exec(e.code);
     if (n) { if (!e.repeat) onDigit(n[2]); return; }
     if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }

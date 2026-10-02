@@ -112,16 +112,21 @@ export function loop(now) {
     }
     if (u.trail?.length) u.trail = u.trail.filter((g) => now - g.t < TRAIL_MS);
   }
-  if (now - lastLevels > 80) {
-    lastLevels = now;
-    S.me.level = isTransmitting(S.me) ? sampleLevel(S.localAnalyser) : 0;
-    for (const [id, L] of links) {
-      const u = users.get(id);
-      if (u) u.level = sendsAudio(u, S.me) ? sampleLevel(L.analyser) : 0;
-    }
-  }
+  sampleLevels(now);
   draw();
   requestAnimationFrame(loop);
+}
+
+// Niveaux des voix (halo vert) ; aussi appelée par la mini-carte (pip.js), car cette boucle
+// s'arrête quand l'onglet est caché
+export function sampleLevels(now) {
+  if (now - lastLevels <= 80) return;
+  lastLevels = now;
+  S.me.level = isTransmitting(S.me) ? sampleLevel(S.localAnalyser) : 0;
+  for (const [id, L] of links) {
+    const u = users.get(id);
+    if (u) u.level = sendsAudio(u, S.me) ? sampleLevel(L.analyser) : 0;
+  }
 }
 
 function draw() {

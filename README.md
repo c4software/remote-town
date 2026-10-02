@@ -58,6 +58,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `M` | Couper ou ouvrir le micro |
 | Clic droit sur une personne de la liste des participants (appui long sur mobile) | Régler son volume pour soi (curseur, ou couper) ; mémorisé, rappelé par un badge « 🔉 40 % » dans la liste |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
+| `P` | Mini-carte en incrustation (Chrome / Edge sur ordinateur) : toute la carte en petit, avec les participants, qui reste visible par-dessus les autres fenêtres. Elle s'ouvre aussi toute seule en changeant d'onglet (désactivable dans l'écran du personnage) |
 
 ## Comment ça marche
 

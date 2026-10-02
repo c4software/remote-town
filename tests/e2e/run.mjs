@@ -441,6 +441,25 @@ const scenarios = {
     t.check(await a.$eval('#waitDiag', (e) => e.offsetParent === null) && await a.$eval('#profileDiag', (e) => e.offsetParent === null), 'boutons Diagnostic masqués');
   },
 
+  async 'mini-carte'(t) {
+    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
+    await waitPeers([a, b]);
+    await place(b, 40, 11);
+    t.check(await a.evaluate(() => rt.pipOn), 'mini-carte activée par défaut');
+    await a.keyboard.press('KeyP');
+    await a.waitForFunction(() => documentPictureInPicture.window, { timeout: 5000 });
+    await wait(500);
+    const shot = await a.evaluate(() => documentPictureInPicture.window.document.querySelector('canvas').toDataURL());
+    t.check(shot.length > 5000, 'P ouvre la mini-carte, dessinée');
+    if (process.env.SHOT) (await import('node:fs')).writeFileSync(process.env.SHOT, Buffer.from(shot.split(',')[1], 'base64'));
+    await a.keyboard.press('KeyP');
+    await wait(300);
+    t.check(await a.evaluate(() => !documentPictureInPicture.window), 'P la referme');
+    await a.click('#mePill');
+    await a.click('#pipChips [data-pip="off"]');
+    t.check(await a.evaluate(() => !rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pip === false), 'désactivable dans le profil, mémorisé');
+  },
+
   async 'reconnexion'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);

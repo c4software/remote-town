@@ -52,6 +52,7 @@ Modules de `public/js/` :
 | `admin.js` | Modération : expulsion signée (clic droit dans la liste des participants, avec le jeton d'administration) |
 | `emotes.js` | Émotes animées (travail, AFK…) : roue du clic droit, dessin au-dessus du nom |
 | `board.js` | Tableau blanc (classe, bureau principal) |
+| `pip.js` | Mini-carte en incrustation (Document Picture-in-Picture) : `P`, ou automatique en changeant d'onglet (action Media Session `enterpictureinpicture`, que Chrome n'accorde qu'aux pages utilisant le micro) ; réglage `S.pipOn` (`rt-prefs`). Sa propre boucle `requestAnimationFrame` (celle de la page s'arrête onglet caché), positions `x, y` sans interpolation |
 | `videos.js` | Partages d'écran reçus, affichage en grand, projection |
 | `diag.js` | Bouton « 🩺 Diagnostic » : rapport texte sur la connexion (page, navigateur, relais, liaisons par pair, test ICE, console Trystero), sans adresse IP, copié et envoyé à notre relais (`POST /diag`) |
 

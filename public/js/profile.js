@@ -9,6 +9,7 @@ import { showHelp } from './hud.js';
 import { switchMic } from './media.js';
 import { connect, prepareIce, profile } from './net.js';
 import { renderPeople } from './panel.js';
+import { setPipOn } from './pip.js';
 import { canvas } from './render.js';
 import { cleanRoom, rememberSpace, roomName, roomUrl, shareLink } from './rooms.js';
 import { S, keys, users } from './state.js';
@@ -31,7 +32,7 @@ const nameInput = $('#nameInput');
 const roomInput = $('#roomInput');
 function savePrefs() {
   try {
-    localStorage.setItem('rt-prefs', JSON.stringify({ name: cleanName(nameInput.value), look, room: roomInput.value.trim(), mic: S.micDevice }));
+    localStorage.setItem('rt-prefs', JSON.stringify({ name: cleanName(nameInput.value), look, room: roomInput.value.trim(), mic: S.micDevice, pip: S.pipOn }));
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
@@ -205,6 +206,13 @@ export function initProfile() {
   renderMics();
   $('#micSelect').addEventListener('change', onMicChange);
   navigator.mediaDevices?.addEventListener?.('devicechange', renderMics);
+  // Mini-carte (pip.js) : activée par défaut, seulement si le navigateur sait l'afficher
+  S.pipOn = prefs.pip !== false;
+  $('#pipField').hidden = !('documentPictureInPicture' in window);
+  const pipChips = document.querySelectorAll('#pipChips button');
+  const syncPip = () => pipChips.forEach((b) => b.classList.toggle('sel', (b.dataset.pip === 'on') === S.pipOn));
+  pipChips.forEach((b) => { b.onclick = () => { setPipOn(b.dataset.pip === 'on'); syncPip(); savePrefs(); }; });
+  syncPip();
   nameInput.value = prefs.name || '';
   roomInput.value = new URLSearchParams(location.search).get('room') ?? prefs.room ?? '';
   nameInput.addEventListener('input', savePrefs);
