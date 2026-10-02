@@ -206,7 +206,7 @@ export function initProfile() {
   renderMics();
   $('#micSelect').addEventListener('change', onMicChange);
   navigator.mediaDevices?.addEventListener?.('devicechange', renderMics);
-  // Mini-carte (pip.js) : activée par défaut, seulement si le navigateur sait l'afficher
+  // Vue en incrustation (pip.js) : activée par défaut, seulement si le navigateur sait l'afficher
   S.pipOn = prefs.pip !== false;
   $('#pipField').hidden = !('documentPictureInPicture' in window);
   const pipChips = document.querySelectorAll('#pipChips button');

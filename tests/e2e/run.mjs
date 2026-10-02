@@ -441,17 +441,27 @@ const scenarios = {
     t.check(await a.$eval('#waitDiag', (e) => e.offsetParent === null) && await a.$eval('#profileDiag', (e) => e.offsetParent === null), 'boutons Diagnostic masqués');
   },
 
-  async 'mini-carte'(t) {
+  async 'incrustation'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
-    await place(b, 40, 11);
-    t.check(await a.evaluate(() => rt.pipOn), 'mini-carte activée par défaut');
+    await place(b, 27, 10); // Bob s'approche : il doit apparaître dans la vue d'Alice
+    t.check(await a.evaluate(() => rt.pipOn), 'vue en incrustation activée par défaut');
     await a.keyboard.press('KeyP');
     await a.waitForFunction(() => documentPictureInPicture.window, { timeout: 5000 });
     await wait(500);
     const shot = await a.evaluate(() => documentPictureInPicture.window.document.querySelector('canvas').toDataURL());
-    t.check(shot.length > 5000, 'P ouvre la mini-carte, dessinée');
+    t.check(shot.length > 5000, 'P ouvre la vue en incrustation, dessinée');
     if (process.env.SHOT) (await import('node:fs')).writeFileSync(process.env.SHOT, Buffer.from(shot.split(',')[1], 'base64'));
+    // Onglet caché : la boucle de la page s'arrête, la vue doit continuer à suivre Bob
+    const other = await a.browserContext().newPage();
+    await other.bringToFront();
+    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
+    await place(b, 25, 11);
+    await a.waitForFunction(() => [...rt.users.values()].some((u) => u.name === 'Bob' && u.rx === 25 && u.ry === 11), { timeout: 10000 });
+    const shot2 = await a.evaluate(() => documentPictureInPicture.window.document.querySelector('canvas').toDataURL());
+    t.check(shot2 !== shot, 'onglet caché : la vue continue de suivre les déplacements');
+    await a.bringToFront();
+    await other.close();
     await a.keyboard.press('KeyP');
     await wait(300);
     t.check(await a.evaluate(() => !documentPictureInPicture.window), 'P la referme');

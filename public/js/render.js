@@ -92,6 +92,13 @@ function drawDashFx(u, now) {
 let lastT = performance.now();
 let lastLevels = 0;
 export function loop(now) {
+  frame(now);
+  requestAnimationFrame(loop);
+}
+
+// Une image : déplacements, niveaux des voix, dessin. Aussi appelée par la fenêtre
+// d'incrustation (pip.js) quand l'onglet est caché, car cette boucle s'arrête alors
+export function frame(now) {
   const dt = Math.min(100, now - lastT);
   lastT = now;
   step(now);
@@ -114,12 +121,10 @@ export function loop(now) {
   }
   sampleLevels(now);
   draw();
-  requestAnimationFrame(loop);
 }
 
-// Niveaux des voix (halo vert) ; aussi appelée par la mini-carte (pip.js), car cette boucle
-// s'arrête quand l'onglet est caché
-export function sampleLevels(now) {
+// Niveaux des voix (halo vert), au plus toutes les 80 ms
+function sampleLevels(now) {
   if (now - lastLevels <= 80) return;
   lastLevels = now;
   S.me.level = isTransmitting(S.me) ? sampleLevel(S.localAnalyser) : 0;
