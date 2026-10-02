@@ -7,7 +7,7 @@ import { drawChairBack } from './map-render.js';
 import { links } from './media.js';
 import { chairNearMe, myStepMs, step } from './movement.js';
 import { isTransmitting } from './panel.js';
-import { drawHandAndReactions } from './social.js';
+import { drawHandAndReactions, sixSevenPump } from './social.js';
 import { S, users } from './state.js';
 import { MAP, PROX_RADIUS, TILE, chairAt, isOnAir, nearLectern, sendsAudio, shade, sideBySide } from './world.js';
 
@@ -197,7 +197,7 @@ function draw() {
     const k = (now - hopAt) / HOP_MS;
     const lift = k < 1 ? Math.sin(Math.PI * k) * 4 : 0;
     const crouched = !!u.crouch && !chair;
-    drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched);
+    drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now));
     if (chair) drawChairBack(ctx, chair);
     if (u.ptt) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
     if (isOnAir(u)) drawSpeakerWaves(cx, by - 24, now);

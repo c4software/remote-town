@@ -199,7 +199,25 @@ function drawUnicornHeadband(r, dir, top) {
   });
 }
 
-export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0, crouch = false) {
+// « 67 » : paumes vers le ciel, les mains montent et descendent en alternance
+// comme une balance. Les mains vont de y -16 à -10 (épaules à -17).
+function drawPumpArms(r, dir, o, pump, dark, skin) {
+  const hand = (sx, palmX, a) => {
+    const hy = -13 + a + o;
+    r(sx, -17 + o, 2, hy + 17 - o, dark);
+    r(palmX, hy, 4, 2, skin);
+  };
+  if (dir === 'left' || dir === 'right') {
+    const ax = dir === 'left' ? -2 : -1;
+    hand(ax, dir === 'left' ? ax - 3 : ax + 1, pump);
+  } else {
+    hand(-9, -11, pump);
+    hand(7, 7, -pump);
+  }
+}
+
+// pump : décalage vertical des mains pendant le « 67 » (null = bras au repos)
+export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0, crouch = false, pump = null) {
   const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x), Math.round(by + y), w, h); };
   const sit = seated ? 4 : crouch ? 5 : 0;
   const bob = walkFrame ? -1 : 0;
@@ -224,7 +242,8 @@ export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seate
     r(-7, -4, 5, 3, '#2f3150'); r(2, -4, 5, 3, '#2f3150');
     r(-6, -1, 4, 1, '#1b1c2e'); r(2, -1, 4, 1, '#1b1c2e');
   }
-  if (dir === 'left' || dir === 'right') {
+  if (pump !== null) drawPumpArms(r, dir, o, pump, dark, look.skin);
+  else if (dir === 'left' || dir === 'right') {
     r(dir === 'left' ? -2 : -1, -16 + o, 3, 8, dark);
     r(dir === 'left' ? -2 : -1, -9 + o, 3, 2, look.skin);
   } else {

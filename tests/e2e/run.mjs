@@ -29,6 +29,23 @@ const scenarios = {
     t.check(Math.abs(pa.x - 45) + Math.abs(pa.y - 11) === 1, 'clic sur un participant : on le rejoint');
   },
 
+  async '67'(t) {
+    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
+    await waitPeers([a, b]);
+    const alice67 = () => b.evaluate(() => !![...rt.users.values()].find((u) => u.name === 'Alice').sixSeven);
+    await a.keyboard.down('Digit6'); await a.keyboard.down('Digit7');
+    await wait(1500);
+    t.check(await alice67(), '6 + 7 maintenus : Bob voit le « 67 » d\'Alice');
+    t.check(await a.evaluate(() => !rt.me.reacts?.length), '6 + 7 : pas de réaction 😮');
+    await a.keyboard.up('Digit7');
+    await wait(600);
+    t.check(!(await alice67()), 'touche relâchée : le « 67 » s\'arrête');
+    await a.keyboard.up('Digit6');
+    await a.keyboard.press('Digit6');
+    await wait(600);
+    t.check(await b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').reacts?.some((r) => r.e === '😮')), '6 seul : réaction 😮');
+  },
+
   async 'audio selon les zones'(t) {
     const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
     await waitPeers([a, b, c]);

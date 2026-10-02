@@ -16,6 +16,20 @@ export function addReaction(u, e) {
   u.reacts = [...(u.reacts || []), { e, t: performance.now() }].slice(-5);
 }
 
+// Easter egg « 67 » : tant que 6 et 7 sont maintenus ensemble, les mains
+// montent et descendent (état partagé comme le talkie, champ `six` de `state`)
+export function setSixSeven(on) {
+  if (!S.me || on === !!S.me.sixSeven) return;
+  S.me.sixSeven = on;
+  if (on) S.me.sixSevenAt = performance.now();
+  pushState();
+}
+
+// Décalage des mains pendant le « 67 », null en dehors
+export function sixSevenPump(u, now) {
+  return u.sixSeven ? Math.round(Math.sin((now - (u.sixSevenAt || 0)) / 70) * 3) : null;
+}
+
 export function sendReaction(e) {
   if (!S.me || !REACTIONS.includes(e) || performance.now() - lastReactAt < 250) return;
   lastReactAt = performance.now();
@@ -45,6 +59,13 @@ export function drawHandAndReactions(u, sx, top, now) {
     ctx.fillText('✋', 0, 0);
     ctx.restore();
     base -= 24;
+  }
+  const pump = sixSevenPump(u, now);
+  if (pump !== null) { // le 6 et le 7 suivent chacun une main
+    ctx.font = '20px sans-serif';
+    ctx.fillText('6️⃣', sx - 13, base + pump * 2);
+    ctx.fillText('7️⃣', sx + 13, base - pump * 2);
+    base -= 30;
   }
   if (u.reacts?.length) {
     u.reacts = u.reacts.filter((r) => now - r.t < REACT_MS);

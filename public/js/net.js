@@ -16,7 +16,7 @@ import { REACTIONS, addReaction } from './social.js';
 import { S, myIds, users } from './state.js';
 import { MAP, isBlocked, zoneAt } from './world.js';
 
-export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
+export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
 
 export function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
@@ -181,7 +181,8 @@ function onHello(d, { peerId }) {
   u.sitAt = Number(d?.sitAt) || 0;
   u.crouch = !!d?.crouch;
   if (d?.ask) S.net?.hello.send(profile(), { target: peerId }).catch(() => {});
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand });
+  if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six });
   users.set(peerId, u);
   resolveOverlap(u);
   if (!known) {
@@ -215,7 +216,8 @@ function onRemoteState(d, { peerId }) {
   const wasTalking = pttReaches(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand });
+  if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six });
   const talking = pttReaches(u);
   if (talking && !wasTalking) walkieBeep('start', 0.12);
   if (wasTalking && !talking) walkieBeep('end', 0.12);

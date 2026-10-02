@@ -6,7 +6,7 @@ import { bfs, chairBusy, dash, freeLecternSpot, interact, jump, sendMove, sitOn,
 import { showPanel } from './panel.js';
 import { closeProfile } from './profile.js';
 import { canvas } from './render.js';
-import { REACTIONS, sendReaction, toggleHand } from './social.js';
+import { REACTIONS, sendReaction, setSixSeven, toggleHand } from './social.js';
 import { S, keys } from './state.js';
 import { closeFocus } from './videos.js';
 import { LECTERN, TILE, chairAt } from './world.js';
@@ -14,6 +14,23 @@ import { LECTERN, TILE, chairAt } from './world.js';
 export function heldDir() {
   const order = ['up', 'down', 'left', 'right'];
   return [...keys].reverse().find((d) => order.includes(d));
+}
+
+// Easter egg « 67 » : 6 et 7 maintenus ensemble. Le 6 seul reste la réaction 😮,
+// envoyée avec un léger retard pour pouvoir l'annuler si le 7 suit.
+const CHORD_MS = 120;
+const digitsHeld = new Set();
+let pendingSix = null;
+
+function onDigit(d) {
+  digitsHeld.add(d);
+  const other = d === '6' ? '7' : d === '7' ? '6' : null;
+  if (other && digitsHeld.has(other)) {
+    clearTimeout(pendingSix); pendingSix = null;
+    setSixSeven(true);
+  } else if (d === '6') {
+    pendingSix = setTimeout(() => { pendingSix = null; sendReaction(REACTIONS[5]); }, CHORD_MS);
+  } else if (d !== '7') sendReaction(REACTIONS[d - 1]);
 }
 
 // Branchement des événements de la page (appelé une fois par main.js)
@@ -35,8 +52,8 @@ export function initInput() {
     if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
     if (e.code === 'KeyV') { if (!e.repeat) jump(); return; }
     if (e.code === 'KeyH') { if (!e.repeat) toggleHand(); return; }
-    const n = /^(Digit|Numpad)([1-6])$/.exec(e.code);
-    if (n) { if (!e.repeat) sendReaction(REACTIONS[n[2] - 1]); return; }
+    const n = /^(Digit|Numpad)([1-7])$/.exec(e.code);
+    if (n) { if (!e.repeat) onDigit(n[2]); return; }
     if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }
     if (DIRS[e.code]) {
       e.preventDefault();
@@ -48,9 +65,11 @@ export function initInput() {
     if (e.key === 'Shift') S.sprinting = false;
     if (e.code === 'Space' && !typing()) e.preventDefault(); // évite d'« appuyer » sur le bouton qui a le focus
     if (e.code === 'KeyN') setPtt(false);
+    const n = /^(Digit|Numpad)([1-7])$/.exec(e.code);
+    if (n) { digitsHeld.delete(n[2]); if (n[2] === '6' || n[2] === '7') setSixSeven(false); }
     if (DIRS[e.code]) keys.delete(DIRS[e.code]);
   });
-  addEventListener('blur', () => { keys.clear(); S.sprinting = false; if (S.me) setPtt(false); });
+  addEventListener('blur', () => { keys.clear(); digitsHeld.clear(); S.sprinting = false; if (S.me) { setPtt(false); setSixSeven(false); } });
   $('#chatInput').addEventListener('focus', () => keys.clear());
 
   canvas.addEventListener('click', (e) => {
