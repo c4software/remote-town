@@ -11,6 +11,12 @@ const scenarios = {
     await place(a, 30, 10);
     await wait(800);
     t.check((await seen(b, 'Alice')).x === 30, 'Bob voit Alice se déplacer');
+    // Sur ordinateur, un clic de souris sur la carte ne déplace pas (clavier uniquement)
+    const tile = (x, y) => a.evaluate(([x, y]) => ({ x: (x * 32 + 16 - rt.cam.x) * rt.cam.zoom, y: (y * 32 + 16 - rt.cam.y) * rt.cam.zoom }), [x, y]);
+    const far = await tile(34, 10);
+    await a.mouse.click(far.x, far.y);
+    await wait(1500);
+    t.check((await me(a)).x === 30, 'clic de souris sur la carte : pas de déplacement');
     await a.keyboard.press('KeyV');
     await wait(500);
     t.check(await b.evaluate(() => [...rt.users.values()].some((u) => u.name === 'Alice' && u.jumpAt > 0)), 'V : Bob voit Alice sauter');
@@ -159,6 +165,17 @@ const scenarios = {
     t.check(!(await seen(c, 'Bob')), 'Chloé ne voit plus Bob');
     t.check(!(await seen(a, 'Bob')), 'Alice ne voit plus Bob');
     t.check(!!(await seen(c, 'Alice')), 'Chloé voit toujours Alice');
+  },
+
+  async 'toucher sur mobile'(t) {
+    // Sur écran tactile, toucher la carte déplace toujours le personnage (pas de clavier)
+    const m = await join(t, 'Mobile', { viewport: { width: 390, height: 780, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } });
+    await place(m, 30, 10);
+    await wait(500);
+    const p = await m.evaluate(() => ({ x: (32 * 32 + 16 - rt.cam.x) * rt.cam.zoom, y: (10 * 32 + 16 - rt.cam.y) * rt.cam.zoom }));
+    await m.touchscreen.tap(p.x, p.y);
+    await pathDone(m);
+    t.check((await me(m)).x === 32, 'toucher la carte : on s\'y rend');
   },
 
   async 'pupitre'(t) {

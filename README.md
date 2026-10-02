@@ -12,7 +12,7 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 
 ## La carte
 
-- **Bureau principal** (à gauche) : le micro (`M`) et le partage d'écran sont partagés avec les personnes présentes dans la salle. Pour parler **à tout le monde**, où que les gens soient, on se place au **pupitre** avec `E` (ou un clic dessus) : la voix est alors diffusée à tous, avec un effet « haut-parleur » de sonorisation, et son partage d'écran apparaît chez chacun en petite fenêtre (PiP) : un clic l'agrandit. `E` à nouveau ou s'éloigner du pupitre rend la parole.
+- **Bureau principal** (à gauche) : le micro (`M`) et le partage d'écran sont partagés avec les personnes présentes dans la salle. Pour parler **à tout le monde**, où que les gens soient, on se place au **pupitre** avec `E` (ou en le touchant, sur mobile) : la voix est alors diffusée à tous, avec un effet « haut-parleur » de sonorisation, et son partage d'écran apparaît chez chacun en petite fenêtre (PiP) : un clic l'agrandit. `E` à nouveau ou s'éloigner du pupitre rend la parole.
 - **10 bureaux de 4 places** (table, 4 chaises) : le micro (`M`) et le partage d'écran (fonction native de Chrome) ne sont reçus que par les personnes **dans le même bureau**.
 - **Salle de classe** (au bout du couloir, 32 places) : micro et partage d'écran reçus par **toute la classe**.
 - **Tableau blanc** (salle de classe et bureau principal) : il s'ouvre uniquement depuis le **bureau du prof** (derrière le bureau de l'enseignant dans la classe, derrière le pupitre dans le bureau principal), avec le bouton tableau de la barre. La personne qui l'ouvre le pilote : elle seule dessine (couleurs, épaisseurs, gomme, tout effacer) et le ferme. Il s'affiche chez toutes les personnes de la pièce, y compris celles qui arrivent ensuite ; chacune peut le passer en **mode PiP** (petite fenêtre flottante, toujours à jour) tant qu'il est ouvert. Il se ferme quand le prof quitte la pièce.
@@ -26,7 +26,7 @@ Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans 
 
 À la connexion, on choisit le style (gars ou fille), les couleurs du haut, des cheveux et de la peau, et deux accessoires combinables : un pour la **tête** (🧢 casquette, 🧶 bonnet, 🎩 haut-de-forme, 🥳 chapeau de fête, 👑 couronne, 🦄 licorne, 🐱 oreilles de chat, 🌸 fleur, 🎧 casque audio, 👓 lunettes de vue, 🤓 grosses lunettes, 🕶️ lunettes de soleil) et un pour le **corps** (🤘 t-shirt metal, ✳️ t-shirt Claude, ⌨️ t-shirt Codex, 🐧 t-shirt Linux, 🪟 t-shirt Windows, 🍎 t-shirt macOS, 👔 cravate, 🎀 nœud papillon, 🧣 écharpe, 🏅 médaille, 🎒 sac à dos, 🦸 cape). On peut aussi choisir son **micro** (avec un indicateur de niveau pour vérifier qu'il capte) ; en cours de session, le changement est immédiat, sans couper la conversation. Tout est mémorisé dans le navigateur. Une fois dans l'espace, un clic sur son identité (en bas à gauche, ou sur sa ligne dans la liste des participants sur mobile) rouvre cet écran pour changer de nom ou d'apparence, ou réafficher l'aide.
 
-On s'assoit sur les chaises et sur les canapés du coin salon (`E` ou clic). On peut traverser les autres personnages, mais une place occupée est réservée : impossible de s'y asseoir à deux.
+On s'assoit sur les chaises et sur les canapés du coin salon (`E`, ou en les touchant sur mobile). On peut traverser les autres personnages, mais une place occupée est réservée : impossible de s'y asseoir à deux.
 
 ## Chat
 
@@ -42,13 +42,13 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 
 | Touche | Action |
 | --- | --- |
-| Flèches / WASD (ZQSD en AZERTY), clic | Se déplacer |
+| Flèches / WASD (ZQSD en AZERTY) | Se déplacer (sur ordinateur, au clavier uniquement ; sur mobile, en touchant la carte) |
 | `Maj` maintenu | Courir |
 | `Espace` | Dash : bond de 3 cases, avec traînée |
-| `E` (ou clic sur une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
+| `E` (sur mobile : toucher une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
 | `J` (au pupitre) | Jingle d'annonce : un carillon joué chez tout le monde |
 | Clic droit maintenu (appui long sur mobile) | Émote animée en boucle, choisie dans une roue : 💻 travail, ⏳ AFK, 😴 sieste, ☕ café, 🤔 réflexion. Se déplacer la retire, le centre de la roue aussi |
-| `E` devant la porte violette du couloir (ou clic dessus) | Changer d'espace de travail : saisir un identifiant ou choisir un espace enregistré. On passe la porte et on ressort dans l'autre espace, avec le même personnage |
+| `E` devant la porte violette du couloir (sur mobile : la toucher) | Changer d'espace de travail : saisir un identifiant ou choisir un espace enregistré. On passe la porte et on ressort dans l'autre espace, avec le même personnage |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `V` | Sauter |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |

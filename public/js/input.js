@@ -79,6 +79,9 @@ export function initInput() {
   canvas.addEventListener('click', (e) => {
     if (!S.me) return;
     document.activeElement?.blur();
+    // Sur ordinateur, on se déplace au clavier uniquement (E pour les chaises, le pupitre,
+    // la porte) ; le clic sur la carte ne déplace que sur écran tactile, faute de clavier
+    if (e.pointerType === 'mouse') return;
     const tx = Math.floor((e.clientX / S.cam.zoom + S.cam.x) / TILE);
     const ty = Math.floor((e.clientY / S.cam.zoom + S.cam.y) / TILE);
     S.airTarget = false; S.portalTarget = false;
