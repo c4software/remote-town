@@ -4,7 +4,7 @@ import { shade } from './world.js';
 
 // Accessoires choisis sur l'écran de connexion : un pour la tête, un pour le corps
 const HEADS = ['unicorn', 'cap', 'shades', 'glasses', 'tophat', 'headphones', 'crown', 'beanie', 'partyhat', 'catears', 'flower'];
-const BODIES = ['metal', 'scarf', 'tie', 'bowtie', 'backpack', 'cape', 'medal'];
+const BODIES = ['metal', 'claude', 'codex', 'scarf', 'tie', 'bowtie', 'backpack', 'cape', 'medal'];
 export const cleanHead = (d) => (HEADS.includes(d) ? d : null);
 export const cleanBody = (d) => (BODIES.includes(d) ? d : null);
 // Ancien format (un seul accessoire « deco ») : rangé dans la bonne catégorie
@@ -22,23 +22,55 @@ const METAL = [
   '.XXXXX.',
   '..XXX..',
 ];
-function drawMetalPrint(r, look, o) {
-  const light = parseInt(look.shirt.slice(1, 3), 16) > 200 && parseInt(look.shirt.slice(3, 5), 16) > 170;
-  const fill = light ? '#ffffff' : '#ffcf5c';
+// Logo Claude : l'étincelle orange à huit branches. C = orange, D = cœur plus sombre
+const CLAUDE = [
+  'C..C..C',
+  '.C.C.C.',
+  '..CDC..',
+  'CCDDDCC',
+  '..CDC..',
+  '.C.C.C.',
+  'C..C..C',
+];
+// Logo Codex : invite de terminal « >_ » blanche sur un pavé bleu-violet arrondi
+const CODEX = [
+  '.BBBBB.',
+  'BBBBBBB',
+  'BWBBBBB',
+  'BBWBBBB',
+  'BWBWWBB',
+  'BBBBBBB',
+  '.BBBBB.',
+];
+const PRINT_COLORS = { C: '#d97757', D: '#b85a3c', B: '#5b5bd6', W: '#ffffff' };
+
+// Imprimé centré sur le t-shirt, cerné d'un contour plus foncé que le t-shirt
+// pour rester lisible quelle que soit sa couleur
+function drawPrint(r, look, o, grid, colors) {
   const line = shade(look.shirt, -70);
-  const cell = (x, y) => METAL[y]?.[x] ?? '.';
+  const cell = (x, y) => grid[y]?.[x] ?? '.';
   const x0 = -3, y0 = -17 + o;
-  for (let y = -1; y <= METAL.length; y++) {
-    for (let x = -1; x <= METAL[0].length; x++) {
+  for (let y = -1; y <= grid.length; y++) {
+    for (let x = -1; x <= grid[0].length; x++) {
       if (cell(x, y) !== '.') continue;
-      const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => 'XK'.includes(cell(x + dx, y + dy)));
+      const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => colors[cell(x + dx, y + dy)]);
       if (near) r(x0 + x, y0 + y, 1, 1, line);
     }
   }
-  METAL.forEach((row, y) => [...row].forEach((c, x) => {
-    if (c === 'X') r(x0 + x, y0 + y, 1, 1, fill);
-    if (c === 'K') r(x0 + x, y0 + y, 1, 1, shade(fill, -50));
+  grid.forEach((row, y) => [...row].forEach((c, x) => {
+    if (colors[c]) r(x0 + x, y0 + y, 1, 1, colors[c]);
   }));
+}
+// Sur un t-shirt orangé, l'étincelle orange disparaîtrait : on la passe en blanc
+function drawClaudePrint(r, look, o) {
+  const [red, green, blue] = [1, 3, 5].map((i) => parseInt(look.shirt.slice(i, i + 2), 16));
+  const orange = red > 180 && green > 70 && green < 170 && blue < 130;
+  drawPrint(r, look, o, CLAUDE, orange ? { C: '#ffffff', D: '#ffe3d6' } : PRINT_COLORS);
+}
+function drawMetalPrint(r, look, o) {
+  const light = parseInt(look.shirt.slice(1, 3), 16) > 200 && parseInt(look.shirt.slice(3, 5), 16) > 170;
+  const fill = light ? '#ffffff' : '#ffcf5c';
+  drawPrint(r, look, o, METAL, { X: fill, K: shade(fill, -50) });
 }
 
 // Accessoires de tête. top = haut des cheveux, o = décalage vertical (assis, accroupi…)
@@ -118,6 +150,8 @@ const HEAD_ACC = {
 // Accessoires du corps : `back` est dessiné derrière le personnage, `front` devant
 const BODY_ACC = {
   metal: { front: (r, dir, o, look) => dir === 'down' && drawMetalPrint(r, look, o) },
+  claude: { front: (r, dir, o, look) => dir === 'down' && drawClaudePrint(r, look, o) },
+  codex: { front: (r, dir, o, look) => dir === 'down' && drawPrint(r, look, o, CODEX, PRINT_COLORS) },
   scarf: {
     front(r, dir, o) {
       const c = '#ef476f', w = '#fff3f5', y = -19 + o;
