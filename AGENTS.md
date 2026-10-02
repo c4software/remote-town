@@ -71,6 +71,7 @@ Modules de `public/js/` :
 | `history` | requête : `{ channel }` → liste de messages | en entrant dans une zone / à la connexion |
 | `wb` | tableau blanc : `open`, `seg`, `clear`, `close`, `sync` | par le propriétaire du tableau |
 | `react` | `{ e }` (emoji de la liste `REACTIONS`) | à tous |
+| `jingle` | `{}` (carillon d'annonce, joué seulement si l'auteur est au pupitre) | à tous, avec `J` au pupitre |
 
 - **Médias** : pour chaque pair, on crée au besoin une copie (`clone()`) de notre piste micro / écran, ajoutée une seule fois (`addStream`), puis activée ou coupée (`enabled`) selon `sendsAudio` / `sendsVideo` (`applySenders` dans `media.js`). Pas de renégociation : `N` est instantané. `updateRouting()` recalcule tout après chaque déplacement ou changement d'état.
 - **Reconnexion** : `rejoin()` (seul trop longtemps, retour du réseau) et `relaunch()` (bouton « Relancer la connexion », charge une instance neuve de Trystero). Les relais utilisés sont listés dans `config.js` (`RELAYS`).
@@ -113,7 +114,7 @@ npm run test:e2e -- tableau   # un seul scénario (filtre sur le nom)
 
 ## Pièges connus
 
-- **Audio** : ne pas faire passer tout l'audio par Web Audio ni utiliser la synthèse vocale pendant les échanges (une « annonce » carillon + voix a cassé le son et a été retirée). L'effet haut-parleur ne s'applique qu'à la voix diffusée depuis le pupitre, avec retour au son normal en cas de problème.
+- **Audio** : ne pas faire passer tout l'audio par Web Audio ni utiliser la synthèse vocale pendant les échanges (une « annonce » carillon + voix a cassé le son et a été retirée). Le carillon seul est sans risque (`chime` dans `audio.js`, oscillateurs envoyés directement aux haut-parleurs) : c'est le jingle `J` du pupitre. L'effet haut-parleur ne s'applique qu'à la voix diffusée depuis le pupitre, avec retour au son normal en cas de problème.
 - **Mobile** : pas de `getDisplayMedia` (bouton masqué) ; la barre du bas est déjà pleine ; l'aide clavier n'est utile que sur ordinateur.
 - **Places assises** : `MAP.chairs` contient les chaises et chaque case des canapés (`world.js`). Pour une place orientée vers le haut, le dossier est redessiné par-dessus la personne assise (`drawChairBack`), sinon elle semble assise dans le mauvais sens.
 - **Partage d'écran et tableau blanc** sont limités aux pièces (`canShareIn`, `boardZone`) ; le tableau ne s'ouvre qu'au bureau du prof (`TEACHER_AREAS` dans `board.js`).

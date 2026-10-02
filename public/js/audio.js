@@ -83,6 +83,29 @@ export function walkieBeep(kind, volume) {
   }
 }
 
+// Carillon : notes successives, sinusoïdes et deux harmoniques, envoyées directement
+// aux haut-parleurs (sans toucher au son des voix)
+export function chime(notes, volume) {
+  if (!S.audioCtx) return;
+  S.audioCtx.resume?.();
+  const t0 = S.audioCtx.currentTime + 0.02;
+  notes.forEach((freq, i) => {
+    const at = t0 + i * 0.32;
+    for (const [mult, amp] of [[1, 1], [2, 0.25], [3, 0.08]]) {
+      const osc = S.audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq * mult;
+      const env = S.audioCtx.createGain();
+      env.gain.setValueAtTime(0, at);
+      env.gain.linearRampToValueAtTime(volume * amp, at + 0.01);
+      env.gain.exponentialRampToValueAtTime(0.0001, at + 1.3);
+      osc.connect(env).connect(S.audioCtx.destination);
+      osc.start(at);
+      osc.stop(at + 1.35);
+    }
+  });
+}
+
 // ============================================================
 // Pupitre : effet « haut-parleur » sur la voix diffusée à tout le monde.
 // Seulement pendant la diffusion : la voix passe alors par Web Audio (filtre

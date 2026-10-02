@@ -1,12 +1,13 @@
 // Réactions (1 à 6), main levée (H) et bulles des mains levées en bas à droite.
 import { drawAvatar } from './avatar.js';
-import { $ } from './dom.js';
+import { chime } from './audio.js';
+import { $, ofName, toast } from './dom.js';
 import { pushState } from './media.js';
 import { goToUser } from './movement.js';
 import { broadcast } from './net.js';
 import { ctx } from './render.js';
 import { S, users } from './state.js';
-import { MAP } from './world.js';
+import { MAP, isOnAir } from './world.js';
 
 export const REACTIONS = ['👍', '❤️', '😂', '🎉', '👏', '😮'];
 const REACT_MS = 3000;
@@ -35,6 +36,28 @@ export function sendReaction(e) {
   lastReactAt = performance.now();
   addReaction(S.me, e);
   broadcast('react', { e });
+}
+
+// Jingle d'annonce (J) : seulement depuis le pupitre, joué chez tout le monde.
+// Juste le carillon : la voix de synthèse d'autrefois perturbait le son.
+const JINGLE = [523.25, 659.25, 783.99, 1046.5]; // do, mi, sol, do
+const JINGLE_GAP = 3000; // ms entre deux jingles d'une même personne (le carillon dure ~2,3 s)
+export function sendJingle() {
+  if (!S.me) return;
+  if (!isOnAir(S.me)) return toast("🔔 Le jingle d'annonce se joue depuis le pupitre (E)");
+  if (playJingle(S.me)) broadcast('jingle', {});
+}
+// Un jingle reçu n'est joué que si son auteur est bien au pupitre
+export function onJingle(u) {
+  if (isOnAir(u)) playJingle(u);
+}
+function playJingle(u) {
+  const now = performance.now();
+  if (now - (u.jingleAt || 0) < JINGLE_GAP) return false;
+  u.jingleAt = now;
+  chime(JINGLE, 0.2);
+  toast(u.isMe ? '🔔 Annonce : tout le monde entend le jingle' : `🔔 Annonce ${ofName(u.name)}`);
+  return true;
 }
 
 export function toggleHand() {

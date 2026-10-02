@@ -6,7 +6,7 @@ import { bfs, chairBusy, dash, freeLecternSpot, interact, jump, sendMove, sitOn,
 import { showPanel } from './panel.js';
 import { closeProfile } from './profile.js';
 import { canvas } from './render.js';
-import { REACTIONS, sendReaction, setSixSeven, toggleHand } from './social.js';
+import { REACTIONS, sendJingle, sendReaction, setSixSeven, toggleHand } from './social.js';
 import { S, keys } from './state.js';
 import { closeFocus } from './videos.js';
 import { LECTERN, TILE, chairAt } from './world.js';
@@ -52,6 +52,7 @@ export function initInput() {
     if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
     if (e.code === 'KeyV') { if (!e.repeat) jump(); return; }
     if (e.code === 'KeyH') { if (!e.repeat) toggleHand(); return; }
+    if (e.code === 'KeyJ') { if (!e.repeat) sendJingle(); return; }
     const n = /^(Digit|Numpad)([1-7])$/.exec(e.code);
     if (n) { if (!e.repeat) onDigit(n[2]); return; }
     if (e.key.toLowerCase() === 'm' && !e.repeat) { toggleMic(); return; }

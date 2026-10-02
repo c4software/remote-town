@@ -83,9 +83,19 @@ const scenarios = {
     t.check((await seen(b, 'Alice')).onAir, 'E près du pupitre : en direct');
     t.check(await hears(b, 'Alice'), 'entendu depuis le couloir');
     t.check(await b.$eval('#broadcast', (e) => !e.hidden), 'bandeau « en direct »');
+    await a.keyboard.press('KeyJ');
+    await wait(800);
+    const jingleAt = () => b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').jingleAt || 0);
+    const firstJingle = await jingleAt();
+    t.check(firstJingle > 0, 'J au pupitre : Bob reçoit le jingle');
+    t.check(await hears(b, 'Alice'), 'après le jingle, la voix passe toujours');
     await a.keyboard.down('ArrowLeft'); await wait(200); await a.keyboard.up('ArrowLeft');
     await wait(1000);
     t.check(!(await seen(b, 'Alice')).onAir, 's\'éloigner rend la parole');
+    await wait(2500); // passe le délai entre deux jingles
+    await a.keyboard.press('KeyJ');
+    await wait(800);
+    t.check(await jingleAt() === firstJingle, 'J loin du pupitre : pas de jingle');
   },
 
   async 'écran du pupitre'(t) {

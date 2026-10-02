@@ -12,7 +12,7 @@ import { resolveOverlap, startDash } from './movement.js';
 import { renderPeople } from './panel.js';
 import { look } from './profile.js';
 import { shareLink } from './rooms.js';
-import { REACTIONS, addReaction } from './social.js';
+import { REACTIONS, addReaction, onJingle } from './social.js';
 import { S, myIds, users } from './state.js';
 import { MAP, isBlocked, zoneAt } from './world.js';
 
@@ -45,6 +45,7 @@ function joinNet() {
     react: S.room.makeAction('react', {
       onMessage: (d, { peerId }) => { const u = users.get(peerId); if (u && REACTIONS.includes(d?.e)) addReaction(u, d.e); },
     }),
+    jingle: S.room.makeAction('jingle', { onMessage: (d, { peerId }) => users.has(peerId) && onJingle(users.get(peerId)) }),
     history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => chatStore.get(String(d?.channel)) || [] }),
   };
   S.room.onPeerJoin = (id) => { helloAsked.set(id, performance.now()); S.net.hello.send(profile(), { target: id }).catch(() => {}); };

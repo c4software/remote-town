@@ -45,6 +45,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `Maj` maintenu | Courir |
 | `Espace` | Dash : bond de 3 cases, avec traînée |
 | `E` (ou clic sur une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
+| `J` (au pupitre) | Jingle d'annonce : un carillon joué chez tout le monde |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `V` | Sauter |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |
