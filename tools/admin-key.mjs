@@ -1,8 +1,8 @@
 // Génère la clé d'administration de Remote Town (expulsion, voir public/js/admin.js).
 //   node tools/admin-key.mjs
 // - écrit la clé PUBLIQUE dans public/js/config.js (ADMIN_KEY), à commiter et publier ;
-// - affiche le JETON (clé privée) et le lien d'activation dans la console, sans l'écrire
-//   nulle part : à copier dans un gestionnaire de mots de passe, jamais dans le dépôt.
+// - affiche le JETON (clé privée), les étapes et le lien d'activation dans la console, sans
+//   l'écrire nulle part : à copier dans un gestionnaire de mots de passe, jamais dans le dépôt.
 // Relancer l'outil change de clé : l'ancien jeton ne fonctionne plus.
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -20,8 +20,17 @@ if (updated === config && !config.includes(line)) throw new Error('ADMIN_KEY int
 writeFileSync(CONFIG, updated);
 
 const token = Buffer.from(JSON.stringify({ x: priv.x, y: priv.y, d: priv.d })).toString('base64url');
-console.log('Clé publique écrite dans public/js/config.js : à commiter et publier.\n');
-console.log('Jeton d\'administration (à garder secret, ne le partager qu\'avec les administrateurs) :');
-console.log(`  ${token}\n`);
-console.log('Lien d\'activation, à ouvrir une fois dans chaque navigateur d\'administrateur :');
-console.log(`  ${SITE}#admin=${token}`);
+console.log(`Nouvelle clé d'administration générée.
+
+Jeton (secret : à garder dans un gestionnaire de mots de passe, à ne partager qu'avec
+les administrateurs, jamais dans le dépôt) :
+  ${token}
+
+Étapes :
+  1. Publier la clé publique, écrite dans public/js/config.js :
+       git add public/js/config.js && git commit -m "Nouvelle clé d'administration" && git push
+     Le nouveau jeton ne fonctionne qu'une fois le site publié (jusqu'à 10 min de cache
+     GitHub Pages) ; à ce moment-là, l'ancien jeton cesse de fonctionner.
+  2. Ouvrir une fois ce lien dans chaque navigateur d'administrateur :
+       ${SITE}#admin=${token}
+     Message attendu : « Jeton d'administration enregistré dans ce navigateur ».`);
