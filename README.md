@@ -58,7 +58,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `M` | Couper ou ouvrir le micro |
 | Clic droit sur une personne de la liste des participants (appui long sur mobile) | Régler son volume pour soi (curseur, ou couper) ; mémorisé, rappelé par un badge « 🔉 40 % » dans la liste |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
-| `P` | Vue en incrustation (Chrome / Edge sur ordinateur) : une petite fenêtre, par-dessus les autres, qui montre les alentours de son personnage pour voir qui s'approche. Elle s'ouvre aussi toute seule en changeant d'onglet (désactivable dans l'écran du personnage) |
+| `P` | Vue en incrustation (Chrome / Edge sur ordinateur) : une petite fenêtre, par-dessus les autres, qui montre les alentours de son personnage pour voir qui s'approche. Elle peut aussi s'ouvrir toute seule en changeant d'onglet (à activer dans l'écran du personnage) |
 
 ## Comment ça marche
 

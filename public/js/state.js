@@ -54,7 +54,7 @@ export const S = {
   mapCanvas: null,  // carte pré-rendue
   cam: { x: 0, y: 0, zoom: 2 },
   focusKey: null,   // partage d'écran affiché en grand
-  pipOn: true,      // vue en incrustation quand l'onglet est caché (pip.js), réglée dans l'écran du personnage
+  pipOn: false,     // vue en incrustation ouverte en changeant d'onglet (pip.js), réglée dans l'écran du personnage
   activePanel: 'chat',
   globalHistoryLoaded: false,
 };

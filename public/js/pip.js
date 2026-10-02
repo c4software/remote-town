@@ -1,7 +1,8 @@
 // Vue en incrustation (Document Picture-in-Picture, Chrome / Edge) : un petit morceau de la
 // carte autour de son personnage, pour voir qui s'approche depuis un autre onglet.
-// Ouverte automatiquement en changeant d'onglet (action « enterpictureinpicture » de Media
-// Session, réservée par Chrome aux pages qui utilisent le micro), ou avec P.
+// Ouverte avec P, ou automatiquement en changeant d'onglet si on l'a activé dans l'écran du
+// personnage (action « enterpictureinpicture » de Media Session, réservée par Chrome aux pages
+// qui utilisent le micro).
 import { toast } from './dom.js';
 import { canvas, frame } from './render.js';
 import { roomName } from './rooms.js';
@@ -40,7 +41,8 @@ function closePip() {
 async function openPip(isAuto) {
   if (win || !S.me || S.kicked) return;
   try {
-    win = await documentPictureInPicture.requestWindow({ width: 400, height: 300 });
+    // preferInitialWindowPlacement : toujours cette taille, sans reprendre celle de la dernière fois
+    win = await documentPictureInPicture.requestWindow({ width: 440, height: 390, preferInitialWindowPlacement: true });
   } catch { win = null; return; }
   auto = isAuto;
   const doc = win.document;

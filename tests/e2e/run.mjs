@@ -445,7 +445,7 @@ const scenarios = {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
     await place(b, 27, 10); // Bob s'approche : il doit apparaître dans la vue d'Alice
-    t.check(await a.evaluate(() => rt.pipOn), 'vue en incrustation activée par défaut');
+    t.check(await a.evaluate(() => !rt.pipOn), 'ouverture automatique désactivée par défaut');
     await a.keyboard.press('KeyP');
     await a.waitForFunction(() => documentPictureInPicture.window, { timeout: 5000 });
     await wait(500);
@@ -466,8 +466,10 @@ const scenarios = {
     await wait(300);
     t.check(await a.evaluate(() => !documentPictureInPicture.window), 'P la referme');
     await a.click('#mePill');
+    await a.click('#pipChips [data-pip="on"]');
+    t.check(await a.evaluate(() => rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === true), 'activable dans le profil, mémorisé');
     await a.click('#pipChips [data-pip="off"]');
-    t.check(await a.evaluate(() => !rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pip === false), 'désactivable dans le profil, mémorisé');
+    t.check(await a.evaluate(() => !rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === false), 'puis désactivable');
   },
 
   async 'reconnexion'(t) {

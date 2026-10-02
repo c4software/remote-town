@@ -32,7 +32,7 @@ const nameInput = $('#nameInput');
 const roomInput = $('#roomInput');
 function savePrefs() {
   try {
-    localStorage.setItem('rt-prefs', JSON.stringify({ name: cleanName(nameInput.value), look, room: roomInput.value.trim(), mic: S.micDevice, pip: S.pipOn }));
+    localStorage.setItem('rt-prefs', JSON.stringify({ name: cleanName(nameInput.value), look, room: roomInput.value.trim(), mic: S.micDevice, pipAuto: S.pipOn }));
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
@@ -206,8 +206,9 @@ export function initProfile() {
   renderMics();
   $('#micSelect').addEventListener('change', onMicChange);
   navigator.mediaDevices?.addEventListener?.('devicechange', renderMics);
-  // Vue en incrustation (pip.js) : activée par défaut, seulement si le navigateur sait l'afficher
-  S.pipOn = prefs.pip !== false;
+  // Vue en incrustation (pip.js) : désactivée par défaut, proposée seulement si le navigateur
+  // sait l'afficher. « pipAuto » et non plus « pip », enregistré activé par la v2.28.0
+  S.pipOn = prefs.pipAuto === true;
   $('#pipField').hidden = !('documentPictureInPicture' in window);
   const pipChips = document.querySelectorAll('#pipChips button');
   const syncPip = () => pipChips.forEach((b) => b.classList.toggle('sel', (b.dataset.pip === 'on') === S.pipOn));
