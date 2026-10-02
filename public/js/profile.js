@@ -4,14 +4,14 @@ import { banMinutesLeft } from './admin.js';
 import { initMic, portalMusic, sampleLevel } from './audio.js';
 import { cleanBody, cleanHead, drawAvatar, lookBody, lookHead } from './avatar.js';
 import { PALETTE } from './config.js';
-import { $, toast } from './dom.js';
+import { $, cleanName, sameName, toast } from './dom.js';
 import { showHelp } from './hud.js';
 import { switchMic } from './media.js';
 import { connect, prepareIce, profile } from './net.js';
 import { renderPeople } from './panel.js';
 import { canvas } from './render.js';
 import { cleanRoom, rememberSpace, roomName, roomUrl, shareLink } from './rooms.js';
-import { S, keys } from './state.js';
+import { S, keys, users } from './state.js';
 
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('rt-prefs')) || {}; } catch { return {}; } })();
 export const look = {
@@ -31,7 +31,7 @@ const nameInput = $('#nameInput');
 const roomInput = $('#roomInput');
 function savePrefs() {
   try {
-    localStorage.setItem('rt-prefs', JSON.stringify({ name: nameInput.value.trim(), look, room: roomInput.value.trim(), mic: S.micDevice }));
+    localStorage.setItem('rt-prefs', JSON.stringify({ name: cleanName(nameInput.value), look, room: roomInput.value.trim(), mic: S.micDevice }));
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
@@ -127,6 +127,7 @@ function meterMic() {
 export function openProfile() {
   if (!S.me) return;
   S.editingProfile = true;
+  $('#profileCancel').hidden = $('#profileHelp').hidden = false;
   Object.assign(look, S.me.look);
   nameInput.value = S.me.name;
   syncPickers();
@@ -141,7 +142,19 @@ export function openProfile() {
   keys.clear();
 }
 
+// Pseudo déjà pris dans l'espace (net.js) : l'écran du personnage s'ouvre et ne se ferme
+// qu'avec un pseudo libre (ni Annuler, ni Échap)
+export function forceRename(taken) {
+  if (S.renameForced) return;
+  S.renameForced = taken;
+  openProfile();
+  $('#joinSub').textContent = `Le pseudo « ${taken} » est déjà pris dans cet espace : choisissez-en un autre pour continuer.`;
+  $('#profileCancel').hidden = $('#profileHelp').hidden = true;
+  nameInput.focus(); nameInput.select();
+}
+
 export function closeProfile(restore = true) {
+  if (S.renameForced) return;
   if (restore) { Object.assign(look, S.me.look); nameInput.value = S.me.name; savePrefs(); }
   S.editingProfile = false;
   $('#join').hidden = true;
@@ -149,8 +162,16 @@ export function closeProfile(restore = true) {
 }
 
 function applyProfile() {
-  const name = nameInput.value.trim();
+  const name = cleanName(nameInput.value);
+  nameInput.value = name; // l'utilisateur voit le pseudo tel qu'il sera affiché
   if (!name) return nameInput.focus();
+  const clash = [...users.values()].find((u) => !u.isMe && sameName(u.name, name));
+  if (clash) {
+    toast(`Le pseudo « ${clash.name} » est déjà pris dans cet espace : choisissez-en un autre.`);
+    nameInput.focus(); nameInput.select();
+    return;
+  }
+  S.renameForced = null;
   S.me.name = name;
   S.me.look = { ...look };
   savePrefs();
@@ -242,7 +263,8 @@ export function initProfile() {
   $('#joinForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (S.editingProfile) return applyProfile();
-    const name = nameInput.value.trim();
+    const name = cleanName(nameInput.value);
+    nameInput.value = name; // l'utilisateur voit le pseudo tel qu'il sera affiché
     if (!name) return;
     savePrefs();
     const left = banMinutesLeft(cleanRoom(roomInput.value));

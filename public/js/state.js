@@ -16,6 +16,7 @@ export const S = {
   kicked: false,
   isAdmin: false,   // jeton d'administration vérifié (admin.js) : expulsion, ?debug sur le site publié    // expulsé·e de l'espace par un administrateur (admin.js) : plus de reconnexion
   editingProfile: false, // écran du personnage rouvert pendant la session
+  renameForced: null, // pseudo déjà pris dans l'espace : l'écran du personnage reste ouvert tant qu'il n'est pas changé
 
   // --- Réseau ---
   // Module Trystero courant : « Relancer la connexion » en charge une instance neuve,

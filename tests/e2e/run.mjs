@@ -190,6 +190,41 @@ const scenarios = {
     t.check(!!(await seen(c, 'Alice')), 'Chloé voit toujours Alice');
   },
 
+  async 'pseudos en double'(t) {
+    const a = await join(t, 'Alice');
+    await wait(1500); // Alice est bien la première arrivée
+    const b = await join(t, 'alice'); // même pseudo, autre casse
+    await waitPeers([a, b]);
+    await b.waitForFunction(() => !document.querySelector('#join').hidden, { timeout: 15000 }).catch(() => {});
+    const forced = () => b.evaluate(() => ({
+      open: !document.querySelector('#join').hidden,
+      cancel: !document.querySelector('#profileCancel').hidden,
+      text: document.querySelector('#joinSub').textContent,
+    }));
+    const f = await forced();
+    t.check(f.open && !f.cancel && f.text.includes('déjà pris'), 'le dernier arrivé doit changer de pseudo (pas d\'Annuler)');
+    t.check(await a.$eval('#join', (e) => e.hidden), 'la première arrivée garde son pseudo');
+    await b.keyboard.press('Escape');
+    await wait(300);
+    t.check((await forced()).open, 'Échap ne ferme pas l\'écran');
+    await b.$eval('#nameInput', (e) => { e.value = ''; });
+    await b.type('#nameInput', 'ALICE');
+    await b.click('#joinSubmit');
+    await wait(300);
+    t.check((await forced()).open, '« ALICE » refusé (casse non prise en compte)');
+    // Caractère invisible et espaces en trop : nettoyés, donc toujours un doublon
+    await b.$eval('#nameInput', (e) => { e.value = '  Al\u200Bice\u00A0 '; });
+    await b.click('#joinSubmit');
+    await wait(300);
+    t.check((await forced()).open && await b.$eval('#nameInput', (e) => e.value === 'Alice'), '« Al(invisible)ice » nettoyé en « Alice » et refusé');
+    await b.$eval('#nameInput', (e) => { e.value = ''; });
+    await b.type('#nameInput', 'Alice 2');
+    await b.click('#joinSubmit');
+    await wait(1200);
+    t.check(!(await forced()).open, 'pseudo libre accepté : l\'écran se ferme');
+    t.check(!!(await seen(a, 'Alice 2')), 'Alice voit « Alice 2 »');
+  },
+
   async 'fatigue'(t) {
     const a = await join(t, 'Alice');
     await place(a, 17, 10);

@@ -74,7 +74,7 @@ Modules de `public/js/` :
 
 | Action | Contenu | Envoyée |
 | --- | --- | --- |
-| `hello` | profil complet (`profile()`), `ask: true` pour demander le sien en retour | à chaque nouveau pair, et si un pair reste inconnu |
+| `hello` | profil complet (`profile()`, dont `age` : depuis combien de temps on est connecté), `ask: true` pour demander le sien en retour | à chaque nouveau pair, et si un pair reste inconnu |
 | `move` | `x, y, dir, seated, sitAt, crouch` (+ `dash`) | à chaque déplacement (`sendMove`) |
 | `state` | `mic, ptt, sharing, onAir, hand, six` (« 67 » : 6 + 7 maintenus), `dab` (B maintenu), `emote` (liste `EMOTES`) | à chaque changement (`pushState`) |
 | `chat` | `{ channel, msg }` | canal `global` à tous, canal de zone aux personnes de la zone |
@@ -85,6 +85,7 @@ Modules de `public/js/` :
 | `kick` | `{ target, ts, sig }` (expulsion signée, vérifiée par chacun) | à tous, par un administrateur |
 
 - **Volume par personne** : réglage personnel (0 à 1) par nom, mémorisé dans `rt-volumes` (`personalVolume` / `setPersonalVolume` dans `media.js`), multiplié au volume de distance du `N` sur l'élément `<audio>`, et appliqué au gain final de l'effet haut-parleur du pupitre (`L.fx.gain`, `audio.js`).
+- **Pseudos uniques par espace** : `cleanName()` (`dom.js`) nettoie tout pseudo saisi ou reçu (caractères invisibles et de contrôle retirés, blancs ramenés à une espace, `trim`, 24 caractères) ; `sameName()` compare sans la casse. À chaque `hello`, `checkNameClash()` (`net.js`) compare les durées de connexion (`age`, relatif : indépendant des horloges) : le dernier arrivé doit changer (`forceRename()` dans `profile.js`, écran du personnage sans Annuler ni Échap) ; à moins de 1,5 s d'écart, l'identifiant départage. `S.joinedAt` repart à zéro en changeant d'espace.
 - **Choix du micro** : `S.micDevice` (mémorisé dans `rt-prefs`, retour au micro par défaut s'il est débranché, dans `initMic`). En session, `switchMic()` (`media.js`) ouvre le nouveau micro puis remplace chaque copie envoyée (`S.room.replaceTrack`, même état actif / coupé), sans renégocier ; en cas d'échec, l'ancien micro est gardé.
 - **Médias** : pour chaque pair, on crée au besoin une copie (`clone()`) de notre piste micro / écran, ajoutée une seule fois (`addStream`), puis activée ou coupée (`enabled`) selon `sendsAudio` / `sendsVideo` (`applySenders` dans `media.js`). Pas de renégociation : `N` est instantané. `updateRouting()` recalcule tout après chaque déplacement ou changement d'état.
 - **Changement d'espace** : `switchRoom(id)` (porte du couloir, `spaces.js`) quitte la salle et en rejoint une autre avec le même identifiant de pair ; le chat de l'ancien espace est vidé.

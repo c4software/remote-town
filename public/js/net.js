@@ -6,20 +6,20 @@ import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
 import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, RELAYS, STUN_SERVERS } from './config.js';
 import { isBanned, onKick } from './admin.js';
-import { $, debugMode, toast } from './dom.js';
+import { $, cleanName, debugMode, sameName, toast } from './dom.js';
 import { cleanEmote } from './emotes.js';
 import { startApp } from './hud.js';
 import { closeLink, onPeerStream, updateRouting } from './media.js';
 import { resolveOverlap, startDash } from './movement.js';
 import { renderPeople } from './panel.js';
-import { look } from './profile.js';
+import { forceRename, look } from './profile.js';
 import { shareLink } from './rooms.js';
 import { REACTIONS, addReaction, onJingle } from './social.js';
 import { firstArrival } from './spaces.js';
 import { S, myIds, users } from './state.js';
 import { MAP, PORTAL_SPOT, isBlocked, zoneAt } from './world.js';
 
-export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, dab: !!S.me.dab, emote: S.me.emote || null, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
+export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, dab: !!S.me.dab, emote: S.me.emote || null, age: Math.round(performance.now() - S.joinedAt), mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
 
 // On arrive par la porte des espaces, comme en changeant d'espace (firstArrival)
 export function connect(name) {
@@ -177,6 +177,7 @@ export async function switchRoom(id) {
   S.room = null; S.net = null;
   await Promise.race([old?.leave().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
   S.roomId = id;
+  S.joinedAt = performance.now(); // nouvel arrivant dans cet espace (pseudos en double : checkNameClash)
   helloAsked.clear();
   aloneSince = 0;
   await prepareIce();
@@ -270,7 +271,7 @@ function onHello(d, { peerId }) {
   if (isBanned(peerId)) return dropPeer(peerId);
   const known = users.get(peerId);
   const u = known || { id: peerId, walk: 0, level: 0 };
-  u.name = String(d?.name || '').trim().slice(0, 24) || 'Invité';
+  u.name = cleanName(d?.name) || 'Invité';
   u.look = {
     shirt: COLOR.test(d?.look?.shirt) ? d.look.shirt : '#6c63ff',
     hair: COLOR.test(d?.look?.hair) ? d.look.hair : '#3b2a20',
@@ -289,6 +290,7 @@ function onHello(d, { peerId }) {
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab });
   receiveEmote(u, d?.emote);
   users.set(peerId, u);
+  checkNameClash(u, Number(d?.age));
   resolveOverlap(u);
   if (!known) {
     syncBoardsTo(peerId);
@@ -304,6 +306,18 @@ function receiveEmote(u, e) {
   e = cleanEmote(e);
   if (e !== (u.emote || null)) u.emoteAt = performance.now();
   u.emote = e;
+}
+
+
+// Pseudos uniques dans l'espace (sans tenir compte de la casse) : c'est le dernier arrivé qui
+// change. Chacun annonce depuis combien de temps il est connecté (age, durée relative : ne
+// dépend pas des horloges, parfois décalées) ; à peu près en même temps, l'identifiant départage.
+function checkNameClash(u, age) {
+  if (!S.me || !sameName(u.name, S.me.name)) return;
+  const mine = performance.now() - S.joinedAt;
+  const theirs = Number.isFinite(age) && age >= 0 ? age : 0;
+  const iAmNewer = Math.abs(mine - theirs) < 1500 ? S.myId > u.id : mine < theirs;
+  if (iAmNewer) forceRename(u.name);
 }
 
 function onRemoteMove(d, { peerId }) {

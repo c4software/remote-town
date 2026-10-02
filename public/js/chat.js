@@ -1,6 +1,6 @@
 // Chat : canal de la zone courante et canal « Tout le monde ».
 import { COLOR } from './config.js';
-import { $, toast } from './dom.js';
+import { $, cleanName, toast } from './dom.js';
 import { joinFromPanel } from './movement.js';
 import { S, myIds, users } from './state.js';
 import { MAP } from './world.js';
@@ -18,7 +18,7 @@ function cleanMsg(m) {
   const text = m.text.trim().slice(0, 1000);
   if (!text) return null;
   return {
-    id: m.id.slice(0, 80), from: String(m.from).slice(0, 40), name: String(m.name || 'Invité').slice(0, 24),
+    id: m.id.slice(0, 80), from: String(m.from).slice(0, 40), name: cleanName(m.name) || 'Invité',
     color: COLOR.test(m.color) ? m.color : '#6c63ff', text, ts: Number(m.ts) || Date.now(),
   };
 }
