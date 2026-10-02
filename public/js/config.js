@@ -34,10 +34,10 @@ export const RELAYS = [
   'wss://relay.nostr.net',
   'wss://relay.snort.social',
 ];
-// Notre service réseau (dossier worker/) : un relais de mise en relation sans quota par
-// adresse IP (placé avant les relais publics, qui restent en secours) et les identifiants
-// TURN (relais du son et de l'image quand la connexion directe est impossible).
-// Vide = relais publics seuls, sans TURN.
+// Notre relais de mise en relation (dossier relay/, auto-hébergé) : sans quota par adresse
+// IP, placé avant les relais publics, qui restent en secours. S'il fournit aussi /turn
+// (identifiants TURN temporaires), le son et l'image passent par un relais TURN quand la
+// connexion directe est impossible ; sinon on s'en passe. Vide = relais publics seuls.
 export const NET_URL = '';
 
 // --- Clavier et directions ---

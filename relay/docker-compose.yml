@@ -1,0 +1,12 @@
+# Relais Remote Town, derrière Nginx Proxy Manager (réseau Docker server_default).
+# Pas de port publié : le proxy joint le conteneur par son nom (remote-town-relay:8080).
+services:
+  relay:
+    build: .
+    container_name: remote-town-relay
+    restart: unless-stopped
+    networks: [server_default]
+
+networks:
+  server_default:
+    external: true

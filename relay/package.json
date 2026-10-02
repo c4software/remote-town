@@ -1,0 +1,14 @@
+{
+  "name": "remote-town-relay",
+  "version": "1.0.0",
+  "description": "Relais de mise en relation (Nostr minimal) pour Remote Town",
+  "type": "module",
+  "main": "server.mjs",
+  "private": true,
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
