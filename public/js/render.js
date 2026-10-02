@@ -1,6 +1,7 @@
 // Rendu de la scène à chaque frame : caméra, personnages, effets, étiquettes.
 import { sampleLevel } from './audio.js';
 import { HAT_HEIGHT, drawAvatar } from './avatar.js';
+import { drawEmote } from './emotes.js';
 import { CROUCH_MS, DELTA, HOP_MS, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './config.js';
 import { $, typing } from './dom.js';
 import { drawChairBack } from './map-render.js';
@@ -197,7 +198,11 @@ function draw() {
     const k = (now - hopAt) / HOP_MS;
     const lift = k < 1 ? Math.sin(Math.PI * k) * 4 : 0;
     const crouched = !!u.crouch && !chair;
-    drawAvatar(ctx, u.look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now));
+    // Sieste : yeux fermés ; AFK : personnage estompé
+    const look = u.emote === 'sleep' ? { ...u.look, face: 'sleep' } : u.look;
+    if (u.emote === 'afk') ctx.globalAlpha = 0.55;
+    drawAvatar(ctx, look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now));
+    ctx.globalAlpha = 1;
     if (chair) drawChairBack(ctx, chair);
     if (u.ptt) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
     if (isOnAir(u)) drawSpeakerWaves(cx, by - 24, now);
@@ -236,7 +241,7 @@ function draw() {
     }
     ctx.fillStyle = inRange || onAir ? '#10213a' : '#fff';
     ctx.fillText(label, ix + tw / 2 - 2, sy - h / 2 + 0.5);
-    drawHandAndReactions(u, sx, sy - h - 4, now);
+    drawHandAndReactions(u, sx, drawEmote(u, sx, sy - h - 2, now), now);
     ctx.font = '600 12px "DM Sans", sans-serif';
   }
   drawSitHint(zoom);

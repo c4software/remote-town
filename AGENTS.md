@@ -44,7 +44,8 @@ Modules de `public/js/` :
 | `hud.js` | Démarrage de l'app, changement de zone, barre du bas, aide |
 | `panel.js` | Panneau latéral, liste des participants |
 | `chat.js` | Chat de zone et global, historique |
-| `social.js` | Réactions, main levée, bulles des mains levées |
+| `social.js` | Réactions, main levée, bulles des mains levées, jingle du pupitre |
+| `emotes.js` | Émotes animées (travail, AFK…) : roue du clic droit, dessin au-dessus du nom |
 | `board.js` | Tableau blanc (classe, bureau principal) |
 | `videos.js` | Partages d'écran reçus, affichage en grand, projection |
 
@@ -66,7 +67,7 @@ Modules de `public/js/` :
 | --- | --- | --- |
 | `hello` | profil complet (`profile()`), `ask: true` pour demander le sien en retour | à chaque nouveau pair, et si un pair reste inconnu |
 | `move` | `x, y, dir, seated, sitAt, crouch` (+ `dash`) | à chaque déplacement (`sendMove`) |
-| `state` | `mic, ptt, sharing, onAir, hand, six` (« 67 » : 6 + 7 maintenus) | à chaque changement (`pushState`) |
+| `state` | `mic, ptt, sharing, onAir, hand, six` (« 67 » : 6 + 7 maintenus), `emote` (liste `EMOTES`) | à chaque changement (`pushState`) |
 | `chat` | `{ channel, msg }` | canal `global` à tous, canal de zone aux personnes de la zone |
 | `history` | requête : `{ channel }` → liste de messages | en entrant dans une zone / à la connexion |
 | `wb` | tableau blanc : `open`, `seg`, `clear`, `close`, `sync` | par le propriétaire du tableau |

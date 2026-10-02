@@ -13,10 +13,11 @@ import { renderPeople } from './panel.js';
 import { look } from './profile.js';
 import { shareLink } from './rooms.js';
 import { REACTIONS, addReaction, onJingle } from './social.js';
+import { cleanEmote } from './emotes.js';
 import { S, myIds, users } from './state.js';
 import { MAP, isBlocked, zoneAt } from './world.js';
 
-export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
+export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, emote: S.me.emote || null, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
 
 export function connect(name) {
   const [x, y] = MAP.spawns[Math.floor(Math.random() * MAP.spawns.length)];
@@ -184,6 +185,7 @@ function onHello(d, { peerId }) {
   if (d?.ask) S.net?.hello.send(profile(), { target: peerId }).catch(() => {});
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six });
+  receiveEmote(u, d?.emote);
   users.set(peerId, u);
   resolveOverlap(u);
   if (!known) {
@@ -193,6 +195,13 @@ function onHello(d, { peerId }) {
     if (u.zone === S.me.zone) fetchHistory(S.me.zone, [peerId]);
   }
   renderPeople(); updateRouting(); updatePresence();
+}
+
+// Émote reçue (liste blanche) ; l'heure de départ sert à l'animation d'apparition
+function receiveEmote(u, e) {
+  e = cleanEmote(e);
+  if (e !== (u.emote || null)) u.emoteAt = performance.now();
+  u.emote = e;
 }
 
 function onRemoteMove(d, { peerId }) {
@@ -219,6 +228,7 @@ function onRemoteState(d, { peerId }) {
   if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six });
+  receiveEmote(u, d?.emote);
   const talking = pttReaches(u);
   if (talking && !wasTalking) walkieBeep('start', 0.12);
   if (wasTalking && !talking) walkieBeep('end', 0.12);

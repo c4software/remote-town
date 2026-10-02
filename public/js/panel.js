@@ -6,6 +6,7 @@ import { joinFromPanel } from './movement.js';
 import { openProfile } from './profile.js';
 import { renderHands } from './social.js';
 import { S, users } from './state.js';
+import { EMOTES, emoteIcon } from './emotes.js';
 import { MAP, ROOM_TYPES, isOnAir, sideBySide, zoneType } from './world.js';
 
 export function showPanel(name) {
@@ -40,7 +41,8 @@ export function renderPeople() {
     const z = document.createElement('div'); z.className = 'p-zone'; z.textContent = MAP.zoneById[u.zone]?.name || '';
     info.append(n, z);
     const icons = document.createElement('div'); icons.className = 'p-icons';
-    icons.innerHTML = (u.hand ? '<span class="p-hand">✋</span>' : '') + (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
+    icons.innerHTML = (u.emote ? `<span class="p-hand" title="${EMOTES.find((x) => x.id === u.emote).label}">${emoteIcon(u.emote)}</span>` : '')
+      + (u.hand ? '<span class="p-hand">✋</span>' : '') + (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
     li.append(c, info, icons);
     if (u.isMe) { li.className = 'me-row'; li.title = 'Modifier mon personnage'; li.onclick = openProfile; }
     else { li.className = 'join-row'; li.title = `Rejoindre ${u.name}`; li.onclick = () => joinFromPanel(u.id); }

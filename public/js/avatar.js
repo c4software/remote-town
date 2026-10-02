@@ -349,9 +349,11 @@ export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seate
     if (dir === 'left') r(1, -27 + o, 6, 6, look.hair);
     if (dir === 'right') r(-7, -27 + o, 6, 6, look.hair);
     const eye = '#1d1e30';
-    if (dir === 'down') { r(-4, -24 + o, 2, 3, eye); r(2, -24 + o, 2, 3, eye); }
-    if (dir === 'left') r(-6, -24 + o, 2, 3, eye);
-    if (dir === 'right') r(4, -24 + o, 2, 3, eye);
+    // Yeux fermés (sieste) : un simple trait
+    const eyeAt = look.face === 'sleep' ? (x) => r(x, -22 + o, 2, 1, eye) : (x) => r(x, -24 + o, 2, 3, eye);
+    if (dir === 'down') { eyeAt(-4); eyeAt(2); }
+    if (dir === 'left') eyeAt(-6);
+    if (dir === 'right') eyeAt(4);
     if (girl) { // cils
       if (dir === 'down') { r(-5, -25 + o, 1, 1, eye); r(4, -25 + o, 1, 1, eye); }
       if (dir === 'left') r(-7, -25 + o, 1, 1, eye);

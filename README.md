@@ -46,6 +46,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `Espace` | Dash : bond de 3 cases, avec traînée |
 | `E` (ou clic sur une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
 | `J` (au pupitre) | Jingle d'annonce : un carillon joué chez tout le monde |
+| Clic droit maintenu (appui long sur mobile) | Émote animée en boucle, choisie dans une roue : 💻 travail, ⏳ AFK, 😴 sieste, ☕ café, 🤔 réflexion. Se déplacer la retire, le centre de la roue aussi |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `V` | Sauter |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |

@@ -214,6 +214,27 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .r-emojis button:hover { background: var(--panel-2); transform: scale(1.12); }
 #people .p-hand { font-size: 15px; line-height: 16px; }
 
+/* ---------- Roue des émotes (clic droit) ---------- */
+#emoteWheel { position: fixed; z-index: 40; width: 0; height: 0; }
+#emoteWheel::before {
+  content: ''; position: absolute; left: -112px; top: -112px; width: 224px; height: 224px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(20, 23, 45, .35) 0 30px, rgba(20, 23, 45, .82) 31px); border: 1px solid var(--border);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .45);
+}
+#emoteWheel button {
+  position: absolute; width: 64px; height: 56px; margin: -28px 0 0 -32px; border-radius: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--panel-2); border: 2px solid transparent; color: #fff; transition: transform .1s;
+}
+#emoteWheel button i { font-style: normal; font-size: 22px; line-height: 1; }
+#emoteWheel button span { font-size: 11px; font-weight: 700; }
+#emoteWheel button.sel { border-color: var(--green); }
+#emoteWheel button.hot, #emoteWheel button:hover:not(:disabled) { background: var(--purple); transform: scale(1.12); }
+#emoteWheel .ew-center {
+  left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; font-size: 16px; font-weight: 700;
+}
+#emoteWheel .ew-center:disabled { background: transparent; }
+
 /* ---------- Tableau blanc ---------- */
 #boardBtn.active { background: var(--green); color: #10213a; }
 #board {

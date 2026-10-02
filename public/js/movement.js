@@ -5,6 +5,7 @@ import { atTeacherDesk, boards } from './board.js';
 import { renderChat } from './chat.js';
 import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STEP_MS } from './config.js';
 import { $, toast, typing } from './dom.js';
+import { clearEmoteOnMove } from './emotes.js';
 import { onZoneChange } from './hud.js';
 import { heldDir } from './input.js';
 import { pushState, updateRouting } from './media.js';
@@ -70,6 +71,7 @@ export function step(now) {
     return;
   }
   S.me.x = nx; S.me.y = ny;
+  clearEmoteOnMove();
   if (S.path) S.path.shift();
   S.nextStepAt = now + myStepMs();
   // Arrivé sur la chaise cliquée : on s'assoit
@@ -241,6 +243,7 @@ export function dash() {
   S.path = null; S.sitTarget = null; S.me.seated = false; S.me.crouch = false;
   startDash(S.me);
   S.me.x += dx * n; S.me.y += dy * n;
+  clearEmoteOnMove();
   S.nextStepAt = now + 120;
   sendMove({ dash: true });
   onMyMove();

@@ -110,7 +110,7 @@ export function updateRouting() {
 // ============================================================
 export function pushState() {
   S.me.mic = S.micOn; S.me.ptt = S.pttHeld; S.me.sharing = S.sharing;
-  broadcast('state', { mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven });
+  broadcast('state', { mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, emote: S.me.emote || null });
   updateRouting();
   renderPeople();
 }

@@ -73,6 +73,31 @@ const scenarios = {
     t.check(vols[0] === 1 && vols[1] < 1, `N : volume progressif (${vols.map((v) => v?.toFixed(2)).join(' → ')})`);
   },
 
+  async 'émotes'(t) {
+    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
+    await waitPeers([a, b]);
+    await place(a, 30, 10);
+    await wait(600);
+    const aliceEmote = () => b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').emote || null);
+    // Clic droit maintenu, on glisse vers le haut (Travail) et on relâche
+    await a.mouse.move(500, 400);
+    await a.mouse.down({ button: 'right' });
+    t.check(await a.evaluate(() => !document.querySelector('#emoteWheel').hidden), 'clic droit maintenu : la roue s\'ouvre');
+    await a.mouse.move(500, 330, { steps: 4 });
+    await a.mouse.up({ button: 'right' });
+    await wait(800);
+    t.check(await aliceEmote() === 'work', 'glisser vers une émote et relâcher : Bob la voit');
+    // Clic droit bref : la roue reste ouverte, on clique sur Café
+    await a.mouse.click(500, 400, { button: 'right' });
+    await wait(200);
+    await a.click('#emoteWheel [data-emote=coffee]');
+    await wait(800);
+    t.check(await aliceEmote() === 'coffee', 'clic droit bref puis clic : émote changée');
+    await a.keyboard.down('ArrowDown'); await wait(250); await a.keyboard.up('ArrowDown');
+    await wait(800);
+    t.check(await aliceEmote() === null, 'se déplacer retire l\'émote');
+  },
+
   async 'pupitre'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
