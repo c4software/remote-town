@@ -299,8 +299,23 @@ function drawPumpArms(r, dir, o, pump, dark, skin) {
   }
 }
 
-// pump : décalage vertical des mains pendant le « 67 » (null = bras au repos)
-export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0, crouch = false, pump = null) {
+// Dab (B maintenu) : un bras plié devant le visage, l'autre tendu en diagonale vers le
+// haut, du côté où regarde le personnage (à droite de face et de dos). Dessiné après la
+// tête : le bras passe devant le visage.
+function drawDabArms(r, dir, o, dark, skin) {
+  const flip = dir === 'left';
+  const m = (x, w) => (flip ? -x - w : x); // miroir horizontal pour la vue de gauche
+  // Bras tendu : de l'épaule vers le haut, en escalier de 2 pixels
+  for (let i = 0; i < 5; i++) r(m(7 + i * 2, 2), -18 - i * 2 + o, 2, 2, dark);
+  r(m(17, 2), -28 + o, 2, 2, skin);
+  // Bras plié : remonte de l'épaule opposée, puis l'avant-bras barre le visage
+  r(m(-9, 2), -23 + o, 2, 7, dark);
+  r(m(-9, 11), -25 + o, 11, 2, dark);
+  r(m(2, 2), -25 + o, 2, 2, skin);
+}
+
+// pump : décalage vertical des mains pendant le « 67 » (null = bras au repos) ; dab : pose du dab
+export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seated = false, lift = 0, crouch = false, pump = null, dab = false) {
   const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x), Math.round(by + y), w, h); };
   const sit = seated ? 4 : crouch ? 5 : 0;
   const bob = walkFrame ? -1 : 0;
@@ -325,7 +340,7 @@ export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seate
     r(-7, -4, 5, 3, '#2f3150'); r(2, -4, 5, 3, '#2f3150');
     r(-6, -1, 4, 1, '#1b1c2e'); r(2, -1, 4, 1, '#1b1c2e');
   }
-  if (pump !== null) drawPumpArms(r, dir, o, pump, dark, look.skin);
+  if (dab) { /* bras dessinés après la tête */ } else if (pump !== null) drawPumpArms(r, dir, o, pump, dark, look.skin);
   else if (dir === 'left' || dir === 'right') {
     r(dir === 'left' ? -2 : -1, -16 + o, 3, 8, dark);
     r(dir === 'left' ? -2 : -1, -9 + o, 3, 2, look.skin);
@@ -366,4 +381,5 @@ export function drawAvatar(ctx, look, cx, by, dir = 'down', walkFrame = 0, seate
   }
   BODY_ACC[look.body]?.front?.(r, dir, o, look);
   HEAD_ACC[look.head]?.(r, dir, -31 + o, o);
+  if (dab) drawDabArms(r, dir, o, dark, look.skin);
 }

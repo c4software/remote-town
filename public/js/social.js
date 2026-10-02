@@ -26,6 +26,13 @@ export function setSixSeven(on) {
   pushState();
 }
 
+// Dab : tant que B est maintenu (état partagé, champ `dab` de `state`)
+export function setDab(on) {
+  if (!S.me || on === !!S.me.dab) return;
+  S.me.dab = on;
+  pushState();
+}
+
 // Décalage des mains pendant le « 67 », null en dehors
 export function sixSevenPump(u, now) {
   return u.sixSeven ? Math.round(Math.sin((now - (u.sixSevenAt || 0)) / 70) * 3) : null;

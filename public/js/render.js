@@ -204,7 +204,7 @@ function draw() {
     const look = u.emote === 'sleep' ? { ...u.look, face: 'sleep' } : u.look;
     const pose = warpPose(u, now); // passage de la porte des espaces
     ctx.globalAlpha = (u.emote === 'afk' ? 0.55 : 1) * (pose ? pose.alpha : 1);
-    drawAvatar(ctx, look, cx, by + (chair ? -4 : 0) + (pose ? pose.dy : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now));
+    drawAvatar(ctx, look, cx, by + (chair ? -4 : 0) + (pose ? pose.dy : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now), !!u.dab);
     ctx.globalAlpha = 1;
     if (chair) drawChairBack(ctx, chair);
     if (u.ptt) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);

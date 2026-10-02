@@ -51,6 +51,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `E` devant la porte violette du couloir (sur mobile : la toucher) | Changer d'espace de travail : saisir un identifiant ou choisir un espace enregistré. On passe la porte et on ressort dans l'autre espace, avec le même personnage |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `V` | Sauter |
+| `B` maintenu | Dab (vu par tout le monde) |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |
 | `H` (ou bouton ✋ de la barre) | Lever / baisser la main (✋ reste affichée). Les mains levées apparaissent en bulles en bas à droite : un clic emmène auprès de la personne |
 | `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin, personnage qui lève son talkie) |

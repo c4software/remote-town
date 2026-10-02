@@ -46,6 +46,14 @@ const scenarios = {
     await a.keyboard.up('Digit7');
     await wait(600);
     t.check(!(await alice67()), 'touche relâchée : le « 67 » s\'arrête');
+    // Dab : B maintenu
+    const aliceDab = () => b.evaluate(() => !![...rt.users.values()].find((u) => u.name === 'Alice').dab);
+    await a.keyboard.down('KeyB');
+    await wait(1200);
+    t.check(await aliceDab(), 'B maintenu : Bob voit le dab d\'Alice');
+    await a.keyboard.up('KeyB');
+    await wait(800);
+    t.check(!(await aliceDab()), 'B relâché : le dab s\'arrête');
     await a.keyboard.up('Digit6');
     await a.keyboard.press('Digit6');
     await wait(600);

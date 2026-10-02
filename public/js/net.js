@@ -19,7 +19,7 @@ import { firstArrival } from './spaces.js';
 import { S, myIds, users } from './state.js';
 import { MAP, PORTAL_SPOT, isBlocked, zoneAt } from './world.js';
 
-export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, emote: S.me.emote || null, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
+export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, dab: !!S.me.dab, emote: S.me.emote || null, mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
 
 // On arrive par la porte des espaces, comme en changeant d'espace (firstArrival)
 export function connect(name) {
@@ -286,7 +286,7 @@ function onHello(d, { peerId }) {
   u.crouch = !!d?.crouch;
   if (d?.ask) S.net?.hello.send(profile(), { target: peerId }).catch(() => {});
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six });
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab });
   receiveEmote(u, d?.emote);
   users.set(peerId, u);
   resolveOverlap(u);
@@ -329,7 +329,7 @@ function onRemoteState(d, { peerId }) {
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six });
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab });
   receiveEmote(u, d?.emote);
   const talking = pttReaches(u);
   if (talking && !wasTalking) walkieBeep('start', 0.12);

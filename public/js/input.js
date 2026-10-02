@@ -6,7 +6,7 @@ import { bfs, chairBusy, dash, freeLecternSpot, interact, jump, sendMove, sitOn,
 import { showPanel } from './panel.js';
 import { closeProfile } from './profile.js';
 import { canvas } from './render.js';
-import { REACTIONS, sendJingle, sendReaction, setSixSeven, toggleHand } from './social.js';
+import { REACTIONS, sendJingle, sendReaction, setDab, setSixSeven, toggleHand } from './social.js';
 import { openSpaces, spacesOpen } from './spaces.js';
 import { S, keys } from './state.js';
 import { closeFocus } from './videos.js';
@@ -55,6 +55,7 @@ export function initInput() {
     if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
     if (e.code === 'KeyV') { if (!e.repeat) jump(); return; }
     if (e.code === 'KeyH') { if (!e.repeat) toggleHand(); return; }
+    if (e.code === 'KeyB') { if (!e.repeat) setDab(true); return; }
     if (e.code === 'KeyJ') { if (!e.repeat) sendJingle(); return; }
     const n = /^(Digit|Numpad)([1-7])$/.exec(e.code);
     if (n) { if (!e.repeat) onDigit(n[2]); return; }
@@ -69,11 +70,12 @@ export function initInput() {
     if (e.key === 'Shift') S.sprinting = false;
     if (e.code === 'Space' && !typing()) e.preventDefault(); // évite d'« appuyer » sur le bouton qui a le focus
     if (e.code === 'KeyN') setPtt(false);
+    if (e.code === 'KeyB') setDab(false);
     const n = /^(Digit|Numpad)([1-7])$/.exec(e.code);
     if (n) { digitsHeld.delete(n[2]); if (n[2] === '6' || n[2] === '7') setSixSeven(false); }
     if (DIRS[e.code]) keys.delete(DIRS[e.code]);
   });
-  addEventListener('blur', () => { keys.clear(); digitsHeld.clear(); S.sprinting = false; if (S.me) { setPtt(false); setSixSeven(false); } });
+  addEventListener('blur', () => { keys.clear(); digitsHeld.clear(); S.sprinting = false; if (S.me) { setPtt(false); setSixSeven(false); setDab(false); } });
   $('#chatInput').addEventListener('focus', () => keys.clear());
 
   canvas.addEventListener('click', (e) => {
