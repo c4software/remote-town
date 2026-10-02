@@ -30,6 +30,12 @@ kbd {
 .muted { color: var(--muted); }
 
 /* ---------- Accueil ---------- */
+/* Passage de la porte des espaces : l'interface s'efface pendant l'écran noir */
+/* (animation et non transition : on ne touche pas aux transitions propres de chaque élément) */
+body.warping #app > :not(#world) { opacity: 0; pointer-events: none; }
+body.warp-in #app > :not(#world) { animation: warp-ui-in .5s ease-out; }
+@keyframes warp-ui-in { from { opacity: 0; } }
+
 /* Passage vers l'espace : cercle noir qui part du clic sur « Rejoindre l'espace » */
 #cover {
   position: fixed; inset: 0; z-index: 100; background: #0d0f1f; display: flex; flex-direction: column;

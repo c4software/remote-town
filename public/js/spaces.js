@@ -72,6 +72,14 @@ function goTo(raw) {
 // ============================================================
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Pendant que l'écran se ferme et reste noir, l'interface (barre, panneau, aide…)
+// s'efface ; elle revient quand le personnage sort de la porte
+function setWarp(w) {
+  S.warp = w;
+  document.body.classList.toggle('warping', !!w && w.phase !== 'in');
+  document.body.classList.toggle('warp-in', w?.phase === 'in');
+}
+
 async function warp(id) {
   // On quitte proprement : talkie relâché, partage arrêté, main baissée
   if (S.pttHeld) setPtt(false);
@@ -81,9 +89,9 @@ async function warp(id) {
   Object.assign(S.me, { x: PORTAL_SPOT[0], y: PORTAL_SPOT[1], dir: 'up', seated: false, crouch: false });
   sendMove();
   portalMusic();
-  S.warp = { phase: 'out', at: performance.now(), name: roomName(id) };
+  setWarp({ phase: 'out', at: performance.now(), name: roomName(id) });
   await wait(OUT_MS);
-  S.warp = { ...S.warp, phase: 'wait', at: performance.now() };
+  setWarp({ ...S.warp, phase: 'wait', at: performance.now() });
   await Promise.all([switchRoom(id), wait(MIN_WAIT_MS)]);
   // Nouvel espace : le chat de l'ancien n'a plus de sens
   chatStore.clear();
@@ -102,9 +110,9 @@ async function warp(id) {
 async function emerge() {
   Object.assign(S.me, { x: PORTAL_SPOT[0], y: PORTAL_SPOT[1], rx: PORTAL_SPOT[0], ry: PORTAL_SPOT[1], dir: 'down' });
   onMyMove();
-  S.warp = { ...S.warp, phase: 'in', at: performance.now() };
+  setWarp({ ...S.warp, phase: 'in', at: performance.now() });
   await wait(IN_MS);
-  S.warp = null;
+  setWarp(null);
   stepAsideIfTaken();
   sendMove();
 }
@@ -114,7 +122,7 @@ async function emerge() {
 // La musique est lancée au clic sur « Rejoindre l'espace » (profile.js), avec le
 // cercle noir du formulaire (#cover) que l'on retire ici : le canevas a pris le relais.
 export async function firstArrival() {
-  S.warp = { phase: 'wait', at: performance.now(), name: roomName(S.roomId), title: 'Bienvenue dans' };
+  setWarp({ phase: 'wait', at: performance.now(), name: roomName(S.roomId), title: 'Bienvenue dans' });
   requestAnimationFrame(() => { $('#cover').hidden = true; });
   await wait(FIRST_WAIT_MS);
   await emerge();
