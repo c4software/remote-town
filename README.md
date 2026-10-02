@@ -55,6 +55,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `H` (ou bouton ✋ de la barre) | Lever / baisser la main (✋ reste affichée). Les mains levées apparaissent en bulles en bas à droite : un clic emmène auprès de la personne |
 | `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin, personnage qui lève son talkie) |
 | `M` | Couper ou ouvrir le micro |
+| Clic droit sur une personne de la liste des participants (appui long sur mobile) | Régler son volume pour soi (curseur, ou couper) ; mémorisé, rappelé par un badge « 🔉 40 % » dans la liste |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
 
 ## Comment ça marche

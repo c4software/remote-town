@@ -337,10 +337,16 @@ function onRemoteState(d, { peerId }) {
   updateRouting(); renderPeople();
 }
 
-// Personne expulsée (admin.js) : on coupe la liaison et on la retire sans annonce
+// Personne expulsée (admin.js) : retirée tout de suite, sans annonce. Elle quitte la salle
+// d'elle-même et Trystero ferme alors la liaison proprement ; la fermer nous-mêmes tout de
+// suite fait échouer son nettoyage (removeTrack sur une connexion fermée). On ne la ferme
+// de force que si elle est encore ouverte après 5 s (version modifiée qui ne part pas).
 export function dropPeer(id) {
-  try { S.room?.getPeers?.()[id]?.close(); } catch {}
   if (users.has(id)) onPeerLeave(id, true);
+  setTimeout(() => {
+    const pc = S.room?.getPeers?.()[id];
+    if (pc && pc.connectionState !== 'closed') try { pc.close(); } catch {}
+  }, 5000);
 }
 
 // Expulsé·e : on quitte la salle pour de bon (pas de reconnexion automatique)

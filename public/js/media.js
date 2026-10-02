@@ -1,5 +1,6 @@
 // Flux WebRTC par pair : micro et écran envoyés selon les règles de zone (world.js),
 // voix reçues (volume, effet), et actions micro / N / partage d'écran.
+import { isBanned } from './admin.js';
 import { initMic, makeAnalyser, setSpeakerFx, walkieBeep } from './audio.js';
 import { $, toast } from './dom.js';
 import { updateUI } from './hud.js';
@@ -17,6 +18,7 @@ export const links = new Map(); // id du pair -> { micOut, screenOut, audioEl, a
 const link = (id) => { if (!links.has(id)) links.set(id, {}); return links.get(id); };
 
 export function onPeerStream(stream, peerId) {
+  if (isBanned(peerId)) return; // expulsé : on n'écoute plus ses flux
   const L = link(peerId);
   if (stream.getAudioTracks().length) {
     L.audioEl?.remove();
@@ -86,10 +88,30 @@ function notifyBeside() {
 
 // Volume d'une voix : progressif pour le N (plein à 1 case, 25 % au bord de la portée),
 // plein pour toutes les autres raisons (micro de pièce, pupitre, côte à côte)
-function voiceVolume(u) {
+function distanceVolume(u) {
   if (!S.me || sendsAudio({ ...u, ptt: false }, S.me)) return 1;
   const d = Math.hypot(u.x - S.me.x, u.y - S.me.y);
   return Math.max(0.25, Math.min(1, 1 - ((d - 1) / (PROX_RADIUS - 1)) * 0.75));
+}
+
+// Volume personnel de chaque voix (0 à 1), réglé dans la liste des participants.
+// Mémorisé par nom (les identifiants changent à chaque connexion) dans « rt-volumes ».
+let volumes = null;
+function loadVolumes() {
+  if (!volumes) {
+    try { volumes = JSON.parse(localStorage.getItem('rt-volumes')) || {}; } catch { volumes = {}; }
+  }
+  return volumes;
+}
+export function personalVolume(u) {
+  const v = Number(loadVolumes()[u?.name]);
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+}
+export function setPersonalVolume(u, v) {
+  const all = loadVolumes();
+  if (v >= 1) delete all[u.name]; else all[u.name] = Math.max(0, Math.round(v * 100) / 100);
+  try { localStorage.setItem('rt-volumes', JSON.stringify(all)); } catch {}
+  updateRouting();
 }
 
 export function updateRouting() {
@@ -99,7 +121,9 @@ export function updateRouting() {
   for (const [id, L] of links) {
     const u = users.get(id);
     setSpeakerFx(L, isOnAir(u));
-    if (L.audioEl && u) L.audioEl.volume = voiceVolume(u);
+    if (!L.audioEl || !u) continue;
+    L.audioEl.volume = distanceVolume(u) * personalVolume(u);
+    if (L.fx?.gain) L.fx.gain.gain.value = personalVolume(u); // pupitre (effet haut-parleur) : plein volume, sauf réglage personnel
   }
   renderVideos();
   updateUI();

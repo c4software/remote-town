@@ -44,7 +44,7 @@ Modules de `public/js/` :
 | `profile.js` | Écran du personnage (connexion et modification), préférences locales |
 | `rooms.js` | Nom de salle, lien d'invitation, espaces enregistrés (`rt-spaces`) |
 | `hud.js` | Démarrage de l'app, changement de zone, barre du bas, aide |
-| `panel.js` | Panneau latéral, liste des participants |
+| `panel.js` | Panneau latéral, liste des participants, menu d'une personne (clic droit : volume, expulsion pour les administrateurs) |
 | `chat.js` | Chat de zone et global, historique |
 | `social.js` | Réactions, main levée, bulles des mains levées, jingle du pupitre |
 | `spaces.js` | Porte des espaces (couloir) : fenêtre de choix, espaces enregistrés, passage animé d'un espace à l'autre (`S.warp`), arrivée initiale par la porte (`firstArrival`), écriteau du nom de l'espace |
@@ -83,6 +83,7 @@ Modules de `public/js/` :
 | `jingle` | `{}` (carillon d'annonce, joué seulement si l'auteur est au pupitre) | à tous, avec `J` au pupitre |
 | `kick` | `{ target, ts, sig }` (expulsion signée, vérifiée par chacun) | à tous, par un administrateur |
 
+- **Volume par personne** : réglage personnel (0 à 1) par nom, mémorisé dans `rt-volumes` (`personalVolume` / `setPersonalVolume` dans `media.js`), multiplié au volume de distance du `N` sur l'élément `<audio>`, et appliqué au gain final de l'effet haut-parleur du pupitre (`L.fx.gain`, `audio.js`).
 - **Choix du micro** : `S.micDevice` (mémorisé dans `rt-prefs`, retour au micro par défaut s'il est débranché, dans `initMic`). En session, `switchMic()` (`media.js`) ouvre le nouveau micro puis remplace chaque copie envoyée (`S.room.replaceTrack`, même état actif / coupé), sans renégocier ; en cas d'échec, l'ancien micro est gardé.
 - **Médias** : pour chaque pair, on crée au besoin une copie (`clone()`) de notre piste micro / écran, ajoutée une seule fois (`addStream`), puis activée ou coupée (`enabled`) selon `sendsAudio` / `sendsVideo` (`applySenders` dans `media.js`). Pas de renégociation : `N` est instantané. `updateRouting()` recalcule tout après chaque déplacement ou changement d'état.
 - **Changement d'espace** : `switchRoom(id)` (porte du couloir, `spaces.js`) quitte la salle et en rejoint une autre avec le même identifiant de pair ; le chat de l'ancien espace est vidé.
@@ -96,7 +97,7 @@ Volontairement absente de l'aide et du README.
 - **Principe** : un ordre d'expulsion `{ target, ts }` est signé (ECDSA P-256, WebCrypto) avec le **jeton** de l'administrateur (clé privée) ; chaque navigateur le vérifie avec `ADMIN_KEY` (clé publique, `config.js`) avant de l'appliquer. Signature sur `remote-town-kick|<salle>|<cible>|<ts>` : un ordre ne vaut que pour une salle et une personne, et plus de 2 minutes après il est ignoré (pas de rejeu). Sans `ADMIN_KEY`, la fonction est inactive.
 - **Effet** : la personne visée quitte la salle (`leaveRoom()` dans `net.js`, `S.kicked` empêche toute reconnexion automatique) et voit l'écran `#kicked` ; elle ne peut pas revenir dans cet espace avant 15 minutes depuis ce navigateur (`rt-kicked:<salle>`, vérifié par le formulaire et la porte des espaces). Les autres coupent la liaison (`dropPeer()`) et ignorent ce pair s'il se représente. L'expulsion est coopérative : une version modifiée de l'application pourrait passer outre, une nouvelle session (autre navigateur) aussi.
 - **Jeton** : `node tools/admin-key.mjs` génère une paire de clés, écrit la clé publique dans `config.js` (à publier) et affiche dans la console le jeton et le lien d'activation, sans l'écrire nulle part (à lancer dans son propre terminal, à garder dans un gestionnaire de mots de passe, jamais dans le dépôt ; relancer l'outil change de clé et invalide l'ancien jeton). Activation dans un navigateur : ouvrir une fois `<site>#admin=<jeton>` ; le fragment n'est pas envoyé au serveur, il est mémorisé (`rt-admin`) puis retiré de l'adresse.
-- **Usage** : clic droit sur une personne dans la liste des participants → « Expulser … » → confirmation. Sans jeton, le clic droit ne propose rien.
+- **Usage** : clic droit sur une personne dans la liste des participants → « Expulser … » → confirmation. Sans jeton, le menu ne propose que le volume.
 - **Tests** : scénario « expulsion » (clé jetable, `rt.setAdminTestKey`, `rt.loadAdminToken`).
 
 ## Recettes

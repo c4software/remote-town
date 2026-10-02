@@ -1,4 +1,5 @@
-// Modération : expulser quelqu'un de l'espace (clic droit dans la liste des participants).
+// Modération : expulser quelqu'un de l'espace (menu du clic droit dans la liste des
+// participants, construit par panel.js : l'entrée n'apparaît qu'avec un jeton).
 // Sans serveur central, chaque navigateur doit pouvoir vérifier que l'ordre vient bien
 // d'un administrateur : l'ordre est signé (ECDSA P-256) avec une clé privée, le « jeton »,
 // que seul l'administrateur possède ; l'application ne contient que la clé publique
@@ -110,19 +111,6 @@ export function banMinutesLeft(room) {
   return Math.max(0, Math.ceil((until - Date.now()) / 60000));
 }
 
-// Menu du clic droit sur une personne de la liste (seulement avec un jeton)
-function openKickMenu(e, u) {
-  const menu = $('#kickMenu');
-  menu.replaceChildren();
-  const b = document.createElement('button');
-  b.type = 'button'; b.textContent = `🚫 Expulser ${u.name}`;
-  b.onclick = () => { menu.hidden = true; kick(u); };
-  menu.append(b);
-  menu.style.left = `${Math.min(e.clientX, innerWidth - 220)}px`;
-  menu.style.top = `${Math.min(e.clientY, innerHeight - 60)}px`;
-  menu.hidden = false;
-}
-
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initAdmin() {
   // Lien …#admin=<jeton> : mémorisé puis retiré de l'adresse (pas de jeton dans l'historique)
@@ -131,13 +119,4 @@ export function initAdmin() {
     loadToken(m[1]).then((k) => toast(k ? '🔑 Jeton d\'administration enregistré dans ce navigateur' : '🔑 Jeton d\'administration invalide'));
     history.replaceState(null, '', location.pathname + location.search);
   } else signKey();
-  $('#people').addEventListener('contextmenu', (e) => {
-    const li = e.target.closest('li[data-id]');
-    const u = li && users.get(li.dataset.id);
-    if (!privateKey || !u || u.isMe) return; // sans jeton : rien de particulier
-    e.preventDefault();
-    openKickMenu(e, u);
-  });
-  addEventListener('pointerdown', (e) => { if (!e.target.closest('#kickMenu')) $('#kickMenu').hidden = true; }, true);
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#kickMenu').hidden = true; });
 }

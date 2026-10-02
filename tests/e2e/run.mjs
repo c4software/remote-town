@@ -68,6 +68,21 @@ const scenarios = {
     await wait(1200);
     await a.click('#profileCancel'); await wait(500);
     t.check(mics.length > 0 && await hears(b, 'Alice'), 'changement de micro : toujours entendu dans le bureau');
+    // Volume personnel : Bob coupe Alice depuis le menu du clic droit, puis rétablit
+    const aliceId = await a.evaluate(() => rt.me.id);
+    const aliceVolume = () => b.evaluate((id) => rt.links.get(id)?.audioEl?.volume, aliceId);
+    await b.click('.side-tabs [data-panel=people]');
+    await b.click(`#people li[data-id="${aliceId}"]`, { button: 'right' });
+    t.check(await b.$eval('#personMenu', (e) => !e.hidden && e.textContent.includes('Alice')), 'clic droit : menu « Volume d\'Alice »');
+    await b.click('#personMenu .pm-vol button');
+    await wait(300);
+    t.check(await aliceVolume() === 0, 'son d\'Alice coupé pour Bob');
+    t.check(await b.$eval(`#people li[data-id="${aliceId}"] .p-vol`, (e) => e.textContent.includes('0 %')), 'badge « 🔇 0 % » dans la liste');
+    t.check(await b.evaluate(() => JSON.parse(localStorage.getItem('rt-volumes')).Alice === 0), 'réglage mémorisé');
+    await b.click(`#people li[data-id="${aliceId}"] .p-vol`);
+    await b.click('#personMenu .pm-vol button');
+    await wait(300);
+    t.check(await aliceVolume() === 1, 'son d\'Alice rétabli');
     t.check(!(await hears(c, 'Alice')), 'changement de micro : toujours pas entendu ailleurs');
     await a.keyboard.press('KeyM');
     await place(a, 30, 10); await place(b, 31, 11);
@@ -150,14 +165,14 @@ const scenarios = {
     // Sans jeton, le clic droit dans la liste ne propose rien
     await c.click('.side-tabs [data-panel=people]');
     await c.click('#people li[data-id]:not(.me-row)', { button: 'right' });
-    t.check(await c.$eval('#kickMenu', (e) => e.hidden), 'sans jeton : pas de menu d\'expulsion');
+    t.check(await c.$eval('#personMenu', (e) => !e.hidden && !e.querySelector('.pm-kick')), 'sans jeton : volume seulement, pas d\'expulsion');
     // Alice expulse Bob : clic droit sur sa ligne, puis confirmation
     await a.click('.side-tabs [data-panel=people]');
     const bobId = await b.evaluate(() => rt.me.id);
     a.once('dialog', (d) => d.accept());
     await a.click(`#people li[data-id="${bobId}"]`, { button: 'right' });
-    t.check(await a.$eval('#kickMenu', (e) => !e.hidden && e.textContent.includes('Bob')), 'avec jeton : menu « Expulser Bob »');
-    await a.click('#kickMenu button');
+    t.check(await a.$eval('#personMenu .pm-kick', (e) => e.textContent.includes('Bob')), 'avec jeton : menu « Expulser Bob »');
+    await a.click('#personMenu .pm-kick');
     await wait(1500);
     t.check(await b.$eval('#kicked', (e) => !e.hidden), 'Bob voit l\'écran d\'expulsion');
     t.check(await b.evaluate(() => rt.users.size === 1), 'Bob ne voit plus personne');

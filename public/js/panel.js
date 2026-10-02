@@ -1,7 +1,9 @@
 // Panneau latéral : onglets Chat / Participants et liste des participants.
+import { isAdmin, kick } from './admin.js';
 import { drawAvatar } from './avatar.js';
 import { renderChat } from './chat.js';
-import { $ } from './dom.js';
+import { $, ofName } from './dom.js';
+import { personalVolume, setPersonalVolume } from './media.js';
 import { joinFromPanel } from './movement.js';
 import { openProfile } from './profile.js';
 import { renderHands } from './social.js';
@@ -44,8 +46,14 @@ export function renderPeople() {
     const icons = document.createElement('div'); icons.className = 'p-icons';
     icons.innerHTML = (u.emote ? `<span class="p-hand" title="${EMOTES.find((x) => x.id === u.emote).label}">${emoteIcon(u.emote)}</span>` : '')
       + (u.link === 'relay' ? '<span class="p-link" title="Connexion relayée par le serveur TURN (connexion directe impossible)">relais</span>' : '')
+      + (!u.isMe && personalVolume(u) < 1 ? `<button type="button" class="p-vol" title="Volume baissé : régler">${personalVolume(u) ? '🔉' : '🔇'} ${Math.round(personalVolume(u) * 100)} %</button>` : '')
       + (u.hand ? '<span class="p-hand">✋</span>' : '') + (isTransmitting(u) ? ICON_MIC : '') + (u.sharing ? ICON_SCREEN : '');
     li.append(c, info, icons);
+    icons.querySelector('.p-vol')?.addEventListener('click', (e) => {
+      e.stopPropagation(); // sinon le clic sur la ligne emmène auprès de la personne
+      const r = e.currentTarget.getBoundingClientRect();
+      openPersonMenu(r.left, r.bottom + 4, u);
+    });
     if (u.isMe) { li.className = 'me-row'; li.title = 'Modifier mon personnage'; li.onclick = openProfile; }
     else { li.className = 'join-row'; li.title = `Rejoindre ${u.name}`; li.onclick = () => joinFromPanel(u.id); }
     ul.append(li);
@@ -55,7 +63,59 @@ export function renderPeople() {
 }
 
 // Branchement des événements de la page (appelé une fois par main.js)
+// ============================================================
+// Menu d'une personne (clic droit, ou appui long sur mobile, dans la liste) : son volume
+// pour moi seul, et « Expulser » pour les administrateurs (jeton, admin.js)
+// ============================================================
+function openPersonMenu(x, y, u) {
+  const menu = $('#personMenu');
+  menu.replaceChildren();
+  const title = document.createElement('div');
+  title.className = 'pm-title'; title.textContent = `Volume ${ofName(u.name)}`;
+  const row = document.createElement('div'); row.className = 'pm-vol';
+  const mute = document.createElement('button'); mute.type = 'button';
+  const range = Object.assign(document.createElement('input'), { type: 'range', min: 0, max: 100, step: 5 });
+  range.setAttribute('aria-label', title.textContent);
+  const pct = document.createElement('span');
+  let before = personalVolume(u) || 1; // volume rétabli après « couper »
+  const show = (v) => {
+    range.value = Math.round(v * 100);
+    pct.textContent = `${Math.round(v * 100)} %`;
+    mute.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔈' : '🔊';
+    mute.title = v === 0 ? 'Rétablir le son' : 'Couper le son';
+  };
+  const set = (v) => { setPersonalVolume(u, v); show(v); };
+  range.oninput = () => set(range.value / 100);
+  range.onchange = renderPeople; // badge « 🔉 40 % » dans la liste
+  mute.onclick = () => {
+    const v = personalVolume(u);
+    if (v > 0) { before = v; set(0); } else set(before || 1);
+    renderPeople();
+  };
+  show(personalVolume(u));
+  row.append(mute, range, pct);
+  menu.append(title, row);
+  if (isAdmin()) {
+    const k = document.createElement('button');
+    k.type = 'button'; k.className = 'pm-kick'; k.textContent = `🚫 Expulser ${u.name}`;
+    k.onclick = () => { menu.hidden = true; kick(u); };
+    menu.append(k);
+  }
+  menu.hidden = false;
+  menu.style.left = `${Math.max(8, Math.min(x, innerWidth - menu.offsetWidth - 8))}px`;
+  menu.style.top = `${Math.max(8, Math.min(y, innerHeight - menu.offsetHeight - 8))}px`;
+}
+
 export function initPanel() {
+  $('#people').addEventListener('contextmenu', (e) => {
+    const li = e.target.closest('li[data-id]');
+    const u = li && users.get(li.dataset.id);
+    if (!u || u.isMe) return;
+    e.preventDefault();
+    openPersonMenu(e.clientX, e.clientY, u);
+  });
+  addEventListener('pointerdown', (e) => { if (!e.target.closest('#personMenu, .p-vol')) $('#personMenu').hidden = true; }, true);
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#personMenu').hidden = true; });
   document.querySelectorAll('.side-tabs [data-panel]').forEach((b) => (b.onclick = () => showPanel(b.dataset.panel)));
   $('.side-close').onclick = () => { $('#sidebar').classList.add('closed'); renderChat(); };
   $('#chatBtn').onclick = () => showPanel('chat');

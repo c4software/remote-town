@@ -236,9 +236,12 @@ export function setSpeakerFx(L, on) {
       const verb = S.audioCtx.createConvolver(); verb.buffer = getRoomImpulse();
       const wet = S.audioCtx.createGain(); wet.gain.value = 0.22;
       src.connect(hp).connect(lp).connect(mid).connect(shaper);
-      shaper.connect(dry).connect(S.audioCtx.destination);
-      shaper.connect(verb).connect(wet).connect(S.audioCtx.destination);
-      L.fx = { src, out: [dry, wet] };
+      // Volume final (réglage personnel de cette voix), appliqué par updateRouting
+      const gain = S.audioCtx.createGain();
+      shaper.connect(dry).connect(gain);
+      shaper.connect(verb).connect(wet).connect(gain);
+      gain.connect(S.audioCtx.destination);
+      L.fx = { src, gain, out: [dry, wet, gain] };
       L.audioEl.muted = true;
     } catch {
       L.fx = null;
