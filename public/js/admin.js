@@ -13,6 +13,7 @@
 // liaison avec elle et l'ignorent. Elle ne peut pas revenir dans cet espace avant BAN_MS
 // depuis ce navigateur ; une version modifiée de l'application pourrait passer outre.
 import { ADMIN_KEY } from './config.js';
+import { initDebug } from './debug.js';
 import { $, toast } from './dom.js';
 import { broadcast, dropPeer, leaveRoom } from './net.js';
 import { S, users } from './state.js';
@@ -32,7 +33,7 @@ const payload = (room, target, ts) => new TextEncoder().encode(`remote-town-kick
 // Clé publique : celle de config.js, ou (tests de bout en bout, ?debug) celle de setTestKey()
 let publicKey = null;
 let testKey = null;
-export function setTestKey(jwk) { testKey = jwk; publicKey = null; }
+export function setTestKey(jwk) { testKey = jwk; publicKey = null; S.isAdmin = false; }
 async function verifyKey() {
   const jwk = testKey || ADMIN_KEY;
   if (!jwk?.x || !jwk?.y) return null;
@@ -53,18 +54,34 @@ async function signKey() {
   } catch { privateKey = null; }
   return privateKey;
 }
-export const isAdmin = () => !!privateKey;
+// Jeton vérifié : on signe un message de test et on le vérifie avec la clé publique de
+// l'application. Un jeton invalide (ou d'une autre clé) ne débloque rien.
+async function checkAdmin() {
+  const key = await signKey();
+  const pub = await verifyKey();
+  let ok = false;
+  if (key && pub) {
+    try {
+      const msg = new TextEncoder().encode('remote-town-admin-check');
+      ok = await crypto.subtle.verify(SIGN, pub, await crypto.subtle.sign(SIGN, key, msg), msg);
+    } catch {}
+  }
+  S.isAdmin = ok;
+  if (ok) initDebug(); // ?debug sur le site publié
+  return ok;
+}
+export const isAdmin = () => S.isAdmin;
 
 // Mémorise un jeton (lien #admin=…, ou tests en ?debug) et le charge
 export function loadToken(token) {
   try { localStorage.setItem('rt-admin', token); } catch {}
   privateKey = null;
-  return signKey();
+  return checkAdmin();
 }
 
 export async function kick(u) {
   const key = await signKey();
-  if (!key || !u || u.isMe || !S.room) return;
+  if (!S.isAdmin || !key || !u || u.isMe || !S.room) return;
   if (!confirm(`Expulser ${u.name} de l'espace ?`)) return;
   const ts = Date.now();
   const sig = b64u.enc(await crypto.subtle.sign(SIGN, key, payload(S.roomId, u.id, ts)));
@@ -118,5 +135,5 @@ export function initAdmin() {
   if (m) {
     loadToken(m[1]).then((k) => toast(k ? '🔑 Jeton d\'administration enregistré dans ce navigateur' : '🔑 Jeton d\'administration invalide'));
     history.replaceState(null, '', location.pathname + location.search);
-  } else signKey();
+  } else checkAdmin();
 }

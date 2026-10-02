@@ -28,7 +28,8 @@ Modules de `public/js/` :
 
 | Module | Rôle |
 | --- | --- |
-| `main.js` | Appelle les `init…()` de chaque module, dans l'ordre ; expose `window.rt` avec `?debug`, en local seulement (`debugMode()` de `dom.js` : jamais sur le site publié) |
+| `main.js` | Appelle les `init…()` de chaque module, dans l'ordre |
+| `debug.js` | `window.rt` avec `?debug` : en local, ou sur le site publié avec un jeton d'administration vérifié (`debugMode()` de `dom.js`, `S.isAdmin`) |
 | `state.js` | État partagé : `S` (session), `users`, `keys`, `myIds` |
 | `config.js` | Constantes : vitesses, palettes, relais Nostr, clavier |
 | `world.js` | Carte, zones, mobilier, règles `sendsAudio` / `sendsVideo` / `sideBySide` / `isOnAir`. **Module pur** (ni DOM ni état), testé par `npm test` |
@@ -97,6 +98,7 @@ Volontairement absente de l'aide et du README.
 - **Principe** : un ordre d'expulsion `{ target, ts }` est signé (ECDSA P-256, WebCrypto) avec le **jeton** de l'administrateur (clé privée) ; chaque navigateur le vérifie avec `ADMIN_KEY` (clé publique, `config.js`) avant de l'appliquer. Signature sur `remote-town-kick|<salle>|<cible>|<ts>` : un ordre ne vaut que pour une salle et une personne, et plus de 2 minutes après il est ignoré (pas de rejeu). Sans `ADMIN_KEY`, la fonction est inactive.
 - **Effet** : la personne visée quitte la salle (`leaveRoom()` dans `net.js`, `S.kicked` empêche toute reconnexion automatique) et voit l'écran `#kicked` ; elle ne peut pas revenir dans cet espace avant 15 minutes depuis ce navigateur (`rt-kicked:<salle>`, vérifié par le formulaire et la porte des espaces). Les autres coupent la liaison (`dropPeer()`) et ignorent ce pair s'il se représente. L'expulsion est coopérative : une version modifiée de l'application pourrait passer outre, une nouvelle session (autre navigateur) aussi.
 - **Jeton** : `node tools/admin-key.mjs` génère une paire de clés, écrit la clé publique dans `config.js` (à publier) et affiche dans la console le jeton et le lien d'activation, sans l'écrire nulle part (à lancer dans son propre terminal, à garder dans un gestionnaire de mots de passe, jamais dans le dépôt ; relancer l'outil change de clé et invalide l'ancien jeton). Activation dans un navigateur : ouvrir une fois `<site>#admin=<jeton>` ; le fragment n'est pas envoyé au serveur, il est mémorisé (`rt-admin`) puis retiré de l'adresse.
+- **Jeton vérifié** (`checkAdmin`, `S.isAdmin`) : au chargement, le navigateur signe un message de test avec le jeton et le vérifie avec `ADMIN_KEY` ; un jeton invalide ou d'une autre clé ne débloque rien. Le jeton vérifié donne l'entrée « Expulser » et le mode débogage (`?debug`, `?net=…`) sur le site publié. Attention : la WebCrypto n'existe qu'en contexte sécurisé (HTTPS ou localhost).
 - **Usage** : clic droit sur une personne dans la liste des participants → « Expulser … » → confirmation. Sans jeton, le menu ne propose que le volume.
 - **Tests** : scénario « expulsion » (clé jetable, `rt.setAdminTestKey`, `rt.loadAdminToken`).
 
@@ -125,7 +127,7 @@ npm run test:e2e -- tableau   # un seul scénario (filtre sur le nom)
 NET=http://localhost:8090 DIAG_LOG=/tmp/relay.log npm run test:e2e -- diagnostic   # avec un relais local (voir relay/README.md)
 ```
 
-- Les tests de bout en bout (`tests/e2e/run.mjs`) démarrent leur propre serveur, ouvrent plusieurs Chrome avec un micro factice et pilotent les participants via `window.rt` (page ouverte avec `?debug`, voir `main.js` ; le mode débogage n'existe qu'en local, sur `localhost` / `127.0.0.1`). Pour un nouveau comportement, ajouter un scénario ou une vérification `t.check(condition, 'libellé')`.
+- Les tests de bout en bout (`tests/e2e/run.mjs`) démarrent leur propre serveur, ouvrent plusieurs Chrome avec un micro factice et pilotent les participants via `window.rt` (page ouverte avec `?debug`, voir `debug.js` ; sans jeton d'administration, le mode débogage n'existe qu'en local, sur `localhost` / `127.0.0.1`). Pour un nouveau comportement, ajouter un scénario ou une vérification `t.check(condition, 'libellé')`.
 - `join()` attend la fin de l'arrivée par la porte (`rt.warp` nul, ~2 s) : avant, la position serait écrasée par la sortie de la porte. Tout le monde arrivant devant la porte, éloigner un participant (`place`) si le scénario a besoin de cette case libre.
 - Ils passent par les relais Nostr publics : un échec de connexion ponctuel peut venir du réseau. Relancer avant de conclure.
 - Le micro factice émet un bip périodique : pour savoir si quelqu'un est entendu, utiliser `hears()` (niveau maximal sur ~2,4 s), pas une mesure instantanée.

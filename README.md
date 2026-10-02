@@ -78,7 +78,7 @@ npm run test:e2e   # scénarios à plusieurs navigateurs Chrome (nécessite Chro
 npm run test:e2e -- pupitre   # un seul scénario
 ```
 
-En local seulement (`localhost`, serveur de développement), ouvrir la page avec `?debug` expose `window.rt` dans la console (participants, position, `rt.walkTo(x, y)`, `rt.place(x, y)`, `rt.relaunch()`…), utilisé par les tests de bout en bout.
+En local (`localhost`, serveur de développement) ou avec le jeton d'administration, ouvrir la page avec `?debug` expose `window.rt` dans la console (participants, position, `rt.walkTo(x, y)`, `rt.place(x, y)`, `rt.relaunch()`…), utilisé par les tests de bout en bout.
 
 Le déploiement sur GitHub Pages se fait automatiquement à chaque push sur `main` (`.github/workflows/pages.yml`) : vérification de la syntaxe, tests unitaires, puis publication du dossier `public/`.
 

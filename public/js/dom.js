@@ -1,4 +1,6 @@
 // Petits utilitaires d'interface : sélection d'élément, notifications, élision du français.
+import { S } from './state.js';
+
 export const $ = (s) => document.querySelector(s);
 
 // « d'Alice », « de Bob »
@@ -13,7 +15,8 @@ export function toast(text) {
 }
 export const typing = () => ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
 
-// Mode débogage (?debug : window.rt, ?net=…) : réservé au serveur local des tests,
-// jamais actif sur le site publié (il permet de se téléporter, de changer de relais…)
-export const debugMode = () => ['localhost', '127.0.0.1'].includes(location.hostname)
-  && new URLSearchParams(location.search).has('debug');
+// Mode débogage (?debug : window.rt, ?net=…) : en local (serveur des tests), ou sur le site
+// publié seulement avec un jeton d'administration vérifié (S.isAdmin, admin.js) : il permet
+// de se téléporter, de changer de relais…
+export const debugMode = () => new URLSearchParams(location.search).has('debug')
+  && (['localhost', '127.0.0.1'].includes(location.hostname) || S.isAdmin);
