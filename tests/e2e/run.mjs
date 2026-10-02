@@ -252,6 +252,12 @@ const scenarios = {
     await a.click('#joinSubmit'); await wait(1000);
     const look = (await seen(b, 'Alice')).look;
     t.check(look.head === 'crown' && look.body === 'cape', 'modification du personnage vue par les autres');
+    // Aide réaffichée depuis l'écran du personnage, puis fermée avec la croix
+    await a.click('#mePill'); await wait(200);
+    await a.click('#profileHelp'); await wait(200);
+    t.check(await a.$eval('#help', (e) => !e.hidden), 'aide réaffichée depuis l\'écran du personnage');
+    await a.click('#help .help-close'); await wait(200);
+    t.check(await a.$eval('#help', (e) => e.hidden), 'la croix ferme l\'aide');
   },
 
   async 'reconnexion'(t) {

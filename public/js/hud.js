@@ -114,7 +114,7 @@ export function initHud() {
   pttBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); pttBtn.setPointerCapture(e.pointerId); setPtt(true); });
   pttBtn.addEventListener('pointerup', () => setPtt(false));
   pttBtn.addEventListener('pointercancel', () => setPtt(false));
-  $('.help-close').onclick = () => { $('#help').hidden = true; $('#help').classList.remove('forced'); try { localStorage.setItem('rt-help', '1'); } catch {} syncHelpBtn(); };
+  $('#help .help-close').onclick = () => { $('#help').hidden = true; $('#help').classList.remove('forced'); try { localStorage.setItem('rt-help', '1'); } catch {} syncHelpBtn(); };
   $('#helpBtn').onclick = showHelp;
   addEventListener('resize', syncHelpBtn);
   try { if (localStorage.getItem('rt-help')) $('#help').hidden = true; } catch {}
