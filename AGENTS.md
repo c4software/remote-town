@@ -28,7 +28,7 @@ Modules de `public/js/` :
 
 | Module | Rôle |
 | --- | --- |
-| `main.js` | Appelle les `init…()` de chaque module, dans l'ordre ; expose `window.rt` avec `?debug` |
+| `main.js` | Appelle les `init…()` de chaque module, dans l'ordre ; expose `window.rt` avec `?debug`, en local seulement (`debugMode()` de `dom.js` : jamais sur le site publié) |
 | `state.js` | État partagé : `S` (session), `users`, `keys`, `myIds` |
 | `config.js` | Constantes : vitesses, palettes, relais Nostr, clavier |
 | `world.js` | Carte, zones, mobilier, règles `sendsAudio` / `sendsVideo` / `sideBySide` / `isOnAir`. **Module pur** (ni DOM ni état), testé par `npm test` |
@@ -125,7 +125,7 @@ npm run test:e2e -- tableau   # un seul scénario (filtre sur le nom)
 NET=http://localhost:8090 DIAG_LOG=/tmp/relay.log npm run test:e2e -- diagnostic   # avec un relais local (voir relay/README.md)
 ```
 
-- Les tests de bout en bout (`tests/e2e/run.mjs`) démarrent leur propre serveur, ouvrent plusieurs Chrome avec un micro factice et pilotent les participants via `window.rt` (page ouverte avec `?debug`, voir `main.js`). Pour un nouveau comportement, ajouter un scénario ou une vérification `t.check(condition, 'libellé')`.
+- Les tests de bout en bout (`tests/e2e/run.mjs`) démarrent leur propre serveur, ouvrent plusieurs Chrome avec un micro factice et pilotent les participants via `window.rt` (page ouverte avec `?debug`, voir `main.js` ; le mode débogage n'existe qu'en local, sur `localhost` / `127.0.0.1`). Pour un nouveau comportement, ajouter un scénario ou une vérification `t.check(condition, 'libellé')`.
 - `join()` attend la fin de l'arrivée par la porte (`rt.warp` nul, ~2 s) : avant, la position serait écrasée par la sortie de la porte. Tout le monde arrivant devant la porte, éloigner un participant (`place`) si le scénario a besoin de cette case libre.
 - Ils passent par les relais Nostr publics : un échec de connexion ponctuel peut venir du réseau. Relancer avant de conclure.
 - Le micro factice émet un bip périodique : pour savoir si quelqu'un est entendu, utiliser `hears()` (niveau maximal sur ~2,4 s), pas une mesure instantanée.

@@ -12,3 +12,8 @@ export function toast(text) {
   while ($('#toasts').children.length > 4) $('#toasts').firstChild.remove();
 }
 export const typing = () => ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+
+// Mode débogage (?debug : window.rt, ?net=…) : réservé au serveur local des tests,
+// jamais actif sur le site publié (il permet de se téléporter, de changer de relais…)
+export const debugMode = () => ['localhost', '127.0.0.1'].includes(location.hostname)
+  && new URLSearchParams(location.search).has('debug');

@@ -5,6 +5,7 @@ import { initAdmin, loadToken, setTestKey } from './admin.js';
 import { initBoard } from './board.js';
 import { initChat } from './chat.js';
 import { diagnostic, initDiag, lastDiag } from './diag.js';
+import { debugMode } from './dom.js';
 import { initEmotes } from './emotes.js';
 import { initHud } from './hud.js';
 import { initInput } from './input.js';
@@ -29,8 +30,9 @@ initSpaces();
 initDiag();
 initAdmin();
 
-// Accès de débogage (utilisé par les tests automatisés) : ouvrir la page avec ?debug
-if (new URLSearchParams(location.search).has('debug')) {
+// Accès de débogage (utilisé par les tests automatisés) : ouvrir la page avec ?debug,
+// en local seulement (voir debugMode dans dom.js)
+if (debugMode()) {
   window.rt = {
     users,
     links,

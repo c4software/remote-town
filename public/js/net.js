@@ -6,7 +6,7 @@ import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
 import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, RELAYS, STUN_SERVERS } from './config.js';
 import { isBanned, onKick } from './admin.js';
-import { $, toast } from './dom.js';
+import { $, debugMode, toast } from './dom.js';
 import { cleanEmote } from './emotes.js';
 import { startApp } from './hud.js';
 import { closeLink, onPeerStream, updateRouting } from './media.js';
@@ -43,11 +43,11 @@ export function connect(name) {
 // Serveurs TURN : identifiants temporaires demandés au service réseau, gardés jusqu'à
 // peu avant leur expiration. Sans réponse, on se connecte sans TURN (comme avant).
 // ============================================================
-// Service réseau : NET_URL depuis les pages de NET_HOSTS, ou ?net=… en mode ?debug
-// (tests avec un relais local). Exporté pour le diagnostic (diag.js), qui lui envoie son rapport.
+// Service réseau : NET_URL depuis les pages de NET_HOSTS, ou ?net=… en mode débogage (tests
+// en local avec un relais local). Exporté pour le diagnostic (diag.js), qui lui envoie son rapport.
 export function netUrl() {
   const q = new URLSearchParams(location.search);
-  if (q.has('debug') && q.get('net')) return q.get('net').replace(/\/$/, '');
+  if (debugMode() && q.get('net')) return q.get('net').replace(/\/$/, '');
   return NET_HOSTS.includes(location.hostname) ? NET_URL.replace(/\/$/, '') : '';
 }
 const relayUrls = () => (netUrl() ? [`${netUrl().replace(/^http/, 'ws')}/relay`, ...RELAYS] : RELAYS);
