@@ -8,7 +8,7 @@ import { showHelp } from './hud.js';
 import { connect, profile } from './net.js';
 import { renderPeople } from './panel.js';
 import { canvas } from './render.js';
-import { cleanRoom, roomUrl, shareLink } from './rooms.js';
+import { cleanRoom, rememberSpace, roomUrl, shareLink } from './rooms.js';
 import { S, keys } from './state.js';
 
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('rt-prefs')) || {}; } catch { return {}; } })();
@@ -79,6 +79,13 @@ function syncPickers() {
     document.querySelectorAll(`#${part}Chips button`).forEach((b) => b.classList.toggle('sel', (b.dataset.v || null) === look[part]));
   }
   drawPreview();
+}
+
+// Salle mémorisée pour la prochaine visite (après un passage par la porte des espaces)
+export function rememberRoom(id) {
+  roomInput.value = id === 'lobby' ? '' : id;
+  showRoomLink();
+  savePrefs();
 }
 
 export function openProfile() {
@@ -181,6 +188,7 @@ export function initProfile() {
     savePrefs();
     S.roomId = cleanRoom(roomInput.value);
     history.replaceState(null, '', roomUrl(S.roomId));
+    rememberSpace(S.roomId);
     S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     await initMic();
     connect(name);

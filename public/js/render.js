@@ -1,16 +1,17 @@
 // Rendu de la scène à chaque frame : caméra, personnages, effets, étiquettes.
 import { sampleLevel } from './audio.js';
 import { HAT_HEIGHT, drawAvatar } from './avatar.js';
-import { drawEmote } from './emotes.js';
 import { CROUCH_MS, DELTA, HOP_MS, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './config.js';
 import { $, typing } from './dom.js';
+import { drawEmote } from './emotes.js';
 import { drawChairBack } from './map-render.js';
 import { links } from './media.js';
 import { chairNearMe, myStepMs, step } from './movement.js';
 import { isTransmitting } from './panel.js';
 import { drawHandAndReactions, sixSevenPump } from './social.js';
+import { drawPortalOpen, drawWarpOverlay, warpPose } from './spaces.js';
 import { S, users } from './state.js';
-import { MAP, PROX_RADIUS, TILE, chairAt, isOnAir, nearLectern, sendsAudio, shade, sideBySide } from './world.js';
+import { MAP, PROX_RADIUS, TILE, chairAt, isOnAir, nearLectern, nearPortal, sendsAudio, shade, sideBySide } from './world.js';
 
 export const canvas = $('#world');
 export const ctx = canvas.getContext('2d');
@@ -182,6 +183,7 @@ function draw() {
 
   const list = [...users.values()].sort((a, b) => a.ry - b.ry || (a.isMe ? 1 : -1));
   const now = performance.now();
+  drawPortalOpen(now);
   for (const u of list) drawDashFx(u, now);
   for (const u of list) {
     const cx = u.rx * TILE + TILE / 2, by = u.ry * TILE + TILE - 2;
@@ -200,8 +202,9 @@ function draw() {
     const crouched = !!u.crouch && !chair;
     // Sieste : yeux fermés ; AFK : personnage estompé
     const look = u.emote === 'sleep' ? { ...u.look, face: 'sleep' } : u.look;
-    if (u.emote === 'afk') ctx.globalAlpha = 0.55;
-    drawAvatar(ctx, look, cx, by + (chair ? -4 : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now));
+    const pose = warpPose(u, now); // passage de la porte des espaces
+    ctx.globalAlpha = (u.emote === 'afk' ? 0.55 : 1) * (pose ? pose.alpha : 1);
+    drawAvatar(ctx, look, cx, by + (chair ? -4 : 0) + (pose ? pose.dy : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now));
     ctx.globalAlpha = 1;
     if (chair) drawChairBack(ctx, chair);
     if (u.ptt) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
@@ -217,6 +220,7 @@ function draw() {
   ctx.font = '600 12px "DM Sans", sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const u of list) {
+    if (u.isMe && S.warp) continue;
     const sx = (u.rx * TILE + TILE / 2 - S.cam.x) * zoom;
     const sy = (u.ry * TILE - S.cam.y) * zoom - (6 + (HAT_HEIGHT[u.look?.head] || 0)) * zoom;
     const tx = isTransmitting(u);
@@ -245,15 +249,17 @@ function draw() {
     ctx.font = '600 12px "DM Sans", sans-serif';
   }
   drawSitHint(zoom);
+  drawWarpOverlay(now, zoom);
 }
 
 // Petit indice sous ses pieds quand une chaise est à portée (clavier uniquement)
 const coarse = matchMedia('(pointer: coarse)');
 function drawSitHint(zoom) {
-  if (coarse.matches || S.me.walk > 0 || typing()) return;
+  if (coarse.matches || S.me.walk > 0 || typing() || S.warp) return;
   const text = S.me.onAir ? 'Rendre la parole'
     : S.me.seated ? 'Se lever'
     : nearLectern(S.me.x, S.me.y) ? 'Prendre la parole (tout le monde)'
+    : nearPortal(S.me.x, S.me.y) ? "Changer d'espace de travail"
     : chairNearMe() ? "S'asseoir" : null;
   if (!text) return;
   const sx = (S.me.rx * TILE + TILE / 2 - S.cam.x) * zoom;

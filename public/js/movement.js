@@ -10,8 +10,9 @@ import { onZoneChange } from './hud.js';
 import { heldDir } from './input.js';
 import { pushState, updateRouting } from './media.js';
 import { broadcast } from './net.js';
+import { openSpaces } from './spaces.js';
 import { S, users } from './state.js';
-import { LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearLectern, zoneAt } from './world.js';
+import { LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearLectern, nearPortal, zoneAt } from './world.js';
 
 // ============================================================
 // Pas à pas et trajets
@@ -51,7 +52,7 @@ export function bfs(sx, sy, tx, ty) {
 
 // Appelé à chaque frame : avance d'une case (clavier ou trajet) quand c'est l'heure
 export function step(now) {
-  if (now < S.nextStepAt) return;
+  if (now < S.nextStepAt || S.warp) return;
   let dir = typing() ? null : heldDir();
   if (dir) S.path = null;
   else if (S.path?.length) {
@@ -59,7 +60,7 @@ export function step(now) {
     dir = nx > S.me.x ? 'right' : nx < S.me.x ? 'left' : ny > S.me.y ? 'down' : 'up';
   }
   if (!dir) return;
-  if (heldDir()) { S.sitTarget = null; S.airTarget = false; joinTarget = null; }
+  if (heldDir()) { S.sitTarget = null; S.airTarget = false; S.portalTarget = false; joinTarget = null; }
   const [dx, dy] = DELTA[dir];
   const nx = S.me.x + dx, ny = S.me.y + dy;
   const changed = S.me.dir !== dir || S.me.seated;
@@ -85,6 +86,7 @@ export function step(now) {
   sendMove();
   onMyMove();
   if (joinTarget && !S.path?.length) faceUser(joinTarget);
+  if (S.portalTarget && !S.path?.length) { S.portalTarget = false; if (nearPortal(nx, ny)) openSpaces(); }
   if (S.airTarget && !S.path?.length) { S.airTarget = false; if (LECTERN_SPOTS.some(([x, y]) => x === nx && y === ny)) startOnAir(); }
 }
 
@@ -208,6 +210,7 @@ export function interact() {
   if (!S.me || typing()) return;
   if (S.me.onAir) return stopOnAir();
   if (nearLectern(S.me.x, S.me.y) && !S.me.seated) return startOnAir();
+  if (nearPortal(S.me.x, S.me.y) && !S.me.seated) return openSpaces();
   toggleSit();
 }
 

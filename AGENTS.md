@@ -40,11 +40,12 @@ Modules de `public/js/` :
 | `media.js` | Flux par pair (micro / écran), volume des voix, actions M / N / partage |
 | `audio.js` | Micro, niveaux, bips du talkie, effet haut-parleur du pupitre |
 | `profile.js` | Écran du personnage (connexion et modification), préférences locales |
-| `rooms.js` | Nom de salle, lien d'invitation |
+| `rooms.js` | Nom de salle, lien d'invitation, espaces enregistrés (`rt-spaces`) |
 | `hud.js` | Démarrage de l'app, changement de zone, barre du bas, aide |
 | `panel.js` | Panneau latéral, liste des participants |
 | `chat.js` | Chat de zone et global, historique |
 | `social.js` | Réactions, main levée, bulles des mains levées, jingle du pupitre |
+| `spaces.js` | Porte des espaces (couloir) : fenêtre de choix, espaces enregistrés, passage animé d'un espace à l'autre |
 | `emotes.js` | Émotes animées (travail, AFK…) : roue du clic droit, dessin au-dessus du nom |
 | `board.js` | Tableau blanc (classe, bureau principal) |
 | `videos.js` | Partages d'écran reçus, affichage en grand, projection |
@@ -75,6 +76,7 @@ Modules de `public/js/` :
 | `jingle` | `{}` (carillon d'annonce, joué seulement si l'auteur est au pupitre) | à tous, avec `J` au pupitre |
 
 - **Médias** : pour chaque pair, on crée au besoin une copie (`clone()`) de notre piste micro / écran, ajoutée une seule fois (`addStream`), puis activée ou coupée (`enabled`) selon `sendsAudio` / `sendsVideo` (`applySenders` dans `media.js`). Pas de renégociation : `N` est instantané. `updateRouting()` recalcule tout après chaque déplacement ou changement d'état.
+- **Changement d'espace** : `switchRoom(id)` (porte du couloir, `spaces.js`) quitte la salle et en rejoint une autre avec le même identifiant de pair ; le chat de l'ancien espace est vidé.
 - **Reconnexion** : `rejoin()` (seul trop longtemps, retour du réseau) et `relaunch()` (bouton « Relancer la connexion », charge une instance neuve de Trystero). Les relais utilisés sont listés dans `config.js` (`RELAYS`).
 
 ## Recettes

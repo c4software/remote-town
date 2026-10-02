@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, LECTERN_SPOTS, chairAt, isBlocked, isOnAir, nearLectern, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, chairAt, isBlocked, isOnAir, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -32,6 +32,16 @@ test('toutes les zones et toutes les chaises sont accessibles depuis le couloir'
   for (const z of MAP.zones) assert.ok(zones.has(z.id), `zone ${z.id} accessible`);
   for (const [k] of MAP.chairs) assert.ok(seen.has(k), `chaise ${k % MAP_W},${Math.floor(k / MAP_W)} accessible`);
   assert.ok(MAP_H > 0);
+});
+
+test('porte des espaces : dans le mur du couloir, la case devant est libre', () => {
+  assert.ok(isBlocked(PORTAL.x, PORTAL.y), 'la porte est dans un mur');
+  assert.equal(PORTAL_SPOT[1], PORTAL.y + 1);
+  assert.ok(!isBlocked(...PORTAL_SPOT), 'case devant la porte praticable');
+  assert.equal(zoneAt(...PORTAL_SPOT), 'hall');
+  assert.ok(MAP.spawns.some(([x, y]) => x === PORTAL_SPOT[0] && y === PORTAL_SPOT[1]), 'case devant la porte reliée au couloir');
+  assert.ok(nearPortal(PORTAL_SPOT[0] - 1, PORTAL_SPOT[1]) && nearPortal(PORTAL_SPOT[0] + 1, PORTAL_SPOT[1]));
+  assert.ok(!nearPortal(PORTAL_SPOT[0], PORTAL_SPOT[1] + 1));
 });
 
 test('canapés : chaque case est une place assise, orientée', () => {

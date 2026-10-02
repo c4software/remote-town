@@ -18,6 +18,7 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 - **Tableau blanc** (salle de classe et bureau principal) : il s'ouvre uniquement depuis le **bureau du prof** (derrière le bureau de l'enseignant dans la classe, derrière le pupitre dans le bureau principal), avec le bouton tableau de la barre. La personne qui l'ouvre le pilote : elle seule dessine (couleurs, épaisseurs, gomme, tout effacer) et le ferme. Il s'affiche chez toutes les personnes de la pièce, y compris celles qui arrivent ensuite ; chacune peut le passer en **mode PiP** (petite fenêtre flottante, toujours à jour) tant qu'il est ouvert. Il se ferme quand le prof quitte la pièce.
 - **Projection** : dans ces deux pièces, un partage d'écran s'ouvre automatiquement en grand chez les personnes présentes.
 - **Couloir** : pas de partage d'écran ; on parle avec `N` (à proximité) ou, micro ouvert, aux personnes juste à côté.
+- **Porte des espaces** (porte violette « ESPACES » du couloir, entre les bureaux 1 et 2) : on change d'**espace de travail** (une autre salle) sans quitter la page. On saisit l'identifiant de l'espace ou on choisit dans la liste des espaces déjà visités (mémorisée dans le navigateur, chaque entrée peut être retirée). Le personnage entre dans la porte, l'écran se referme puis se rouvre, et il ressort de la même porte dans l'autre espace, avec le même nom et la même apparence. Le lien de la page et la salle proposée à la prochaine visite suivent.
 
 Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans la même zone** (les murs bloquent le son) ; le volume baisse avec la distance. Dans le couloir, avec le micro ouvert (`M`), les personnes **côte à côte** (cases voisines) vous entendent directement, sans `N`. Micro coupé, personne ne vous entend. Pas dans les pièces, où `M` parle à toute la pièce.
 
@@ -47,6 +48,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `E` (ou clic sur une chaise / le pupitre) | S'asseoir / se lever ; au pupitre : parler à tout le monde |
 | `J` (au pupitre) | Jingle d'annonce : un carillon joué chez tout le monde |
 | Clic droit maintenu (appui long sur mobile) | Émote animée en boucle, choisie dans une roue : 💻 travail, ⏳ AFK, 😴 sieste, ☕ café, 🤔 réflexion. Se déplacer la retire, le centre de la roue aussi |
+| `E` devant la porte violette du couloir (ou clic dessus) | Changer d'espace de travail : saisir un identifiant ou choisir un espace enregistré. On passe la porte et on ressort dans l'autre espace, avec le même personnage |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `V` | Sauter |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |

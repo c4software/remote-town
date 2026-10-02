@@ -37,18 +37,17 @@ export function clearEmoteOnMove() {
 // Clic droit bref (ou appui long sur écran tactile) : la roue reste ouverte et
 // on clique sur une émote. Le centre retire l'émote en cours.
 // ============================================================
-const RADIUS = 78, DEAD_ZONE = 28, HOLD_MS = 280;
+const RADIUS = 72, DEAD_ZONE = 28, HOLD_MS = 280;
 let wheel = null; // { x, y, hold, openedAt, hot }
 
 function openWheel(x, y, hold) {
   if (!S.me || S.editingProfile) return;
-  const m = RADIUS + 34;
+  const m = 112; // rayon du rond (voir #emoteWheel::before)
   x = Math.min(Math.max(x, m), innerWidth - m);
   y = Math.min(Math.max(y, m), innerHeight - m);
   wheel = { x, y, hold, openedAt: performance.now(), hot: null };
   const el = $('#emoteWheel');
   el.style.left = `${x}px`; el.style.top = `${y}px`;
-  el.querySelectorAll('[data-emote]').forEach((b) => b.classList.toggle('sel', b.dataset.emote === (S.me.emote || '')));
   const center = el.querySelector('.ew-center');
   center.textContent = S.me.emote ? '✕' : '';
   center.title = S.me.emote ? "Retirer l'émote" : '';
@@ -88,7 +87,8 @@ function buildWheel() {
     const b = document.createElement('button');
     b.type = 'button'; b.dataset.emote = e.id;
     b.style.left = `${Math.cos(a) * RADIUS}px`; b.style.top = `${Math.sin(a) * RADIUS}px`;
-    b.innerHTML = `<i>${e.icon}</i><span>${e.label}</span>`;
+    b.textContent = e.icon;
+    b.title = e.label; b.setAttribute('aria-label', e.label);
     el.append(b);
   });
   const c = document.createElement('button');

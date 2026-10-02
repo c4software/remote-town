@@ -103,6 +103,20 @@
     <div id="videos"></div>
     <div id="airPip" hidden></div>
     <div id="emoteWheel" hidden></div>
+    <div id="spaces" hidden>
+      <div class="spaces-card" role="dialog" aria-labelledby="spacesTitle">
+        <button class="help-close" id="spacesClose" aria-label="Fermer">×</button>
+        <b id="spacesTitle">🚪 Changer d'espace de travail</b>
+        <p class="spaces-sub">Vous êtes dans « <span id="spacesCurrent"></span> ». Votre personnage vous suit.</p>
+        <form id="spacesForm">
+          <input id="spacesInput" type="text" maxlength="40" autocomplete="off" placeholder="Identifiant de l'espace">
+          <button class="btn-primary" type="submit">Y aller</button>
+        </form>
+        <div class="spaces-hint" id="spacesHint"></div>
+        <div class="spaces-label">Espaces enregistrés</div>
+        <ul id="spacesList"></ul>
+      </div>
+    </div>
 
     <div id="help">
       <button class="help-close" aria-label="Fermer">×</button>
@@ -113,6 +127,7 @@
       <div><kbd>N</kbd> maintenu : talkie-walkie, parler à proximité</div>
       <div><kbd>M</kbd> : micro (bureaux, classe &amp; bureau principal)</div>
       <div><kbd>E</kbd> au pupitre du bureau principal : parler à tout le monde · <kbd>J</kbd> : jingle d'annonce</div>
+      <div><kbd>E</kbd> devant la porte violette du couloir : changer d'espace de travail</div>
       <div>Bureau du prof (classe, pupitre) : bouton tableau pour ouvrir le tableau blanc</div>
       <div><kbd>1</kbd>…<kbd>6</kbd> : réactions · <kbd>H</kbd> : lever la main</div>
       <div>Clic droit maintenu : émote (travail, AFK, sieste, café, réflexion)</div>

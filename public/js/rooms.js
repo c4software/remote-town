@@ -5,6 +5,22 @@ export const cleanRoom = (v) => String(v).toLowerCase().trim()
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'lobby';
 
+export const roomName = (id) => (id === 'lobby' ? 'Espace principal' : id);
+
+// Espaces de travail déjà visités, du plus récent au plus ancien (localStorage « rt-spaces »)
+const SPACES_KEY = 'rt-spaces', SPACES_MAX = 15;
+export function savedSpaces() {
+  try {
+    const list = JSON.parse(localStorage.getItem(SPACES_KEY));
+    return Array.isArray(list) ? list.filter((id) => typeof id === 'string' && id === cleanRoom(id)) : [];
+  } catch { return []; }
+}
+function saveSpaces(list) {
+  try { localStorage.setItem(SPACES_KEY, JSON.stringify(list.slice(0, SPACES_MAX))); } catch {}
+}
+export const rememberSpace = (id) => saveSpaces([id, ...savedSpaces().filter((x) => x !== id)]);
+export const forgetSpace = (id) => saveSpaces(savedSpaces().filter((x) => x !== id));
+
 export function roomUrl(id) {
   const url = new URL(location.href);
   url.hash = '';

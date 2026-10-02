@@ -37,6 +37,8 @@ export const S = {
   path: null,       // trajet en cours (liste de cases) après un clic
   sitTarget: null,  // chaise visée par le trajet : on s'y assoit en arrivant
   airTarget: false, // pupitre visé par le trajet : on prend la parole en arrivant
+  portalTarget: false, // porte des espaces visée par le trajet : on l'ouvre en arrivant
+  warp: null,       // passage de la porte en cours : { phase: 'out' | 'wait' | 'in', at, name }
   nextStepAt: 0,
   nextDashAt: 0,
   sprinting: false, // Maj maintenu

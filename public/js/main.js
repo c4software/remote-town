@@ -11,6 +11,7 @@ import { bfs, onMyMove, sendMove, sitOn, toggleSit } from './movement.js';
 import { rejoin, relaunch } from './net.js';
 import { initPanel } from './panel.js';
 import { initProfile } from './profile.js';
+import { initSpaces } from './spaces.js';
 import { S, users } from './state.js';
 import { initVideos } from './videos.js';
 
@@ -22,6 +23,7 @@ initBoard();
 initVideos();
 initInput();
 initEmotes();
+initSpaces();
 
 // Accès de débogage (utilisé par les tests automatisés) : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {

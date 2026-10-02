@@ -7,9 +7,10 @@ import { showPanel } from './panel.js';
 import { closeProfile } from './profile.js';
 import { canvas } from './render.js';
 import { REACTIONS, sendJingle, sendReaction, setSixSeven, toggleHand } from './social.js';
+import { openSpaces, spacesOpen } from './spaces.js';
 import { S, keys } from './state.js';
 import { closeFocus } from './videos.js';
-import { LECTERN, TILE, chairAt } from './world.js';
+import { LECTERN, PORTAL, PORTAL_SPOT, TILE, chairAt, nearPortal } from './world.js';
 
 export function heldDir() {
   const order = ['up', 'down', 'left', 'right'];
@@ -39,6 +40,7 @@ export function initInput() {
     if (e.key === 'Shift') S.sprinting = true;
     if (!S.me) return;
     if (S.editingProfile) { if (e.key === 'Escape') closeProfile(); return; }
+    if (S.warp || spacesOpen()) return;
     if (e.key === 'Escape') {
       if (S.focusKey) closeFocus();
       document.activeElement?.blur();
@@ -48,7 +50,8 @@ export function initInput() {
     if (e.code === 'Enter') { e.preventDefault(); if ($('#sidebar').classList.contains('closed') || S.activePanel !== 'chat') showPanel('chat'); else $('#chatInput').focus(); return; }
     if (e.code === 'KeyN') { e.preventDefault(); if (!e.repeat) setPtt(true); return; }
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
-    if (e.code === 'KeyE') { if (!e.repeat) interact(); return; }
+    // preventDefault : si E ouvre la porte des espaces, le « e » ne s'écrit pas dans son champ
+    if (e.code === 'KeyE') { e.preventDefault(); if (!e.repeat) interact(); return; }
     if (e.code === 'KeyC') { if (!e.repeat) toggleCrouch(); return; }
     if (e.code === 'KeyV') { if (!e.repeat) jump(); return; }
     if (e.code === 'KeyH') { if (!e.repeat) toggleHand(); return; }
@@ -78,7 +81,16 @@ export function initInput() {
     document.activeElement?.blur();
     const tx = Math.floor((e.clientX / S.cam.zoom + S.cam.x) / TILE);
     const ty = Math.floor((e.clientY / S.cam.zoom + S.cam.y) / TILE);
-    S.airTarget = false;
+    S.airTarget = false; S.portalTarget = false;
+    if (S.warp) return;
+    // Porte des espaces : on s'y rend, puis la fenêtre de choix s'ouvre
+    if (tx === PORTAL.x && ty === PORTAL.y) {
+      S.sitTarget = null;
+      if (nearPortal(S.me.x, S.me.y)) { S.path = null; return openSpaces(); }
+      S.portalTarget = true;
+      S.path = bfs(S.me.x, S.me.y, PORTAL_SPOT[0], PORTAL_SPOT[1]);
+      return;
+    }
     if (ty === LECTERN.y && tx >= LECTERN.x && tx < LECTERN.x + LECTERN.w) {
       if (S.me.onAir) return stopOnAir();
       const spot = freeLecternSpot();

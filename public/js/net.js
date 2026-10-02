@@ -113,6 +113,23 @@ export async function rejoin() {
   updatePresence();
 }
 
+// Changement d'espace (porte du couloir) : on quitte la salle et on en rejoint une
+// autre, avec la même identité et la même apparence
+export async function switchRoom(id) {
+  rejoining = true;
+  lastRejoin = performance.now();
+  for (const pid of [...users.keys()]) if (pid !== S.myId) onPeerLeave(pid, true);
+  const old = S.room;
+  S.room = null; S.net = null;
+  await Promise.race([old?.leave().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+  S.roomId = id;
+  helloAsked.clear();
+  aloneSince = 0;
+  joinNet();
+  rejoining = false;
+  updatePresence();
+}
+
 function updatePresence() {
   const alone = users.size <= 1;
   if (!alone) aloneSince = 0;

@@ -98,6 +98,29 @@ const scenarios = {
     t.check(await aliceEmote() === null, 'se déplacer retire l\'émote');
   },
 
+  async 'porte des espaces'(t) {
+    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
+    const other = `${t.room}-b`;
+    const c = await join({ ...t, room: other }, 'Chloé');
+    await waitPeers([a, b]);
+    await place(a, 24, 9);
+    await wait(600);
+    await a.keyboard.press('KeyE');
+    await wait(300);
+    t.check(await a.$eval('#spaces', (e) => !e.hidden), 'E devant la porte : la fenêtre des espaces s\'ouvre');
+    t.check(await a.$eval('#spacesInput', (e) => e.value === ''), 'le « e » ne s\'écrit pas dans le champ');
+    await a.type('#spacesInput', other);
+    await a.keyboard.press('Enter');
+    await waitPeers([a, c], 2);
+    await wait(1500);
+    const names = (p) => p.evaluate(() => [...rt.users.values()].map((u) => u.name).sort().join(','));
+    t.check(await names(a) === 'Alice,Chloé', 'Alice arrive dans l\'autre espace et voit Chloé');
+    t.check(await names(b) === 'Bob', 'Bob ne voit plus Alice');
+    const seenByC = await seen(c, 'Alice');
+    t.check(seenByC?.x === 24 && seenByC?.y === 9, 'Alice ressort devant la porte');
+    t.check(await a.evaluate((o) => location.search.includes(`room=${o}`) && JSON.parse(localStorage.getItem('rt-spaces'))[0] === o, other), 'lien et liste des espaces mis à jour');
+  },
+
   async 'pupitre'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);

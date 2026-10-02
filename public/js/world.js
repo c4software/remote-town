@@ -13,6 +13,12 @@ const CARPETS = [
   '#f0b3c0', '#a7d6db', '#d4dba0', '#c4c8d8', '#e8b892',
 ];
 
+// Porte des espaces (dans le mur du couloir) et la case devant elle, d'où l'on part
+// et où l'on arrive en changeant d'espace
+export const PORTAL = { x: 24, y: 8 };
+export const PORTAL_SPOT = [24, 9];
+export const nearPortal = (x, y) => y === PORTAL_SPOT[1] && Math.abs(x - PORTAL_SPOT[0]) <= 1;
+
 function build() {
   const tiles = new Uint8Array(MAP_W * MAP_H).fill(T.WALL);
   const objects = [];
@@ -45,6 +51,8 @@ function build() {
   for (const [x, y] of [[16, 9], [16, 12], [59, 9], [59, 12], [32, 12], [50, 12]]) obj('plant', x, y);
   obj('cooler', 41, 12);
   obj('bench', 23, 12, 3, 1, { color: '#7d5a3c' });
+  // Porte vers les autres espaces de travail, dans le mur entre les bureaux 1 et 2
+  obj('portal', PORTAL.x, PORTAL.y, 1, 1, { block: false });
 
   // --- Salle de classe (au bout du couloir) ---
   fill(61, 1, 15, 20, T.CLASS);

@@ -211,6 +211,20 @@ function drawObject(g, o) {
       rect(px + 40, py + 10, 12, 8, '#f4f1e8');
       rect(px + 22, py + 12, 8, 2, '#4f7fd1');
       break;
+    case 'portal': { // porte violette dans la face du mur, avec son panneau
+      rr(px + 4, py + 6, 24, 26, 3, '#5a3a24');
+      rr(px + 7, py + 9, 18, 23, 2, '#7b2cbf');
+      rect(px + 9, py + 11, 14, 8, '#9d4edd');
+      rect(px + 10, py + 12, 12, 6, '#c8b6ff');
+      rect(px + 15, py + 12, 2, 6, '#9d4edd');
+      rect(px + 9, py + 21, 14, 9, '#6a24a8');
+      rect(px + 21, py + 23, 2, 3, '#ffd166');
+      rr(px + 3, py - 5, 26, 9, 2, '#2b2d42');
+      g.fillStyle = '#ffd166'; g.font = '800 6px "DM Sans", sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('ESPACES', px + 16, py - 0.5);
+      break;
+    }
     case 'cooler':
       rr(px + 9, py + 10, 14, 20, 3, '#e8ecf5');
       rr(px + 10, py + 1, 12, 11, 4, '#7fd1ff');
