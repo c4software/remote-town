@@ -1,5 +1,6 @@
 // Écran du personnage : connexion (nom, salle, apparence) et modification en cours de session.
 // Le profil est mémorisé dans le navigateur (localStorage « rt-prefs »).
+import { banMinutesLeft } from './admin.js';
 import { initMic, portalMusic, sampleLevel } from './audio.js';
 import { cleanBody, cleanHead, drawAvatar, lookBody, lookHead } from './avatar.js';
 import { PALETTE } from './config.js';
@@ -244,6 +245,8 @@ export function initProfile() {
     const name = nameInput.value.trim();
     if (!name) return;
     savePrefs();
+    const left = banMinutesLeft(cleanRoom(roomInput.value));
+    if (left) return toast(`🚫 Vous avez été retiré·e de cet espace : retour possible dans ${left} min.`);
     S.roomId = cleanRoom(roomInput.value);
     coverFrom(clickAt || center($('#joinSubmit')), roomName(S.roomId));
     portalMusic(); // dans le geste de l'utilisateur : le navigateur autorise le son

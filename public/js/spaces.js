@@ -2,6 +2,7 @@
 // la page. Fenêtre de choix (identifiant saisi ou espace enregistré), puis passage de la
 // porte animé : on y entre, l'écran se referme en cercle, on ressort dans l'autre espace,
 // même personne, même apparence.
+import { banMinutesLeft } from './admin.js';
 import { portalMusic } from './audio.js';
 import { chat, chatStore, renderChat } from './chat.js';
 import { $, toast } from './dom.js';
@@ -63,6 +64,8 @@ function renderSpaces() {
 function goTo(raw) {
   const id = cleanRoom(raw);
   if (id === S.roomId) return toast(`Vous êtes déjà dans « ${roomName(id)} »`);
+  const left = banMinutesLeft(id);
+  if (left) return toast(`🚫 Vous avez été retiré·e de cet espace : retour possible dans ${left} min.`);
   closeSpaces();
   warp(id);
 }

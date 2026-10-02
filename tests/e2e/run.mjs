@@ -131,6 +131,36 @@ const scenarios = {
     t.check(await a.evaluate((o) => location.search.includes(`room=${o}`) && JSON.parse(localStorage.getItem('rt-spaces'))[0] === o, other), 'lien et liste des espaces mis à jour');
   },
 
+  async 'expulsion'(t) {
+    // Clé jetable pour le test : publique chez tous, jeton (privée) chez Alice seulement
+    const { publicKey, privateKey } = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const pub = await crypto.subtle.exportKey('jwk', publicKey);
+    const priv = await crypto.subtle.exportKey('jwk', privateKey);
+    const token = Buffer.from(JSON.stringify({ x: priv.x, y: priv.y, d: priv.d })).toString('base64url');
+    const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
+    await waitPeers([a, b, c]);
+    for (const p of [a, b, c]) await p.evaluate((k) => rt.setAdminTestKey(k), { x: pub.x, y: pub.y });
+    await a.evaluate((tk) => rt.loadAdminToken(tk), token);
+    // Sans jeton, le clic droit dans la liste ne propose rien
+    await c.click('.side-tabs [data-panel=people]');
+    await c.click('#people li[data-id]:not(.me-row)', { button: 'right' });
+    t.check(await c.$eval('#kickMenu', (e) => e.hidden), 'sans jeton : pas de menu d\'expulsion');
+    // Alice expulse Bob : clic droit sur sa ligne, puis confirmation
+    await a.click('.side-tabs [data-panel=people]');
+    const bobId = await b.evaluate(() => rt.me.id);
+    a.once('dialog', (d) => d.accept());
+    await a.click(`#people li[data-id="${bobId}"]`, { button: 'right' });
+    t.check(await a.$eval('#kickMenu', (e) => !e.hidden && e.textContent.includes('Bob')), 'avec jeton : menu « Expulser Bob »');
+    await a.click('#kickMenu button');
+    await wait(1500);
+    t.check(await b.$eval('#kicked', (e) => !e.hidden), 'Bob voit l\'écran d\'expulsion');
+    t.check(await b.evaluate(() => rt.users.size === 1), 'Bob ne voit plus personne');
+    t.check(await b.evaluate(() => Number(localStorage.getItem(Object.keys(localStorage).find((k) => k.startsWith('rt-kicked:')))) > Date.now()), 'Bob ne peut pas revenir tout de suite');
+    t.check(!(await seen(c, 'Bob')), 'Chloé ne voit plus Bob');
+    t.check(!(await seen(a, 'Bob')), 'Alice ne voit plus Bob');
+    t.check(!!(await seen(c, 'Alice')), 'Chloé voit toujours Alice');
+  },
+
   async 'pupitre'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);

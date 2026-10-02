@@ -1,6 +1,7 @@
 // Point d'entrée : branche les événements de chaque module, dans l'ordre.
 // Les modules ne font rien au chargement (hormis déclarer constantes et fonctions) :
 // tout ce qui touche à la page est dans leur fonction init…(), appelée ici.
+import { initAdmin, loadToken, setTestKey } from './admin.js';
 import { initBoard } from './board.js';
 import { initChat } from './chat.js';
 import { diagnostic, initDiag, lastDiag } from './diag.js';
@@ -26,6 +27,7 @@ initInput();
 initEmotes();
 initSpaces();
 initDiag();
+initAdmin();
 
 // Accès de débogage (utilisé par les tests automatisés) : ouvrir la page avec ?debug
 if (new URLSearchParams(location.search).has('debug')) {
@@ -45,6 +47,8 @@ if (new URLSearchParams(location.search).has('debug')) {
     rejoin: () => rejoin(),
     relaunch: () => relaunch(),
     diag: () => diagnostic(),
+    setAdminTestKey: setTestKey, // tests de l'expulsion avec une clé jetable
+    loadAdminToken: loadToken,
     get lastDiag() { return lastDiag(); },
   };
 }

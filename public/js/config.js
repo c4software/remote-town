@@ -46,6 +46,11 @@ export const NET_HOSTS = ['distance.brosseau.ovh', 'c4software.github.io'];
 // on déclare le nôtre explicitement pour ne pas dépendre de la liste interne du bundle.
 export const STUN_SERVERS = [{ urls: 'stun:stun.cloudflare.com:3478' }];
 
+// --- Modération ---
+// Clé publique d'administration (ECDSA P-256) : vérifie les ordres d'expulsion signés avec
+// le jeton (clé privée) de l'administrateur. Générée par tools/admin-key.mjs ; null = désactivé.
+export const ADMIN_KEY = { x: 'lZbylMSDtRGce6_Yu0RqVAVva1ufiEddXlJqZB0p4gg', y: 'sbZGNsB5kD9aoIPpZO-TV6eUuWL2p3myH0A1Q2XTRJQ' };
+
 // --- Clavier et directions ---
 export const DIRS = {
   // e.code = position physique : WASD en QWERTY = ZQSD en AZERTY

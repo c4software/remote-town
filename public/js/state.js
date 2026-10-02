@@ -13,6 +13,7 @@ export const S = {
   me: null,         // mon participant (aussi présent dans users)
   roomId: 'lobby',  // salle rejointe (?room=…)
   joinedAt: 0,
+  kicked: false,    // expulsé·e de l'espace par un administrateur (admin.js) : plus de reconnexion
   editingProfile: false, // écran du personnage rouvert pendant la session
 
   // --- Réseau ---

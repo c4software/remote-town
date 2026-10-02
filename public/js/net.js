@@ -5,6 +5,7 @@ import { lookBody, lookHead } from './avatar.js';
 import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
 import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, RELAYS, STUN_SERVERS } from './config.js';
+import { isBanned, onKick } from './admin.js';
 import { $, toast } from './dom.js';
 import { cleanEmote } from './emotes.js';
 import { startApp } from './hud.js';
@@ -92,10 +93,15 @@ function joinNet() {
     react: S.room.makeAction('react', {
       onMessage: (d, { peerId }) => { const u = users.get(peerId); if (u && REACTIONS.includes(d?.e)) addReaction(u, d.e); },
     }),
+    kick: S.room.makeAction('kick', { onMessage: (d) => onKick(d) }),
     jingle: S.room.makeAction('jingle', { onMessage: (d, { peerId }) => users.has(peerId) && onJingle(users.get(peerId)) }),
     history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => chatStore.get(String(d?.channel)) || [] }),
   };
-  S.room.onPeerJoin = (id) => { helloAsked.set(id, performance.now()); S.net.hello.send(profile(), { target: id }).catch(() => {}); };
+  S.room.onPeerJoin = (id) => {
+    if (isBanned(id)) return dropPeer(id); // expulsé de cet espace : on ne le reprend pas
+    helloAsked.set(id, performance.now());
+    S.net.hello.send(profile(), { target: id }).catch(() => {});
+  };
   S.room.onPeerLeave = onPeerLeave;
   S.room.onPeerStream = onPeerStream;
 }
@@ -117,7 +123,7 @@ const relaysUp = () => {
 };
 
 export async function relaunch() {
-  if (rejoining) return;
+  if (rejoining || S.kicked) return;
   rejoining = true;
   lastRejoin = performance.now();
   const btn = $('#waitRetry');
@@ -261,6 +267,7 @@ function setPos(u, d) {
 }
 
 function onHello(d, { peerId }) {
+  if (isBanned(peerId)) return dropPeer(peerId);
   const known = users.get(peerId);
   const u = known || { id: peerId, walk: 0, level: 0 };
   u.name = String(d?.name || '').trim().slice(0, 24) || 'Invité';
@@ -328,6 +335,20 @@ function onRemoteState(d, { peerId }) {
   if (talking && !wasTalking) walkieBeep('start', 0.12);
   if (wasTalking && !talking) walkieBeep('end', 0.12);
   updateRouting(); renderPeople();
+}
+
+// Personne expulsée (admin.js) : on coupe la liaison et on la retire sans annonce
+export function dropPeer(id) {
+  try { S.room?.getPeers?.()[id]?.close(); } catch {}
+  if (users.has(id)) onPeerLeave(id, true);
+}
+
+// Expulsé·e : on quitte la salle pour de bon (pas de reconnexion automatique)
+export function leaveRoom() {
+  S.kicked = true;
+  for (const id of [...users.keys()]) if (id !== S.myId) onPeerLeave(id, true);
+  S.room?.leave().catch(() => {});
+  S.room = null; S.net = null;
 }
 
 function onPeerLeave(id, silent = false) {

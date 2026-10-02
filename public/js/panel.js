@@ -34,6 +34,7 @@ export function renderPeople() {
   const list = [...users.values()].sort((a, b) => (a.isMe ? -1 : b.isMe ? 1 : a.name.localeCompare(b.name)));
   for (const u of list) {
     const li = document.createElement('li');
+    li.dataset.id = u.id; // clic droit des administrateurs (admin.js)
     const c = document.createElement('canvas'); c.width = 32; c.height = 40; c.style.width = '24px'; c.style.height = '30px';
     drawAvatar(c.getContext('2d'), u.look, 16, 37, 'down');
     const info = document.createElement('div'); info.className = 'p-info';
