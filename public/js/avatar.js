@@ -4,7 +4,7 @@ import { shade } from './world.js';
 
 // Accessoires choisis sur l'écran de connexion : un pour la tête, un pour le corps
 const HEADS = ['unicorn', 'cap', 'shades', 'glasses', 'tophat', 'headphones', 'crown', 'beanie', 'partyhat', 'catears', 'flower'];
-const BODIES = ['metal', 'claude', 'codex', 'scarf', 'tie', 'bowtie', 'backpack', 'cape', 'medal'];
+const BODIES = ['metal', 'claude', 'codex', 'linux', 'windows', 'macos', 'scarf', 'tie', 'bowtie', 'backpack', 'cape', 'medal'];
 export const cleanHead = (d) => (HEADS.includes(d) ? d : null);
 export const cleanBody = (d) => (BODIES.includes(d) ? d : null);
 // Ancien format (un seul accessoire « deco ») : rangé dans la bonne catégorie
@@ -43,6 +43,39 @@ const CODEX = [
   '.BBBBB.',
 ];
 const PRINT_COLORS = { C: '#d97757', D: '#b85a3c', B: '#5b5bd6', W: '#ffffff' };
+// Tux, le manchot de Linux : K = noir, W = ventre et yeux blancs, Y = bec et pattes
+const LINUX = [
+  '..KKK..',
+  '.KWKWK.',
+  '.KKYKK.',
+  'KKWWWKK',
+  'KWWWWWK',
+  '.KWWWK.',
+  '.YY.YY.',
+];
+const LINUX_COLORS = { K: '#1d1e30', W: '#ffffff', Y: '#ffb300' };
+// Les quatre carreaux de Windows ; ' ' laisse voir le t-shirt entre eux
+const WINDOWS = [
+  'RRR GGG',
+  'RRR GGG',
+  'RRR GGG',
+  '       ',
+  'UUU YYY',
+  'UUU YYY',
+  'UUU YYY',
+];
+const WINDOWS_COLORS = { R: '#f25022', G: '#7fba00', U: '#00a4ef', Y: '#ffb900' };
+// La pomme de macOS, croquée à droite, avec sa feuille ; ' ' évite un contour dans les creux
+const MACOS = [
+  '....L..',
+  '...L...',
+  '.AA AA.',
+  'AAAAAAA',
+  'AAAAA..',
+  'AAAAAA.',
+  '.AA AA.',
+];
+const MACOS_COLORS = { A: '#a3aab1', L: '#a3aab1' };
 
 // Imprimé centré sur le t-shirt, cerné d'un contour plus foncé que le t-shirt
 // pour rester lisible quelle que soit sa couleur
@@ -152,6 +185,9 @@ const BODY_ACC = {
   metal: { front: (r, dir, o, look) => dir === 'down' && drawMetalPrint(r, look, o) },
   claude: { front: (r, dir, o, look) => dir === 'down' && drawClaudePrint(r, look, o) },
   codex: { front: (r, dir, o, look) => dir === 'down' && drawPrint(r, look, o, CODEX, PRINT_COLORS) },
+  linux: { front: (r, dir, o, look) => dir === 'down' && drawPrint(r, look, o, LINUX, LINUX_COLORS) },
+  windows: { front: (r, dir, o, look) => dir === 'down' && drawPrint(r, look, o, WINDOWS, WINDOWS_COLORS) },
+  macos: { front: (r, dir, o, look) => dir === 'down' && drawPrint(r, look, o, MACOS, MACOS_COLORS) },
   scarf: {
     front(r, dir, o) {
       const c = '#ef476f', w = '#fff3f5', y = -19 + o;

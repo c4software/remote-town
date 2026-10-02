@@ -23,7 +23,7 @@ Partout, **maintenez `N`** pour parler aux personnes à moins de 4 cases **dans 
 
 ## Personnage
 
-À la connexion, on choisit le style (gars ou fille), les couleurs du haut, des cheveux et de la peau, et deux accessoires combinables : un pour la **tête** (🧢 casquette, 🧶 bonnet, 🎩 haut-de-forme, 🥳 chapeau de fête, 👑 couronne, 🦄 licorne, 🐱 oreilles de chat, 🌸 fleur, 🎧 casque audio, 👓 lunettes, 🕶️ lunettes de soleil) et un pour le **corps** (🤘 t-shirt metal, ✳️ t-shirt Claude, ⌨️ t-shirt Codex, 👔 cravate, 🎀 nœud papillon, 🧣 écharpe, 🏅 médaille, 🎒 sac à dos, 🦸 cape). Tout est mémorisé dans le navigateur. Une fois dans l'espace, un clic sur son identité (en bas à gauche, ou sur sa ligne dans la liste des participants sur mobile) rouvre cet écran pour changer de nom ou d'apparence, ou réafficher l'aide.
+À la connexion, on choisit le style (gars ou fille), les couleurs du haut, des cheveux et de la peau, et deux accessoires combinables : un pour la **tête** (🧢 casquette, 🧶 bonnet, 🎩 haut-de-forme, 🥳 chapeau de fête, 👑 couronne, 🦄 licorne, 🐱 oreilles de chat, 🌸 fleur, 🎧 casque audio, 👓 lunettes, 🕶️ lunettes de soleil) et un pour le **corps** (🤘 t-shirt metal, ✳️ t-shirt Claude, ⌨️ t-shirt Codex, 🐧 t-shirt Linux, 🪟 t-shirt Windows, 🍎 t-shirt macOS, 👔 cravate, 🎀 nœud papillon, 🧣 écharpe, 🏅 médaille, 🎒 sac à dos, 🦸 cape). Tout est mémorisé dans le navigateur. Une fois dans l'espace, un clic sur son identité (en bas à gauche, ou sur sa ligne dans la liste des participants sur mobile) rouvre cet écran pour changer de nom ou d'apparence, ou réafficher l'aide.
 
 On s'assoit sur les chaises et sur les canapés du coin salon (`E` ou clic). On peut traverser les autres personnages, mais une place occupée est réservée : impossible de s'y asseoir à deux.
 
