@@ -108,6 +108,32 @@ export function updateRouting() {
 // ============================================================
 // Micro, N pour parler, partage d'écran
 // ============================================================
+// Changement de micro en cours de session : chaque copie envoyée aux autres est
+// remplacée (même état actif / coupé), sans renégocier. En cas d'échec, on garde l'ancien.
+export async function switchMic(deviceId) {
+  if (deviceId === S.micDevice && S.micTrack) return true;
+  const prev = { device: S.micDevice, stream: S.micStream, track: S.micTrack, analyser: S.localAnalyser };
+  S.micDevice = deviceId;
+  if (!prev.track) return true; // pas encore de micro : il sera ouvert avec ce choix
+  S.micTrack = null;
+  if (!(await initMic())) {
+    Object.assign(S, { micDevice: prev.device, micStream: prev.stream, micTrack: prev.track, localAnalyser: prev.analyser });
+    return false;
+  }
+  for (const [id, L] of links) {
+    const old = L.micOut?.getTracks()[0];
+    if (!old) continue;
+    const next = S.micTrack.clone();
+    next.enabled = old.enabled;
+    await Promise.allSettled([].concat(S.room?.replaceTrack(old, next, { target: id, metadata: { kind: 'mic' } }) || []));
+    L.micOut.removeTrack(old); L.micOut.addTrack(next);
+    old.stop();
+  }
+  prev.stream?.getTracks().forEach((t) => t.stop());
+  updateRouting();
+  return true;
+}
+
 export function pushState() {
   S.me.mic = S.micOn; S.me.ptt = S.pttHeld; S.me.sharing = S.sharing;
   broadcast('state', { mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, emote: S.me.emote || null });

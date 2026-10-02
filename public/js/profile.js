@@ -1,10 +1,11 @@
 // Écran du personnage : connexion (nom, salle, apparence) et modification en cours de session.
 // Le profil est mémorisé dans le navigateur (localStorage « rt-prefs »).
-import { initMic, portalMusic } from './audio.js';
+import { initMic, portalMusic, sampleLevel } from './audio.js';
 import { cleanBody, cleanHead, drawAvatar, lookBody, lookHead } from './avatar.js';
 import { PALETTE } from './config.js';
-import { $ } from './dom.js';
+import { $, toast } from './dom.js';
 import { showHelp } from './hud.js';
+import { switchMic } from './media.js';
 import { connect, prepareIce, profile } from './net.js';
 import { renderPeople } from './panel.js';
 import { canvas } from './render.js';
@@ -29,7 +30,7 @@ const nameInput = $('#nameInput');
 const roomInput = $('#roomInput');
 function savePrefs() {
   try {
-    localStorage.setItem('rt-prefs', JSON.stringify({ name: nameInput.value.trim(), look, room: roomInput.value.trim() }));
+    localStorage.setItem('rt-prefs', JSON.stringify({ name: nameInput.value.trim(), look, room: roomInput.value.trim(), mic: S.micDevice }));
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
@@ -88,6 +89,40 @@ export function rememberRoom(id) {
   savePrefs();
 }
 
+// ============================================================
+// Choix du micro. Les noms des micros ne sont connus qu'une fois l'accès au micro
+// accordé : avant, on affiche « Micro 1, 2… ». En session, le changement est immédiat.
+// ============================================================
+async function renderMics() {
+  const sel = $('#micSelect');
+  let mics = [];
+  try { mics = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default'); } catch {}
+  sel.replaceChildren(new Option('Micro par défaut', ''));
+  mics.forEach((d, i) => sel.append(new Option(d.label || `Micro ${i + 1}`, d.deviceId)));
+  sel.value = mics.some((d) => d.deviceId === S.micDevice) ? S.micDevice : '';
+}
+
+async function onMicChange() {
+  const id = $('#micSelect').value;
+  if (!(await switchMic(id))) { toast('Ce micro est indisponible : on garde le précédent.'); $('#micSelect').value = S.micDevice; return; }
+  savePrefs();
+  if (S.micTrack) toast(`🎙️ Micro : ${$('#micSelect').selectedOptions[0]?.textContent}`);
+  meterMic();
+}
+
+// Niveau du micro à côté de la liste, tant que l'écran du personnage est ouvert
+let meterLoop = 0;
+function meterMic() {
+  if (meterLoop) return;
+  const bar = $('#micLevel b');
+  const tick = () => {
+    if ($('#join').hidden || !S.localAnalyser) { meterLoop = 0; bar.style.width = '0'; return; }
+    bar.style.width = `${Math.min(100, sampleLevel(S.localAnalyser) * 400)}%`;
+    meterLoop = requestAnimationFrame(tick);
+  };
+  meterLoop = requestAnimationFrame(tick);
+}
+
 export function openProfile() {
   if (!S.me) return;
   S.editingProfile = true;
@@ -100,6 +135,7 @@ export function openProfile() {
   $('#joinSubmit').textContent = 'Enregistrer';
   $('#profileActions').hidden = false;
   $('#join').hidden = false;
+  renderMics().then(meterMic);
   $('#reactMenu').hidden = true;
   keys.clear();
 }
@@ -143,6 +179,10 @@ function coverFrom([x, y], name) {
 
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initProfile() {
+  S.micDevice = typeof prefs.mic === 'string' ? prefs.mic : '';
+  renderMics();
+  $('#micSelect').addEventListener('change', onMicChange);
+  navigator.mediaDevices?.addEventListener?.('devicechange', renderMics);
   nameInput.value = prefs.name || '';
   roomInput.value = new URLSearchParams(location.search).get('room') ?? prefs.room ?? '';
   nameInput.addEventListener('input', savePrefs);

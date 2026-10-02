@@ -24,6 +24,7 @@ export const S = {
 
   // --- Audio et partage d'écran ---
   audioCtx: null,
+  micDevice: '',    // micro choisi (deviceId) ; '' = micro par défaut du système
   micStream: null,
   micTrack: null,
   localAnalyser: null,

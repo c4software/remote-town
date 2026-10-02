@@ -55,6 +55,14 @@ const scenarios = {
     await wait(1500);
     t.check(await hears(b, 'Alice'), 'micro de bureau : entendu dans le bureau');
     t.check(!(await hears(c, 'Alice')), 'micro de bureau : pas entendu ailleurs');
+    // Changement de micro en pleine conversation : on reste entendu
+    await a.click('#mePill'); await wait(300);
+    const mics = await a.$$eval('#micSelect option', (o) => o.map((x) => x.value).filter(Boolean));
+    if (mics.length) await a.select('#micSelect', mics.at(-1));
+    await wait(1200);
+    await a.click('#profileCancel'); await wait(500);
+    t.check(mics.length > 0 && await hears(b, 'Alice'), 'changement de micro : toujours entendu dans le bureau');
+    t.check(!(await hears(c, 'Alice')), 'changement de micro : toujours pas entendu ailleurs');
     await a.keyboard.press('KeyM');
     await place(a, 30, 10); await place(b, 31, 11);
     await wait(2500);

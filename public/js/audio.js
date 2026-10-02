@@ -5,10 +5,18 @@ import { PROX_RADIUS } from './world.js';
 
 export async function initMic() {
   if (S.micTrack) return true;
+  const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
   try {
-    S.micStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
+    try {
+      S.micStream = await navigator.mediaDevices.getUserMedia({
+        audio: S.micDevice ? { ...audio, deviceId: { exact: S.micDevice } } : audio,
+      });
+    } catch (err) {
+      // Micro choisi débranché : on revient au micro par défaut
+      if (!S.micDevice || err.name !== 'OverconstrainedError' && err.name !== 'NotFoundError') throw err;
+      S.micDevice = '';
+      S.micStream = await navigator.mediaDevices.getUserMedia({ audio });
+    }
     S.micTrack = S.micStream.getAudioTracks()[0];
     S.localAnalyser = makeAnalyser(S.micStream);
     return true;
