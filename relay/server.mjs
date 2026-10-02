@@ -20,8 +20,20 @@ const MAX_MESSAGE = 64 * 1024;
 const MAX_SUBS = 32;        // abonnements par connexion
 const MAX_RATE = 200;       // messages par seconde et par connexion (rafales d'offres à l'arrivée), au-delà : ignorés
 const PING_MS = 25000;      // garde la connexion ouverte derrière le reverse proxy
+// Plafonds de connexions : une salle entière derrière la même IP (école, entreprise) doit
+// passer, avec une marge pour les onglets en double et les reconnexions
+const MAX_CONNS = Number(process.env.MAX_CONNS) || 1000;
+const MAX_PER_IP = Number(process.env.MAX_PER_IP) || 150;
+const MAX_TOPICS = 32;      // sujets (« #x ») par filtre
 
 const allowed = (origin) => ALLOWED.some((re) => re.test(origin || ''));
+// Adresse réelle du client : transmise par Nginx Proxy Manager (seul à joindre le conteneur)
+const clientIp = (req) => String(req.headers['x-real-ip'] || req.socket.remoteAddress || '?').slice(0, 64);
+
+// Compteurs, écrits dans le journal une fois par minute (docker logs remote-town-relay)
+const stats = { msgIn: 0, msgOut: 0, refused: {} };
+const refuse = (why) => { stats.refused[why] = (stats.refused[why] || 0) + 1; };
+const perIp = new Map(); // ip -> connexions ouvertes
 
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
@@ -38,10 +50,21 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE });
 http.on('upgrade', (req, socket, head) => {
   const path = req.url.split('?')[0];
   if (path !== '/relay' || !allowed(req.headers.origin)) {
+    refuse('origine');
     socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');
     return;
   }
-  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws));
+  const ip = clientIp(req);
+  if (wss.clients.size >= MAX_CONNS || (perIp.get(ip) || 0) >= MAX_PER_IP) {
+    refuse('plafond');
+    socket.end('HTTP/1.1 503 Service Unavailable\r\n\r\n');
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    ws.ip = ip;
+    perIp.set(ip, (perIp.get(ip) || 0) + 1);
+    wss.emit('connection', ws);
+  });
 });
 
 // Abonnements de chaque connexion : id d'abonnement -> filtres
@@ -53,27 +76,35 @@ wss.on('connection', (ws) => {
   ws.rate = { at: 0, n: 0 };
   ws.on('pong', () => { ws.alive = true; });
   ws.on('message', (raw, isBinary) => { if (!isBinary) onMessage(ws, raw.toString()); });
-  ws.on('close', () => subs.delete(ws));
+  ws.on('close', () => {
+    subs.delete(ws);
+    const n = (perIp.get(ws.ip) || 1) - 1;
+    if (n > 0) perIp.set(ws.ip, n); else perIp.delete(ws.ip);
+  });
   ws.on('error', () => ws.terminate());
 });
 
 function onMessage(ws, raw) {
   const now = Date.now();
   if (now - ws.rate.at > 1000) ws.rate = { at: now, n: 0 };
-  if (++ws.rate.n > MAX_RATE) return;
+  if (++ws.rate.n > MAX_RATE) return refuse('débit');
+  stats.msgIn++;
   let msg;
   try { msg = JSON.parse(raw); } catch { return send(ws, ['NOTICE', 'JSON invalide']); }
   if (!Array.isArray(msg)) return;
   const [type, a, ...filters] = msg;
   const mine = subs.get(ws);
   if (!mine) return;
-  if (type === 'REQ' && typeof a === 'string') {
-    if (!mine.has(a) && mine.size >= MAX_SUBS) return send(ws, ['CLOSED', a, 'error: trop d\'abonnements']);
-    mine.set(a, filters.filter((f) => f && typeof f === 'object'));
+  if (type === 'REQ' && typeof a === 'string' && a.length <= 64) {
+    if (!mine.has(a) && mine.size >= MAX_SUBS) { refuse('abonnements'); return send(ws, ['CLOSED', a, 'error: trop d\'abonnements']); }
+    // Seulement des abonnements à des sujets précis (les salles), comme ceux de Trystero :
+    // un filtre large recevrait les messages de toutes les salles
+    if (!filters.length || !filters.every(precise)) { refuse('filtre large'); return send(ws, ['CLOSED', a, 'error: filtre « #x » requis']); }
+    mine.set(a, filters);
     send(ws, ['EOSE', a]); // rien n'est stocké : fin immédiate de l'historique
   } else if (type === 'CLOSE' && typeof a === 'string') {
     mine.delete(a);
-  } else if (type === 'EVENT' && a && typeof a === 'object' && typeof a.id === 'string') {
+  } else if (type === 'EVENT' && a && typeof a === 'object' && typeof a.id === 'string' && a.id.length <= 128) {
     send(ws, ['OK', a.id, true, '']);
     for (const [peer, theirs] of subs) {
       for (const [id, fs] of theirs) if (fs.some((f) => matches(f, a))) send(peer, ['EVENT', id, a]);
@@ -82,8 +113,14 @@ function onMessage(ws, raw) {
 }
 
 function send(ws, msg) {
-  if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+  if (ws.readyState !== ws.OPEN) return;
+  ws.send(JSON.stringify(msg));
+  stats.msgOut++;
 }
+
+// Filtre accepté : un objet avec une liste « #x » de sujets (chaînes courtes), non vide
+const precise = (f) => f && typeof f === 'object' && Array.isArray(f['#x']) && f['#x'].length > 0
+  && f['#x'].length <= MAX_TOPICS && f['#x'].every((t) => typeof t === 'string' && t.length <= 128);
 
 // Filtre Nostr (NIP-01) : ids, authors, kinds, since, until et étiquettes « #x »
 export function matches(f, ev) {
@@ -108,5 +145,22 @@ setInterval(() => {
     ws.ping();
   }
 }, PING_MS);
+
+// Journal : une ligne par minute quand il y a de l'activité ou des refus
+setInterval(() => {
+  const refused = Object.entries(stats.refused).map(([k, v]) => `${k}=${v}`).join(' ');
+  if (!wss.clients.size && !stats.msgIn && !refused) return;
+  console.log(`${new Date().toISOString()} connexions=${wss.clients.size} ip=${perIp.size} reçus=${stats.msgIn} envoyés=${stats.msgOut}${refused ? ` refus: ${refused}` : ''}`);
+  Object.assign(stats, { msgIn: 0, msgOut: 0, refused: {} });
+}, 60000);
+
+// Arrêt propre (docker stop) : sinon Node, processus n° 1 du conteneur, ignore SIGTERM
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    for (const ws of wss.clients) ws.close(1001, 'redémarrage');
+    http.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 2000).unref();
+  });
+}
 
 http.listen(PORT, () => console.log(`Relais Remote Town sur le port ${PORT}`));

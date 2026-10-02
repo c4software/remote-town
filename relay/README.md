@@ -10,6 +10,17 @@ Relais Nostr minimal utilisé par Trystero pour la signalisation WebRTC (qui se 
 - Messages Nostr gérés : `REQ`, `EVENT`, `CLOSE` (ceux qu'utilise Trystero). Chaque événement est transmis aux abonnés dont le filtre correspond.
 - Garde-fous : messages de 64 Ko au plus, 32 abonnements et 200 messages par seconde par connexion, connexions mortes fermées par ping toutes les 25 s.
 
+## Sécurité
+
+Le relais ne stocke rien, n'a aucun secret et ne touche à aucun fichier : le risque principal est l'abus (s'en servir comme relais Nostr gratuit, ou le saturer). Le filtre par origine bloque les autres sites web, mais pas un script hors navigateur, qui peut annoncer n'importe quelle origine. D'où :
+
+- **Abonnements précis seulement** : chaque filtre doit porter une liste « #x » de sujets (les salles), comme ceux de Trystero. Un filtre vide ou large, qui recevrait les messages de toutes les salles, est refusé (`CLOSED`).
+- **Plafonds de connexions** : `MAX_CONNS` au total (1000 par défaut) et `MAX_PER_IP` par adresse (150 par défaut, de quoi accueillir une salle entière derrière la même IP). L'adresse réelle vient de l'en-tête `X-Real-IP` posé par Nginx Proxy Manager, seul à joindre le conteneur. Au-delà : refus 503.
+- **Conteneur durci** (`docker-compose.yml`) : système de fichiers en lecture seule, aucune capacité Linux, pas d'élévation de privilèges, 128 Mo et 64 processus au plus, utilisateur non-root, aucun port publié.
+- **Journal** (`docker logs remote-town-relay`) : une ligne par minute quand il y a de l'activité, avec connexions, adresses, messages reçus et envoyés, et les refus par motif (origine, plafond, débit, abonnements, filtre large).
+
+L'accès aux salles n'est pas protégé (qui connaît le nom d'une salle peut y entrer) : c'est le principe de l'application, que le relais ne change pas.
+
 Pour l'activer dans l'application : `NET_URL` dans `public/js/config.js` = adresse publique du relais (`https://…`), qui sert `wss://…/relay`, et `NET_HOSTS` = les pages qui l'utilisent (les mêmes que `ALLOWED_ORIGINS`). Depuis une autre page, l'application n'utilise que les relais publics.
 
 ## Déploiement (serveur actuel)

@@ -8,6 +8,13 @@ services:
     restart: unless-stopped
     environment:
       - ALLOWED_ORIGINS=https://distance.brosseau.ovh,https://c4software.github.io
+    # Durcissement : rien à écrire, aucun droit Linux, ressources plafonnées
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    pids_limit: 64
     logging:
       driver: "json-file"
       options:
