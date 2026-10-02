@@ -1,6 +1,6 @@
 // Écran du personnage : connexion (nom, salle, apparence) et modification en cours de session.
 // Le profil est mémorisé dans le navigateur (localStorage « rt-prefs »).
-import { initMic } from './audio.js';
+import { initMic, portalMusic } from './audio.js';
 import { cleanBody, cleanHead, drawAvatar, lookBody, lookHead } from './avatar.js';
 import { PALETTE } from './config.js';
 import { $ } from './dom.js';
@@ -8,7 +8,7 @@ import { showHelp } from './hud.js';
 import { connect, profile } from './net.js';
 import { renderPeople } from './panel.js';
 import { canvas } from './render.js';
-import { cleanRoom, rememberSpace, roomUrl, shareLink } from './rooms.js';
+import { cleanRoom, rememberSpace, roomName, roomUrl, shareLink } from './rooms.js';
 import { S, keys } from './state.js';
 
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('rt-prefs')) || {}; } catch { return {}; } })();
@@ -126,6 +126,21 @@ function applyProfile() {
   closeProfile(false);
 }
 
+const center = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+
+// Cercle noir qui grandit depuis (x, y) et recouvre l'écran ; l'arrivée par la porte
+// (firstArrival, même écran noir) prend le relais et le retire
+function coverFrom([x, y], name) {
+  const el = $('#cover');
+  el.style.setProperty('--x', `${x}px`);
+  el.style.setProperty('--y', `${y}px`);
+  $('#coverName').textContent = name;
+  el.classList.remove('grow');
+  el.hidden = false;
+  el.getBoundingClientRect(); // applique l'état de départ avant la transition
+  el.classList.add('grow');
+}
+
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initProfile() {
   nameInput.value = prefs.name || '';
@@ -180,6 +195,9 @@ export function initProfile() {
   $('#mePill').onclick = openProfile;
   $('#mePill').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(); } };
 
+  // Point de départ du cercle noir : là où l'on a cliqué (sinon le centre du bouton)
+  let clickAt = null;
+  $('#joinSubmit').addEventListener('pointerdown', (e) => { clickAt = [e.clientX, e.clientY]; });
   $('#joinForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (S.editingProfile) return applyProfile();
@@ -187,10 +205,13 @@ export function initProfile() {
     if (!name) return;
     savePrefs();
     S.roomId = cleanRoom(roomInput.value);
+    coverFrom(clickAt || center($('#joinSubmit')), roomName(S.roomId));
+    portalMusic(); // dans le geste de l'utilisateur : le navigateur autorise le son
     history.replaceState(null, '', roomUrl(S.roomId));
     rememberSpace(S.roomId);
     S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await initMic();
+    // On attend que le cercle noir ait recouvert l'écran (et l'accord pour le micro)
+    await Promise.all([initMic(), new Promise((r) => setTimeout(r, 800))]);
     connect(name);
   });
 }

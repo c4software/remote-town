@@ -30,6 +30,19 @@ kbd {
 .muted { color: var(--muted); }
 
 /* ---------- Accueil ---------- */
+/* Passage vers l'espace : cercle noir qui part du clic sur « Rejoindre l'espace » */
+#cover {
+  position: fixed; inset: 0; z-index: 100; background: #0d0f1f; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px; clip-path: circle(0 at var(--x) var(--y));
+  transition: clip-path .75s cubic-bezier(.55, 0, .45, 1);
+}
+#cover[hidden] { display: none; }
+#cover.grow { clip-path: circle(150vmax at var(--x) var(--y)); }
+#cover span { color: #c8b6ff; font-weight: 600; font-size: 14px; }
+#cover b { color: #fff; font-size: 22px; }
+#cover span, #cover b { opacity: 0; transition: opacity .3s .55s; }
+#cover.grow span, #cover.grow b { opacity: 1; }
+
 #join {
   position: fixed; inset: 0; display: flex; overflow-y: auto; padding: 16px;
   background:

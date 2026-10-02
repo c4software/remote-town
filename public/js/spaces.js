@@ -111,9 +111,11 @@ async function emerge() {
 
 // Première arrivée (après « Rejoindre l'espace ») : même passage, déjà dans la porte.
 // L'écran noir laisse aussi le temps aux connexions de s'établir.
+// La musique est lancée au clic sur « Rejoindre l'espace » (profile.js), avec le
+// cercle noir du formulaire (#cover) que l'on retire ici : le canevas a pris le relais.
 export async function firstArrival() {
-  portalMusic();
   S.warp = { phase: 'wait', at: performance.now(), name: roomName(S.roomId), title: 'Bienvenue dans' };
+  requestAnimationFrame(() => { $('#cover').hidden = true; });
   await wait(FIRST_WAIT_MS);
   await emerge();
 }
