@@ -92,7 +92,7 @@ public/
     main.js        point d'entrée : branche les modules, accès ?debug
     state.js       état partagé (S, users, keys, myIds)
     config.js      constantes (vitesses, palettes, relais, STUN, clavier)
-    diag.js        bouton Diagnostic : rapport sur la connexion, copié et envoyé au relais
+    diag.js        rapport sur la connexion, copié et envoyé au relais (bouton masqué pour l'instant)
     world.js       carte, zones, règles « qui entend / voit qui » (module pur)
     dom.js         utilitaires d'interface ($, toast…)
     avatar.js      dessin des personnages et accessoires
