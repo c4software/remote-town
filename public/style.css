@@ -72,6 +72,7 @@ body.warp-in #app > :not(#world) { animation: warp-ui-in .5s ease-out; }
 }
 #preview { width: 96px; height: 144px; image-rendering: pixelated; cursor: pointer; }
 #joinForm { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.join-col, .join-foot, .join-settings { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 500; }
 .field input {
   width: 100%; min-width: 0; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 15px; outline: none;
@@ -122,6 +123,27 @@ body.warp-in #app > :not(#world) { animation: warp-ui-in .5s ease-out; }
 .join-link { cursor: pointer; }
 .join-link:hover { color: var(--green); text-decoration: underline; text-underline-offset: 2px; }
 .join-note { font-size: 12px; color: var(--muted); margin: 0; }
+
+/* Écran large : deux colonnes (identité et couleurs | accessoires et réglages), boutons en bas
+   sur toute la largeur. Sur petit écran, une seule colonne, dans le même ordre. */
+@media (min-width: 980px) {
+  .join-card { width: min(1120px, 100%); padding: 28px 36px; }
+  .join-sub { margin-bottom: 18px; }
+  .join-body { flex-wrap: nowrap; gap: 32px; }
+  .preview-wrap { flex-basis: 160px; height: 200px; position: sticky; top: 0; }
+  #joinForm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 14px 36px; }
+  .join-foot {
+    grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px;
+    padding-top: 14px; border-top: 1px solid var(--border);
+  }
+  .join-note { order: -1; flex: 1 1 260px; }
+  #joinSubmit { flex: 0 0 260px; order: 1; } /* bouton principal à droite, connexion comme profil */
+  .profile-actions .btn-ghost { flex: none; padding: 12px 16px; }
+}
+/* Micro et incrustation côte à côte quand la colonne de droite est assez large */
+@media (min-width: 1180px) {
+  .join-settings { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 20px; }
+}
 
 /* ---------- Monde ---------- */
 #app { position: fixed; inset: 0; }

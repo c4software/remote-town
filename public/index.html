@@ -20,83 +20,91 @@
       <div class="join-body">
         <div class="preview-wrap"><canvas id="preview" width="96" height="144" title="Cliquez pour sauter"></canvas></div>
         <form id="joinForm" autocomplete="off">
-          <label class="field">
-            <span>Votre nom</span>
-            <input id="nameInput" maxlength="24" placeholder="ex. Camille" required>
-          </label>
-          <div class="field" id="roomField">
-            <label for="roomInput">Salle <small>(vide = espace principal)</small></label>
-            <div class="room-row">
-              <input id="roomInput" maxlength="40" placeholder="lobby" autocapitalize="off" spellcheck="false">
-              <button type="button" id="copyLinkJoin" class="btn-ghost" title="Copier le lien d'invitation">
-                <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
-                <span class="copy-label">Copier le lien</span><span class="copied-label">Copié ✓</span>
-              </button>
+          <div class="join-col">
+            <label class="field">
+              <span>Votre nom</span>
+              <input id="nameInput" maxlength="24" placeholder="ex. Camille" required>
+            </label>
+            <div class="field" id="roomField">
+              <label for="roomInput">Salle <small>(vide = espace principal)</small></label>
+              <div class="room-row">
+                <input id="roomInput" maxlength="40" placeholder="lobby" autocapitalize="off" spellcheck="false">
+                <button type="button" id="copyLinkJoin" class="btn-ghost" title="Copier le lien d'invitation">
+                  <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+                  <span class="copy-label">Copier le lien</span><span class="copied-label">Copié ✓</span>
+                </button>
+              </div>
+              <small id="roomLink" class="room-link"></small>
             </div>
-            <small id="roomLink" class="room-link"></small>
+            <div class="field"><span>Style</span>
+              <div class="chips" id="styleChips">
+                <button type="button" data-style="boy">Gars</button>
+                <button type="button" data-style="girl">Fille</button>
+              </div>
+            </div>
+            <div class="field"><span>Haut</span><div class="swatches" data-part="shirt"></div></div>
+            <div class="field"><span>Cheveux</span><div class="swatches" data-part="hair"></div></div>
+            <div class="field"><span>Peau</span><div class="swatches" data-part="skin"></div></div>
           </div>
-          <div class="field"><span>Style</span>
-            <div class="chips" id="styleChips">
-              <button type="button" data-style="boy">Gars</button>
-              <button type="button" data-style="girl">Fille</button>
+          <div class="join-col">
+            <div class="field"><span>Tête</span>
+              <div class="chips" id="headChips">
+                <button type="button" data-v="">Aucun</button>
+                <button type="button" data-v="cap">🧢 Casquette</button>
+                <button type="button" data-v="beanie">🧶 Bonnet</button>
+                <button type="button" data-v="tophat">🎩 Haut-de-forme</button>
+                <button type="button" data-v="partyhat">🥳 Chapeau de fête</button>
+                <button type="button" data-v="crown">👑 Couronne</button>
+                <button type="button" data-v="unicorn">🦄 Licorne</button>
+                <button type="button" data-v="catears">🐱 Oreilles de chat</button>
+                <button type="button" data-v="flower">🌸 Fleur</button>
+                <button type="button" data-v="headphones">🎧 Casque audio</button>
+                <button type="button" data-v="specs">👓 Lunettes de vue</button>
+                <button type="button" data-v="glasses">🤓 Grosses lunettes</button>
+                <button type="button" data-v="shades">🕶️ Lunettes de soleil</button>
+              </div>
+            </div>
+            <div class="field"><span>Corps</span>
+              <div class="chips" id="bodyChips">
+                <button type="button" data-v="">Aucun</button>
+                <button type="button" data-v="metal">🤘 T-shirt metal</button>
+                <button type="button" data-v="claude">✳️ T-shirt Claude</button>
+                <button type="button" data-v="codex">⌨️ T-shirt Codex</button>
+                <button type="button" data-v="linux">🐧 T-shirt Linux</button>
+                <button type="button" data-v="windows">🪟 T-shirt Windows</button>
+                <button type="button" data-v="macos">🍎 T-shirt macOS</button>
+                <button type="button" data-v="tie">👔 Cravate</button>
+                <button type="button" data-v="bowtie">🎀 Nœud papillon</button>
+                <button type="button" data-v="scarf">🧣 Écharpe</button>
+                <button type="button" data-v="medal">🏅 Médaille</button>
+                <button type="button" data-v="backpack">🎒 Sac à dos</button>
+                <button type="button" data-v="cape">🦸 Cape</button>
+              </div>
+            </div>
+            <div class="join-settings">
+              <div class="field"><span>Micro</span>
+                <div class="mic-row">
+                  <select id="micSelect"><option value="">Micro par défaut</option></select>
+                  <i id="micLevel" title="Niveau du micro"><b></b></i>
+                </div>
+              </div>
+              <div class="field" id="pipField" hidden><span title="Petite vue autour de son personnage, ouverte en changeant d'onglet (aussi avec P)">Incrustation (onglet caché)</span>
+                <div class="chips" id="pipChips">
+                  <button type="button" data-pip="on">🗺️ Activée</button>
+                  <button type="button" data-pip="off">Désactivée</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="field"><span>Haut</span><div class="swatches" data-part="shirt"></div></div>
-          <div class="field"><span>Cheveux</span><div class="swatches" data-part="hair"></div></div>
-          <div class="field"><span>Peau</span><div class="swatches" data-part="skin"></div></div>
-          <div class="field"><span>Tête</span>
-            <div class="chips" id="headChips">
-              <button type="button" data-v="">Aucun</button>
-              <button type="button" data-v="cap">🧢 Casquette</button>
-              <button type="button" data-v="beanie">🧶 Bonnet</button>
-              <button type="button" data-v="tophat">🎩 Haut-de-forme</button>
-              <button type="button" data-v="partyhat">🥳 Chapeau de fête</button>
-              <button type="button" data-v="crown">👑 Couronne</button>
-              <button type="button" data-v="unicorn">🦄 Licorne</button>
-              <button type="button" data-v="catears">🐱 Oreilles de chat</button>
-              <button type="button" data-v="flower">🌸 Fleur</button>
-              <button type="button" data-v="headphones">🎧 Casque audio</button>
-              <button type="button" data-v="specs">👓 Lunettes de vue</button>
-              <button type="button" data-v="glasses">🤓 Grosses lunettes</button>
-              <button type="button" data-v="shades">🕶️ Lunettes de soleil</button>
+          <div class="join-foot">
+            <button class="btn-primary" type="submit" id="joinSubmit">Rejoindre l'espace</button>
+            <div class="profile-actions" id="profileActions" hidden>
+              <button type="button" class="btn-ghost" id="profileCancel">Annuler</button>
+              <button type="button" class="btn-ghost" id="profileHelp">❔ Afficher l'aide</button>
+              <button type="button" class="btn-ghost" id="profileDiag" hidden title="Copier un rapport sur la connexion, à envoyer en cas de problème">🩺 Diagnostic</button>
             </div>
+            <p class="join-note" id="joinNote">Le micro vous sera demandé : il reste coupé tant que vous ne parlez pas. Tout passe en pair-à-pair, sans serveur.</p>
           </div>
-          <div class="field"><span>Corps</span>
-            <div class="chips" id="bodyChips">
-              <button type="button" data-v="">Aucun</button>
-              <button type="button" data-v="metal">🤘 T-shirt metal</button>
-              <button type="button" data-v="claude">✳️ T-shirt Claude</button>
-              <button type="button" data-v="codex">⌨️ T-shirt Codex</button>
-              <button type="button" data-v="linux">🐧 T-shirt Linux</button>
-              <button type="button" data-v="windows">🪟 T-shirt Windows</button>
-              <button type="button" data-v="macos">🍎 T-shirt macOS</button>
-              <button type="button" data-v="tie">👔 Cravate</button>
-              <button type="button" data-v="bowtie">🎀 Nœud papillon</button>
-              <button type="button" data-v="scarf">🧣 Écharpe</button>
-              <button type="button" data-v="medal">🏅 Médaille</button>
-              <button type="button" data-v="backpack">🎒 Sac à dos</button>
-              <button type="button" data-v="cape">🦸 Cape</button>
-            </div>
-          </div>
-          <div class="field"><span>Micro</span>
-            <div class="mic-row">
-              <select id="micSelect"><option value="">Micro par défaut</option></select>
-              <i id="micLevel" title="Niveau du micro"><b></b></i>
-            </div>
-          </div>
-          <div class="field" id="pipField" hidden><span>Vue en incrustation quand l'onglet est caché</span>
-            <div class="chips" id="pipChips">
-              <button type="button" data-pip="on">🗺️ Activée</button>
-              <button type="button" data-pip="off">Désactivée</button>
-            </div>
-          </div>
-          <button class="btn-primary" type="submit" id="joinSubmit">Rejoindre l'espace</button>
-          <div class="profile-actions" id="profileActions" hidden>
-            <button type="button" class="btn-ghost" id="profileCancel">Annuler</button>
-            <button type="button" class="btn-ghost" id="profileHelp">❔ Afficher l'aide</button>
-            <button type="button" class="btn-ghost" id="profileDiag" hidden title="Copier un rapport sur la connexion, à envoyer en cas de problème">🩺 Diagnostic</button>
-          </div>
-          <p class="join-note" id="joinNote">Le micro vous sera demandé : il reste coupé tant que vous ne parlez pas. Tout passe en pair-à-pair, sans serveur.</p>
         </form>
       </div>
     </div>
