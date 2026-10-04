@@ -116,6 +116,12 @@ test('haut-parleur du téléphone : l\'appel s\'entend autour de la personne qui
   assert.equal(speakerHolder({ ...a, call: null }, b, nearA), null, 'hors appel : rien');
 });
 
+test('les deux grandes salles ont au moins 35 places assises', () => {
+  const seats = (zone) => [...MAP.chairs.values()].filter((c) => zoneAt(c.x, c.y) === zone).length;
+  assert.ok(seats('main') >= 35, `bureau principal : ${seats('main')} places`);
+  assert.ok(seats('class') >= 35, `salle de classe : ${seats('class')} places`);
+});
+
 test('côte à côte dans le couloir : seulement si son micro est ouvert', () => {
   const b = at(31, 11);
   assert.equal(sideBySide(at(30, 10), b), true, 'diagonale');

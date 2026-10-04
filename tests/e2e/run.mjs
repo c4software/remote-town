@@ -539,6 +539,13 @@ const scenarios = {
     await wait(600);
     t.check((await texts(b)).join() === 'Bonjour\nla classe', 'texte tapé au clavier : il apparaît chez l\'élève pendant la saisie');
     t.check((await me(a)).zone === 'class' && await a.evaluate(() => !document.querySelector('#chatInput')?.value), 'taper ne déplace pas le personnage et n\'écrit pas dans le chat');
+    // Fenêtre redimensionnée pendant la saisie (clavier d'une tablette, par exemple) : la zone
+    // de saisie suit le tableau au lieu de se fermer
+    await a.setViewport({ width: 1100, height: 700 });
+    await wait(500);
+    t.check(await a.evaluate(() => document.activeElement?.id === 'boardText'), 'redimensionnement : la saisie continue');
+    await a.setViewport({ width: 1300, height: 820 });
+    await wait(500);
     await a.keyboard.press('Escape');
     await wait(300);
     t.check(await a.$('#boardText') === null && (await texts(a)).length === 1, 'Échap termine la saisie, le texte reste');
@@ -556,6 +563,18 @@ const scenarios = {
     await wait(1200);
     await place(c, 72, 10); await wait(800);
     t.check((await ink(c)) > 0, 'arrivée en cours de route : le dessin existant est reçu');
+    // Fermer le tableau l'enregistre : rouvert, on retrouve les traits et le texte
+    const items = (p) => p.evaluate(() => { const b = rt.boards.get('class'); return b ? [...b.strokes.values()].map((s) => (s.text !== undefined ? 'texte' : 'trait')).sort().join() : null; });
+    await a.click('#boardClose'); await wait(800);
+    t.check(await items(b) === null, 'tableau fermé : il disparaît chez l\'élève');
+    await a.click('#boardBtn'); await wait(1000);
+    t.check(await items(a) === 'texte,trait' && await items(b) === 'texte,trait' && (await texts(c)).join() === 'Bonjour\nla classe !', 'tableau rouvert : traits et texte retrouvés, chez le prof et les élèves');
+    // Quitter la salle l'enregistre aussi, et un rechargement de page ne le perd pas
+    await place(a, 30, 10); await wait(800);
+    t.check(await items(b) === null && await a.evaluate(() => Object.values(JSON.parse(localStorage.getItem('rt-boards')))[0].length === 2), 'sortie de la salle : tableau fermé et enregistré dans le navigateur');
+    await place(a, 68, 2); await wait(500);
+    await a.click('#boardBtn'); await wait(1000);
+    t.check(await items(a) === 'texte,trait' && await items(b) === 'texte,trait', 'retour dans la salle : tableau retrouvé');
   },
 
   async 'mains levées'(t) {

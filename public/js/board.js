@@ -2,7 +2,7 @@
 // Il s'ouvre au bureau du prof ; la personne qui l'ouvre dessine ou écrit au clavier, il s'affiche chez tous
 // ceux de la pièce (grand format ou PiP). Chacun garde l'état des tableaux ; le
 // propriétaire l'envoie aux nouveaux venus.
-import { BOARD_COLORS, BOARD_ERASER, BOARD_FONT, BOARD_H, BOARD_LINE, BOARD_SIZES, BOARD_TEXT_LINES, BOARD_TEXT_MAX, BOARD_W, WB_MSG, boardFontPx } from './constantes.js';
+import { BOARD_COLORS, BOARD_ERASER, BOARD_FONT, BOARD_H, BOARD_LINE, BOARD_SAVE_MAX, BOARD_SIZES, BOARD_TEXT_LINES, BOARD_TEXT_MAX, BOARD_W, WB_MSG, boardFontPx } from './constantes.js';
 import { $, ofName, toast } from './dom.js';
 import { updateUI } from './hud.js';
 import { broadcast } from './net.js';
@@ -78,16 +78,46 @@ export function onBoardMsg(d, { peerId }) {
   refreshBoard();
 }
 
+// Contenu d'un tableau tel qu'il s'envoie (synchronisation) et s'enregistre
+const boardItems = (b) => [...b.strokes].map(([id, st]) => ({ id, c: st.c, w: st.w, p: st.pts, ...(st.text !== undefined && { s: st.text }) }));
+
 export function syncBoardsTo(peerId) {
   for (const [z, b] of boards) {
     if (b.owner !== S.myId) continue;
-    const strokes = [...b.strokes].map(([id, st]) => ({ id, c: st.c, w: st.w, p: st.pts, ...(st.text !== undefined && { s: st.text }) }));
-    S.net?.wb.send({ t: WB_MSG.SYNC, z, strokes }, { target: peerId }).catch(() => {});
+    S.net?.wb.send({ t: WB_MSG.SYNC, z, strokes: boardItems(b) }, { target: peerId }).catch(() => {});
   }
+}
+
+// ============================================================
+// Mon tableau est enregistré quand il se ferme (bouton « Fermer », sortie de la salle,
+// reconnexion, page quittée) et retrouvé à la réouverture : traits et textes. Gardé par
+// espace et par salle, en mémoire et dans le navigateur (« rt-boards », si la taille le permet).
+// ============================================================
+const saved = new Map(); // « espace:salle » -> contenu (boardItems)
+const savedKey = (z) => `${S.roomId}:${z}`;
+function loadSaved() {
+  if (saved.loaded) return;
+  saved.loaded = true;
+  try {
+    for (const [k, items] of Object.entries(JSON.parse(localStorage.getItem('rt-boards')) || {})) if (Array.isArray(items)) saved.set(k, items);
+  } catch {}
+}
+function saveBoard(z, b) {
+  loadSaved();
+  const items = boardItems(b);
+  if (items.length) saved.set(savedKey(z), items); else saved.delete(savedKey(z));
+  try {
+    const text = JSON.stringify(Object.fromEntries(saved));
+    if (text.length <= BOARD_SAVE_MAX) localStorage.setItem('rt-boards', text);
+  } catch {} // trop gros ou stockage indisponible : gardé en mémoire seulement
+}
+function saveMyBoards() {
+  for (const [z, b] of boards) if (b.owner === S.myId) saveBoard(z, b);
 }
 
 export function dropBoardsOf(id) {
   let changed = false;
+  if (id === S.myId) saveMyBoards(); // reconnexion sous un nouvel identifiant : on garde le contenu
   for (const [z, b] of boards) if (b.owner === id) { boards.delete(z); changed = true; }
   if (changed) refreshBoard();
 }
@@ -95,14 +125,21 @@ export function dropBoardsOf(id) {
 function openBoard() {
   if (!S.me || !boardZone(S.me.zone) || boards.has(S.me.zone)) return;
   if (!atTeacherDesk()) return toast('Le tableau blanc s\'ouvre depuis le bureau du prof.');
-  boards.set(S.me.zone, { owner: S.myId, strokes: new Map() });
-  broadcast('wb', { t: WB_MSG.OPEN, z: S.me.zone });
-  boardPip.delete(S.me.zone);
+  const z = S.me.zone, b = { owner: S.myId, strokes: new Map() };
+  loadSaved();
+  for (const item of (saved.get(savedKey(z)) || []).slice(-5000)) addItem(b, item); // contenu enregistré, revalidé
+  boards.set(z, b);
+  broadcast('wb', { t: WB_MSG.OPEN, z });
+  if (b.strokes.size) broadcast('wb', { t: WB_MSG.SYNC, z, strokes: boardItems(b) });
+  boardPip.delete(z);
   refreshBoard();
 }
 
 export function closeMyBoard(z) {
-  if (boards.get(z)?.owner !== S.myId) return;
+  const b = boards.get(z);
+  if (b?.owner !== S.myId) return;
+  endText(); // texte en cours de saisie : validé avant l'enregistrement
+  saveBoard(z, b);
   boards.delete(z);
   broadcast('wb', { t: WB_MSG.CLOSE, z });
   refreshBoard();
@@ -139,11 +176,11 @@ export function refreshBoard() {
 }
 
 function fitBoard() {
-  endText(); // la zone de saisie est placée en pixels d'écran
   const wrap = $('#boardWrap');
   const k = Math.min(wrap.clientWidth / BOARD_W, wrap.clientHeight / BOARD_H);
   bcanvas.style.width = `${Math.floor(BOARD_W * k)}px`;
   bcanvas.style.height = `${Math.floor(BOARD_H * k)}px`;
+  placeText(); // la zone de saisie suit le tableau (fenêtre redimensionnée, clavier d'une tablette…)
 }
 
 function scheduleBoardDraw() {
@@ -214,13 +251,8 @@ function startText(e) {
   const b = boards.get(boardShown), [px, py] = boardPoint(e), hit = textAt(b, px, py);
   const ed = hit ? { id: hit.id, c: hit.st.c, w: hit.st.w, x: hit.st.pts[0], y: hit.st.pts[1] }
     : { id: `${S.myId}-${strokeSeq++}`, c: pen.c, w: pen.w, x: px, y: py };
-  const r = bcanvas.getBoundingClientRect(), k = r.width / BOARD_W;
   const ta = ed.ta = Object.assign(document.createElement('textarea'), { id: 'boardText', maxLength: BOARD_TEXT_MAX, wrap: 'off', spellcheck: false, value: hit?.st.text || '' });
   ta.setAttribute('aria-label', 'Texte du tableau');
-  Object.assign(ta.style, {
-    left: `${r.left + ed.x * k}px`, top: `${r.top + ed.y * k}px`, width: `${r.right - (r.left + ed.x * k)}px`, height: `${r.bottom - (r.top + ed.y * k)}px`,
-    font: `${boardFontPx(ed.w) * k}px/${BOARD_LINE} ${BOARD_FONT}`, color: ed.c,
-  });
   ta.oninput = () => {
     setText(boards.get(boardShown), { id: ed.id, c: ed.c, w: ed.w, p: [ed.x, ed.y], s: ta.value });
     textTimer ??= setTimeout(sendText, 120);
@@ -228,9 +260,19 @@ function startText(e) {
   ta.onkeydown = (ev) => { ev.stopPropagation(); if (ev.key === 'Escape') endText(); };
   ta.onblur = endText;
   editing = ed;
+  placeText();
   $('#board').append(ta);
   scheduleBoardDraw();
   ta.focus();
+}
+// Zone de saisie placée en pixels d'écran sur le tableau : recalculée quand il change de taille
+function placeText() {
+  if (!editing) return;
+  const r = bcanvas.getBoundingClientRect(), k = r.width / BOARD_W, ed = editing;
+  Object.assign(ed.ta.style, {
+    left: `${r.left + ed.x * k}px`, top: `${r.top + ed.y * k}px`, width: `${r.right - (r.left + ed.x * k)}px`, height: `${r.bottom - (r.top + ed.y * k)}px`,
+    font: `${boardFontPx(ed.w) * k}px/${BOARD_LINE} ${BOARD_FONT}`, color: ed.c,
+  });
 }
 function sendText() {
   clearTimeout(textTimer); textTimer = null;
@@ -285,6 +327,7 @@ function renderPenTools() {
 
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initBoard() {
+  addEventListener('pagehide', () => { endText(); saveMyBoards(); }); // page rechargée ou fermée
   bcanvas.addEventListener('pointerdown', (e) => {
     if (boardPip.has(boardShown)) return togglePip(); // en PiP, un clic agrandit
     if (boards.get(boardShown)?.owner !== S.myId) return;

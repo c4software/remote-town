@@ -61,7 +61,8 @@ function build() {
   obj('blackboard', 64, 0, 9, 1, { block: false });
   obj('tdesk', 67, 3, 3, 1);
   obj('chair', 68, 2, 1, 1, { block: false, dir: 'down', color: '#2a9d8f' });
-  for (const y of [6, 9, 12, 15]) {
+  // 5 rangées de 8 places : 40 élèves (au moins 35 places assises par grande salle, voir les tests)
+  for (const y of [6, 9, 12, 15, 18]) {
     for (const x of [63, 66, 70, 73]) {
       obj('sdesk', x, y, 2, 1);
       obj('chair', x, y + 1, 1, 1, { block: false, dir: 'up', color: '#e9a23b' });
@@ -69,7 +70,7 @@ function build() {
     }
   }
   for (const [x, y] of [[61, 1], [75, 1], [61, 20], [75, 20], [75, 18]]) obj('plant', x, y);
-  obj('shelf', 62, 19, 2, 1);
+  obj('shelf', 62, 1, 2, 1);
 
   // --- 10 bureaux de 4 ---
   for (let i = 0; i < 10; i++) {
