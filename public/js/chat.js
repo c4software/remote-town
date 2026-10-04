@@ -1,11 +1,12 @@
 // Chat : groupes de discussion (« Tout le monde », la salle où l'on se trouve) et messages
 // directs entre deux personnes. Il s'affiche dans le téléphone (phone.js) : ce module garde
 // les messages, les envoie, les reçoit, et fournit les deux pages (liste, conversation).
-import { CHAT_KEEP, CHAT_KEY, COLOR, PHONE_VIEW } from './constantes.js';
+import { drawAvatar } from './avatar.js';
+import { CHAT_KEEP, CHAT_KEY, COLOR, NOTIF_MS, PHONE_VIEW } from './constantes.js';
 import { runDiag } from './diag.js';
 import { $, cleanName, toast } from './dom.js';
 import { joinFromPanel } from './movement.js';
-import { phoneBadge, phoneRefresh } from './phone.js';
+import { openChat, phoneBadge, phoneRefresh } from './phone.js';
 import { S, myIds, users } from './state.js';
 import { MAP } from './world.js';
 
@@ -99,9 +100,38 @@ function notify(key, msg) {
   msg = chatList(key).find((m) => m.id === msg.id) || msg;
   if (chat.open !== key && !myIds.has(msg.from)) {
     chat.unread[key] = (chat.unread[key] || 0) + 1;
-    toast(`💬 ${msg.name}${key.startsWith(CHAT_KEY.DM) ? '' : ` (${convTitle(key).toLowerCase()})`} : ${msg.text.slice(0, 80)}`);
+    showNotif(key, msg);
   }
   renderChat();
+}
+
+// Notification d'un message reçu, façon téléphone : portrait de la personne, son nom, la
+// conversation et le début du message. Un clic ouvre la conversation.
+function showNotif(key, msg) {
+  const box = $('#notifs'), card = Object.assign(el('button', 'notif'), { type: 'button' });
+  card.dataset.conv = key;
+  const look = users.get(msg.from)?.look;
+  let face;
+  if (look) {
+    face = Object.assign(el('canvas', 'notif-face'), { width: 32, height: 40 });
+    drawAvatar(face.getContext('2d'), look, 16, 37, 'down');
+  } else {
+    face = el('div', 'notif-face msg-av', msg.name.slice(0, 1).toUpperCase());
+    face.style.background = msg.color;
+  }
+  const body = el('div', 'notif-body'), head = el('div', 'notif-head');
+  head.append(el('b', '', msg.name), el('small', '', key.startsWith(CHAT_KEY.DM) ? 'Message direct' : convTitle(key)), el('time', '', fmtTime(msg.ts)));
+  body.append(head, el('div', 'notif-text', msg.text.slice(0, 140)));
+  card.append(face, body);
+  const close = () => { card.classList.add('leaving'); setTimeout(() => card.remove(), 200); };
+  card.onclick = () => { card.remove(); openChat(key); };
+  box.append(card);
+  setTimeout(close, NOTIF_MS);
+  while (box.children.length > 3) box.firstChild.remove();
+}
+// La conversation est ouverte : ses notifications encore affichées disparaissent
+function clearNotifs(key) {
+  document.querySelectorAll('#notifs .notif').forEach((n) => { if (n.dataset.conv === key) n.remove(); });
 }
 
 export const unreadTotal = () => Object.values(chat.unread).reduce((n, v) => n + v, 0);
@@ -180,6 +210,7 @@ function renderMessages() {
   if (!box || !chat.open) return;
   const key = chat.open, list = chatList(key);
   delete chat.unread[key];
+  clearNotifs(key);
   const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
   box.replaceChildren();
   if (!list.length) {

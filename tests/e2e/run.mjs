@@ -26,9 +26,11 @@ const scenarios = {
     await a.keyboard.press('Enter');
     await wait(1200);
     t.check(await b.$eval('#phoneBtn .badge', (e) => !e.hidden && e.textContent === '1'), 'message non lu : pastille sur le bouton du téléphone');
-    await b.evaluate(() => rt.openChat('global'));
+    t.check(await b.$eval('#notifs .notif', (e) => e.textContent.includes('Alice') && e.textContent.includes('bonjour à tous') && !!e.querySelector('canvas')), 'notification du message : portrait, nom et texte');
+    await b.click('#notifs .notif');
     await wait(500);
-    t.check(await b.evaluate(() => document.querySelector('#messages').innerText.includes('bonjour à tous')), 'chat global reçu');
+    t.check(await b.evaluate(() => document.querySelector('#messages').innerText.includes('bonjour à tous')), 'clic sur la notification : la conversation s\'ouvre (chat global reçu)');
+    t.check(await b.$('#notifs .notif') === null, 'notification retirée');
     t.check(await b.$eval('#phoneBtn .badge', (e) => e.hidden), 'conversation ouverte : plus de pastille');
     const c = await join(t, 'Chloé');
     await waitPeers([a, b, c]);

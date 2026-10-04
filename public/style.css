@@ -581,6 +581,27 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #chatInput, .field input, #micSelect, .ph-input, .ph-select { font-size: 16px; } /* évite le zoom auto d'iOS */
 }
 
+/* ---------- Notifications des messages reçus (chat.js) : en haut à droite, un clic ouvre la conversation ---------- */
+#notifs { position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 14px; z-index: 56; width: min(340px, calc(100vw - 28px)); display: flex; flex-direction: column; gap: 8px; }
+.notif {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; text-align: left; color: var(--text);
+  background: var(--bg); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0, 0, 0, .45); animation: notif-in .28s cubic-bezier(.2, .9, .3, 1.1);
+}
+.notif:hover { background: var(--panel); }
+.notif.leaving { animation: notif-out .2s ease-in forwards; }
+.notif-face { flex: 0 0 auto; width: 36px; height: 45px; border-radius: 10px; background: var(--panel-2); image-rendering: pixelated; }
+div.notif-face { height: 36px; }
+.notif-body { flex: 1; min-width: 0; }
+.notif-head { display: flex; align-items: baseline; gap: 6px; font-size: 13px; }
+.notif-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-head small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.notif-head time { margin-left: auto; color: var(--muted); font-size: 11px; }
+.notif-text { font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+@keyframes notif-in { from { transform: translateY(-120%); opacity: 0; } }
+@keyframes notif-out { to { transform: translateX(110%); opacity: 0; } }
+@media (max-width: 560px) { #notifs { top: calc(54px + env(safe-area-inset-top)); right: 10px; width: calc(100vw - 20px); } }
+@media (prefers-reduced-motion: reduce) { .notif, .notif.leaving { animation-duration: .01s; } }
+
 /* ---------- Filigrane (façon « Activer Windows ») : en bas à gauche, par-dessus tout, sans gêner les clics ---------- */
 #watermark {
   position: fixed; left: 16px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 200; pointer-events: none; user-select: none;

@@ -150,6 +150,7 @@ export const PHONE_VIEW = Object.freeze({
 
 // --- Discussions (chat.js) ---
 export const CHAT_KEEP = 300;    // messages gardés par conversation
+export const NOTIF_MS = 6000;    // durée d'affichage de la notification d'un message reçu
 // Conversations : les deux groupes, et le préfixe d'un message direct (« dm:<pseudo> »)
 export const CHAT_KEY = Object.freeze({ GLOBAL: 'global', ZONE: 'zone', DM: 'dm:' });
 
