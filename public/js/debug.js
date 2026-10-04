@@ -2,6 +2,7 @@
 // ouverte avec ?debug, en local, ou sur le site publié avec un jeton d'administration
 // vérifié (voir debugMode dans dom.js et admin.js).
 import { loadToken, setTestKey } from './admin.js';
+import { boards } from './board.js';
 import { diagnostic, lastDiag } from './diag.js';
 import { debugMode } from './dom.js';
 import { links } from './media.js';
@@ -15,6 +16,7 @@ export function initDebug() {
   window.rt = {
     users,
     links,
+    boards,
     get me() { return S.me; },
     get room() { return S.room; },
     get tr() { return S.tr; },

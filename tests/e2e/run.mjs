@@ -430,6 +430,26 @@ const scenarios = {
     await wait(1000);
     const ink = (p) => p.evaluate(() => { const d = document.querySelector('#boardCanvas').getContext('2d').getImageData(0, 0, 1600, 900).data; let n = 0; for (let i = 0; i < d.length; i += 4 * 97) if (d[i] < 200) n++; return n; });
     t.check((await ink(b)) > 0, 'le tracé arrive chez l\'élève');
+    // Écriture au clavier : outil « Texte », clic sur le tableau, puis on tape
+    const texts = (p) => p.evaluate(() => [...rt.boards.get('class').strokes.values()].filter((s) => s.text !== undefined).map((s) => s.text));
+    await a.click('#penTools .text-tool');
+    await a.mouse.click(box.x + box.w * 0.2, box.y + box.h * 0.2);
+    await a.keyboard.type('Bonjour');
+    await a.keyboard.press('Enter');
+    await a.keyboard.type('la classe');
+    await wait(600);
+    t.check((await texts(b)).join() === 'Bonjour\nla classe', 'texte tapé au clavier : il apparaît chez l\'élève pendant la saisie');
+    t.check((await me(a)).zone === 'class' && await a.$eval('#chatInput', (e) => e.value === ''), 'taper ne déplace pas le personnage et n\'écrit pas dans le chat');
+    await a.keyboard.press('Escape');
+    await wait(300);
+    t.check(await a.$('#boardText') === null && (await texts(a)).length === 1, 'Échap termine la saisie, le texte reste');
+    await a.mouse.click(box.x + box.w * 0.2 + 10, box.y + box.h * 0.2 + 10);
+    await a.keyboard.press('End');
+    await a.keyboard.type(' !');
+    await a.keyboard.press('Escape');
+    await wait(500);
+    const edited = await texts(b);
+    t.check(edited.join() === 'Bonjour\nla classe !', `un clic sur le texte le reprend (${JSON.stringify(edited)})`);
     await b.click('#boardMin'); await wait(300);
     t.check(await b.$eval('#board', (e) => e.classList.contains('pip')), 'mode PiP');
     const c = await join(t, 'Chloé');

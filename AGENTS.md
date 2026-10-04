@@ -52,7 +52,7 @@ Modules de `public/js/` :
 | `phone.js` | Téléphone entre deux personnes (menu de la liste des participants) : sonnerie, appel, message vocal en cas d'absence, voir « Téléphone » |
 | `admin.js` | Modération : expulsion signée (clic droit dans la liste des participants, avec le jeton d'administration) |
 | `emotes.js` | Émotes animées (travail, AFK…) : roue du clic droit, dessin au-dessus du nom |
-| `board.js` | Tableau blanc (classe, bureau principal) |
+| `board.js` | Tableau blanc (classe, bureau principal) : dessin, et écriture au clavier (outil « Texte » : une zone de saisie `#boardText` posée à l'endroit cliqué ; le texte est un élément de `strokes` avec `text`, renvoyé en entier à chaque frappe) |
 | `pip.js` | Vue en incrustation (Document Picture-in-Picture) : recopie du canevas principal recadrée autour de soi. `P`, ou automatique en changeant d'onglet si activé (action Media Session `enterpictureinpicture`, que Chrome n'accorde qu'aux pages utilisant le micro) ; réglage `S.pipOn`, désactivé par défaut (`pipAuto` dans `rt-prefs`), fenêtre de 440 × 390. Onglet caché, la boucle de la page s'arrête : la fenêtre appelle `frame()` de `render.js` à sa place |
 | `videos.js` | Partages d'écran reçus, affichage en grand, projection |
 | `diag.js` | Bouton « 🩺 Diagnostic » : rapport texte sur la connexion (page, navigateur, relais, liaisons par pair, test ICE, console Trystero), sans adresse IP, copié et envoyé à notre relais (`POST /diag`) |
@@ -81,7 +81,7 @@ Modules de `public/js/` :
 | `state` | `mic, ptt, sharing, onAir, hand, six` (« 67 » : 6 + 7 maintenus), `dab` (B maintenu), `emote` (liste `EMOTES`) | à chaque changement (`pushState`) |
 | `chat` | `{ channel, msg }` | canal `global` à tous, canal de zone aux personnes de la zone |
 | `history` | requête : `{ channel }` → liste de messages | en entrant dans une zone / à la connexion |
-| `wb` | tableau blanc : `open`, `seg`, `clear`, `close`, `sync` | par le propriétaire du tableau |
+| `wb` | tableau blanc : `open`, `seg`, `txt` (bloc de texte entier : `id, c, w, p: [x, y], s`), `clear`, `close`, `sync` | par le propriétaire du tableau |
 | `react` | `{ e }` (emoji de la liste `REACTIONS`) | à tous |
 | `jingle` | `{}` (carillon d'annonce, joué seulement si l'auteur est au pupitre) | à tous, avec `J` au pupitre |
 | `call` | `{ t }` : `ring`, `accept`, `decline`, `busy`, `cancel`, `end` | à la personne appelée / appelante seulement (`phone.js`) |
@@ -119,6 +119,8 @@ Volontairement absente de l'aide et du README.
 **Modifier la carte** : `world.js` (`build()` : sols, zones, mobilier via `obj()`), le dessin du mobilier dans `map-render.js` (`drawObject`). `npm test` vérifie que toutes les zones et chaises restent accessibles.
 
 **Ajouter une route HTTP au relais** (`relay/server.mjs`, comme `/turn` et `/diag`) : vérifier l'origine (`allowed`), répondre avec les en-têtes CORS, borner la taille et la fréquence, ne rien écrire ailleurs que sur la sortie standard (conteneur en lecture seule), puis redéployer **seulement ce service** (voir `relay/README.md`).
+
+**Filigrane** : `#watermark` (`index.html`, hors de `#app` pour rester visible pendant les transitions ; style à la fin de `style.css`), deux lignes en bas à gauche, toujours au-dessus de tout, sans capter les clics.
 
 **Ajouter un bouton à la barre du bas** : `index.html` (`#bar`), le branchement dans `hud.js` (`initHud`), le style dans `style.css`. Vérifier que la barre tient sur un téléphone de 360 px de large (boutons réduits sous 420 px).
 
