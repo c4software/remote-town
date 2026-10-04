@@ -1,6 +1,5 @@
 // Réseau pair-à-pair (Trystero) : connexion à la salle, messages reçus des autres,
 // présence, attente et reconnexion. Il n'y a pas d'hôte : chacun est relié à tous.
-import { pttReaches, walkieBeep } from './audio.js';
 import { lookBody, lookHead } from './avatar.js';
 import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
@@ -12,6 +11,7 @@ import { startApp } from './hud.js';
 import { closeLink, onPeerStream, updateRouting } from './media.js';
 import { resolveOverlap, startDash } from './movement.js';
 import { renderPeople } from './panel.js';
+import { onCallMsg, onVmail, phonePeerLeft } from './phone.js';
 import { forceRename, look } from './profile.js';
 import { shareLink } from './rooms.js';
 import { REACTIONS, addReaction, onJingle } from './social.js';
@@ -94,6 +94,8 @@ function joinNet() {
       onMessage: (d, { peerId }) => { const u = users.get(peerId); if (u && REACTIONS.includes(d?.e)) addReaction(u, d.e); },
     }),
     kick: S.room.makeAction('kick', { onMessage: (d) => onKick(d) }),
+    call: S.room.makeAction('call', { onMessage: (d, { peerId }) => onCallMsg(d, peerId) }),
+    vmail: S.room.makeAction('vmail', { onMessage: (d, { peerId, metadata }) => onVmail(d, peerId, metadata) }),
     jingle: S.room.makeAction('jingle', { onMessage: (d, { peerId }) => users.has(peerId) && onJingle(users.get(peerId)) }),
     history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => chatStore.get(String(d?.channel)) || [] }),
   };
@@ -339,15 +341,11 @@ function onRemoteMove(d, { peerId }) {
 function onRemoteState(d, { peerId }) {
   const u = users.get(peerId);
   if (!u) return;
-  const wasTalking = pttReaches(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab });
   receiveEmote(u, d?.emote);
-  const talking = pttReaches(u);
-  if (talking && !wasTalking) walkieBeep('start', 0.12);
-  if (wasTalking && !talking) walkieBeep('end', 0.12);
   updateRouting(); renderPeople();
 }
 
@@ -376,6 +374,7 @@ function onPeerLeave(id, silent = false) {
   users.delete(id);
   dropBoardsOf(id);
   closeLink(id);
+  phonePeerLeft(id);
   if (u && !silent) toast(`${u.name} est parti·e`);
   renderPeople(); updateRouting(); updatePresence();
 }

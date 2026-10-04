@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, chairAt, isBlocked, isOnAir, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, isBlocked, isOnAir, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -65,6 +65,30 @@ test('N : à 4 cases maximum, et pas à travers les murs', () => {
   assert.equal(sendsAudio(a, at(34, 10)), true, '4 cases');
   assert.equal(sendsAudio(a, at(35, 10)), false, '5 cases');
   assert.equal(sendsAudio(at(20, 9, { ptt: true }), at(20, 7)), false, 'autre zone derrière le mur');
+});
+
+test('N : pas de talkie dans la salle de classe ni au bureau principal', () => {
+  const c = at(65, 10, { ptt: true }), m = at(5, 10, { ptt: true });
+  assert.equal(c.zone, 'class');
+  assert.equal(m.zone, 'main');
+  assert.equal(canTalkieIn('class'), false);
+  assert.equal(canTalkieIn('main'), false);
+  assert.equal(canTalkieIn('hall'), true);
+  assert.equal(canTalkieIn('desk-1'), true);
+  assert.equal(sendsAudio(c, at(66, 10)), false, 'classe : N ignoré');
+  assert.equal(sendsAudio(m, at(6, 10)), false, 'bureau principal : N ignoré');
+  assert.equal(sendsAudio({ ...c, mic: true }, at(66, 10)), true, 'le micro (M) y marche toujours');
+});
+
+test('téléphone : on s\'entend où qu\'on soit, sauf depuis une salle de classe', () => {
+  const a = at(30, 10), b = at(20, 5), c = at(31, 10);
+  a.call = b.id; b.call = a.id;
+  assert.equal(sendsAudio(a, b), true, 'couloir → bureau, micro coupé');
+  assert.equal(sendsAudio(b, a), true, 'et dans l\'autre sens');
+  assert.equal(sendsAudio(a, c), false, 'la personne d\'à côté n\'entend pas l\'appel');
+  const k = at(65, 10, { call: b.id });
+  assert.equal(canCallIn(k.zone), false);
+  assert.equal(sendsAudio(k, b), false, 'pas de téléphone depuis la salle de classe');
 });
 
 test('côte à côte dans le couloir : seulement si son micro est ouvert', () => {

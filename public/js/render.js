@@ -11,7 +11,7 @@ import { isTransmitting } from './panel.js';
 import { drawHandAndReactions, sixSevenPump } from './social.js';
 import { drawPortalOpen, drawSpaceSign, drawWarpOverlay, warpPose } from './spaces.js';
 import { S, users } from './state.js';
-import { MAP, PROX_RADIUS, TILE, chairAt, isOnAir, nearLectern, nearPortal, sendsAudio, shade, sideBySide } from './world.js';
+import { MAP, PROX_RADIUS, TILE, canTalkieIn, chairAt, isOnAir, nearLectern, nearPortal, sendsAudio, shade, sideBySide } from './world.js';
 
 export const canvas = $('#world');
 export const ctx = canvas.getContext('2d');
@@ -217,7 +217,7 @@ function draw() {
     drawAvatar(ctx, look, cx, by + (chair ? -4 : 0) + (pose ? pose.dy : 0), dir, frame, !!chair, lift, crouched, sixSevenPump(u, now), !!u.dab);
     ctx.globalAlpha = 1;
     if (chair) drawChairBack(ctx, chair);
-    if (u.ptt) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
+    if (u.ptt && canTalkieIn(u.zone)) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
     if (isOnAir(u)) drawSpeakerWaves(cx, by - 24, now);
     if (u.level > 0.04) {
       ctx.strokeStyle = '#06d6a0'; ctx.lineWidth = 1.5;

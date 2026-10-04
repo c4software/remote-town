@@ -3,7 +3,7 @@ import { drawAvatar } from './avatar.js';
 import { chime } from './audio.js';
 import { $, ofName, toast } from './dom.js';
 import { pushState } from './media.js';
-import { goToUser } from './movement.js';
+import { openHandMenu } from './panel.js';
 import { broadcast } from './net.js';
 import { ctx } from './render.js';
 import { S, users } from './state.js';
@@ -142,11 +142,11 @@ export function renderHands() {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'hand-bubble';
-    b.title = `${u.name} lève la main · ${MAP.zoneById[u.zone]?.name || ''} — cliquer pour le rejoindre`;
+    b.title = `${u.name} lève la main · ${MAP.zoneById[u.zone]?.name || ''} — cliquer pour rejoindre ou appeler`;
     const q = document.createElement('span'); q.className = 'hb-q'; q.textContent = '?';
     const n = document.createElement('span'); n.className = 'hb-name'; n.textContent = u.name;
     b.append(headPortrait(u), q, n);
-    b.onclick = () => goToUser(u.id);
+    b.onclick = () => { const r = b.getBoundingClientRect(); openHandMenu(r.left - 248, r.top, u); };
     box.append(b);
   }
   if (raised.length > MAX_HANDS) {

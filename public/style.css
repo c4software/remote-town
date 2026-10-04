@@ -319,8 +319,51 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pm-vol button { width: 32px; height: 32px; border-radius: 8px; background: var(--panel-2); font-size: 16px; flex: 0 0 auto; }
 .pm-vol input { flex: 1; min-width: 0; accent-color: var(--green); }
 .pm-vol span { width: 40px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
-.pm-kick { display: block; width: 100%; padding: 8px 10px; border-radius: 8px; text-align: left; font-weight: 600; color: #fff; }
+.pm-item { display: block; width: 100%; padding: 8px 10px; border-radius: 8px; text-align: left; font-weight: 600; color: #fff; }
 .pm-kick:hover { background: var(--red); }
+.pm-item:not(.pm-kick):hover { background: var(--panel-3); }
+.pm-item:disabled { color: var(--muted); font-weight: 400; background: none; cursor: default; }
+
+/* Téléphone (phone.js) : petit appareil en bas à gauche, par-dessus l'interface */
+#phone {
+  position: fixed; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 55; width: 210px;
+  background: var(--bg-deep); border: 2px solid var(--border); border-radius: 28px; padding: 8px 8px 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .55); display: flex; flex-direction: column; gap: 8px;
+  animation: ph-up .25s ease-out;
+}
+#phone[hidden] { display: none; }
+#phone:has(.ph-in) { border-color: var(--green); animation: ph-up .25s ease-out, ph-shake 1.2s ease-in-out .25s infinite; }
+#phone svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ph-notch { width: 56px; height: 6px; border-radius: 3px; background: var(--panel-3); margin: 2px auto 0; }
+.ph-body { display: flex; flex-direction: column; gap: 10px; }
+.ph-screen {
+  background: var(--panel); border-radius: 20px; padding: 14px 10px; min-height: 150px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center;
+}
+.ph-avatar { width: 64px; height: 80px; image-rendering: pixelated; }
+.ph-name { font-weight: 700; font-size: 16px; max-width: 100%; overflow-wrap: anywhere; }
+.ph-status { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ph-on .ph-status { color: var(--green); }
+.ph-screen small { font-size: 11px; color: var(--muted); }
+.ph-bar { width: 100%; height: 4px; margin-top: 6px; border-radius: 2px; background: var(--red); transform-origin: left; animation: ph-bar linear forwards; }
+.ph-actions { display: flex; justify-content: space-evenly; }
+.ph-actions button { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.ph-actions button svg { box-sizing: content-box; padding: 12px; border-radius: 50%; background: var(--panel-3); color: #fff; }
+.ph-actions .ph-accept svg { background: var(--green-dark); }
+.ph-actions .ph-end svg { background: var(--red); }
+.ph-actions button:hover svg { filter: brightness(1.15); }
+.ph-vmails { background: var(--panel); border-radius: 20px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ph-title { font-size: 12px; font-weight: 700; color: var(--muted); }
+.ph-vmail { display: flex; align-items: center; gap: 6px; }
+.ph-vm-info { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+.ph-vm-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-vm-info small { color: var(--muted); font-size: 11px; }
+.ph-mini { width: 32px; height: 32px; flex: 0 0 auto; border-radius: 50%; background: var(--panel-3); color: #fff; display: grid; place-items: center; }
+#phone .ph-mini svg { width: 16px; height: 16px; }
+.ph-mini span { display: none; }
+@keyframes ph-up { from { transform: translateY(40px); opacity: 0; } }
+@keyframes ph-shake { 0%, 20%, 100% { transform: rotate(0); } 4%, 12% { transform: rotate(-2deg); } 8%, 16% { transform: rotate(2deg); } }
+@keyframes ph-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 #people .p-vol { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--panel-3); color: #fff; }
 #kicked { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 16px; background: rgba(10, 12, 28, .92); }
 #kicked[hidden] { display: none; }

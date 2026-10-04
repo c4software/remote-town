@@ -1,7 +1,6 @@
 // Audio local : micro, mesure du niveau, bips du talkie-walkie, effet « haut-parleur » du pupitre.
 import { toast } from './dom.js';
 import { S } from './state.js';
-import { PROX_RADIUS } from './world.js';
 
 export async function initMic() {
   if (S.micTrack) return true;
@@ -49,9 +48,6 @@ export function sampleLevel(a) {
 // ============================================================
 // Talkie-walkie : bips d'ouverture / fin de N et dessin de l'appareil
 // ============================================================
-// N d'un autre participant qui nous parvient (indépendamment du micro de pièce ou du côte à côte)
-export const pttReaches = (u) => !!S.me && !!u.ptt && u.zone === S.me.zone && Math.hypot(u.x - S.me.x, u.y - S.me.y) <= PROX_RADIUS;
-
 export function walkieBeep(kind, volume) {
   if (!S.audioCtx) return;
   S.audioCtx.resume?.();
@@ -146,6 +142,39 @@ export function chime(notes, volume) {
       scheduleChime(S.audioCtx, notes, volume, S.audioCtx.currentTime + 0.02);
     });
 }
+
+// Sonneries du téléphone (phone.js), rendues en WAV et jouées en boucle par un élément
+// <audio>, comme le carillon. Chez l'appelé : motif électronique de quatre notes joué deux
+// fois, façon standard téléphonique de la série « 24 » ; chez l'appelant : tonalité de
+// retour d'appel (440 Hz, 1,5 s toutes les 5 s). Notes : [fréquence, début, durée].
+const RING_MOTIF = [0, 0.62].flatMap((t) => [[1175, t, 0.09], [1175, t + 0.11, 0.09], [1480, t + 0.22, 0.09], [1175, t + 0.33, 0.16]]);
+const RINGS = {
+  in: { seconds: 2.4, type: 'square', amp: 0.14, tones: RING_MOTIF },
+  out: { seconds: 5, type: 'sine', amp: 0.12, tones: [[440, 0, 1.5]] },
+};
+function scheduleTones(ac, { type, amp, tones }) {
+  for (const [freq, at, dur] of tones) {
+    const osc = ac.createOscillator();
+    osc.type = type; osc.frequency.value = freq;
+    const env = ac.createGain();
+    env.gain.setValueAtTime(0, at);
+    env.gain.linearRampToValueAtTime(amp, at + 0.006);
+    env.gain.setValueAtTime(amp, at + dur - 0.01);
+    env.gain.linearRampToValueAtTime(0, at + dur);
+    osc.connect(env).connect(ac.destination);
+    osc.start(at); osc.stop(at + dur + 0.02);
+  }
+}
+let ringEl = null;
+export function ring(kind) {
+  stopRing();
+  const el = ringEl = new Audio();
+  el.loop = true;
+  rendered(`ring-${kind}`, RINGS[kind].seconds, (off) => scheduleTones(off, RINGS[kind]))
+    .then((url) => { if (ringEl !== el) return; el.src = url; return el.play(); })
+    .catch(() => {});
+}
+export function stopRing() { ringEl?.pause(); ringEl = null; }
 
 // Musique de transition de la porte des espaces (~3,6 s, jouée seulement chez la
 // personne qui passe la porte) : souffle qui monte, nappe d'accord, arpège

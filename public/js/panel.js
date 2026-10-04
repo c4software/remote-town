@@ -5,11 +5,12 @@ import { renderChat } from './chat.js';
 import { $, ofName } from './dom.js';
 import { personalVolume, setPersonalVolume } from './media.js';
 import { joinFromPanel } from './movement.js';
+import { startCall } from './phone.js';
 import { openProfile } from './profile.js';
 import { renderHands } from './social.js';
 import { S, users } from './state.js';
 import { EMOTES, emoteIcon } from './emotes.js';
-import { MAP, ROOM_TYPES, isOnAir, sideBySide, zoneType } from './world.js';
+import { MAP, ROOM_TYPES, canCallIn, isOnAir, sideBySide, zoneType } from './world.js';
 
 export function showPanel(name) {
   const sb = $('#sidebar');
@@ -65,7 +66,7 @@ export function renderPeople() {
 // Branchement des événements de la page (appelé une fois par main.js)
 // ============================================================
 // Menu d'une personne (clic droit, ou appui long sur mobile, dans la liste) : son volume
-// pour moi seul, et « Expulser » pour les administrateurs (jeton, admin.js)
+// pour moi seul, l'appeler (phone.js), et « Expulser » pour les administrateurs (jeton, admin.js)
 // ============================================================
 function openPersonMenu(x, y, u) {
   const menu = $('#personMenu');
@@ -95,15 +96,42 @@ function openPersonMenu(x, y, u) {
   show(personalVolume(u));
   row.append(mute, range, pct);
   menu.append(title, row);
+  menu.append(callItem(u));
   if (isAdmin()) {
     const k = document.createElement('button');
-    k.type = 'button'; k.className = 'pm-kick'; k.textContent = `🚫 Expulser ${u.name}`;
+    k.type = 'button'; k.className = 'pm-item pm-kick'; k.textContent = `🚫 Expulser ${u.name}`;
     k.onclick = () => { menu.hidden = true; kick(u); };
     menu.append(k);
   }
+  placeMenu(x, y);
+}
+function placeMenu(x, y) {
+  const menu = $('#personMenu');
   menu.hidden = false;
   menu.style.left = `${Math.max(8, Math.min(x, innerWidth - menu.offsetWidth - 8))}px`;
   menu.style.top = `${Math.max(8, Math.min(y, innerHeight - menu.offsetHeight - 8))}px`;
+}
+function menuItem(cls, text, fn) {
+  const b = Object.assign(document.createElement('button'), { type: 'button', className: `pm-item ${cls}`, textContent: text });
+  b.onclick = () => { $('#personMenu').hidden = true; fn(); };
+  return b;
+}
+// « Appeler » : grisé si l'un des deux est dans une salle sans téléphone
+function callItem(u) {
+  const b = menuItem('pm-call', `📞 Appeler ${u.name}`, () => startCall(u));
+  const why = !canCallIn(S.me.zone) ? 'Pas de téléphone dans cette salle' : !canCallIn(u.zone) ? 'Pas de téléphone dans sa salle' : '';
+  if (why) { b.disabled = true; b.title = why; b.textContent += ` (${why.toLowerCase()})`; }
+  return b;
+}
+
+// Clic sur la bulle d'une main levée (social.js) : aller voir la personne, ou l'appeler
+export function openHandMenu(x, y, u) {
+  const menu = $('#personMenu');
+  menu.replaceChildren();
+  const title = document.createElement('div');
+  title.className = 'pm-title'; title.textContent = `✋ ${u.name} demande de l'aide`;
+  menu.append(title, menuItem('pm-join', `🚶 Rejoindre ${u.name}`, () => joinFromPanel(u.id)), callItem(u));
+  placeMenu(x, y);
 }
 
 export function initPanel() {

@@ -53,10 +53,11 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `V` | Sauter |
 | `B` maintenu | Dab (vu par tout le monde) |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |
-| `H` (ou bouton ✋ de la barre) | Lever / baisser la main (✋ reste affichée). Les mains levées apparaissent en bulles en bas à droite : un clic emmène auprès de la personne |
-| `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin, personnage qui lève son talkie) |
+| `H` (ou bouton ✋ de la barre) | Lever / baisser la main (✋ reste affichée). Les mains levées apparaissent en bulles en bas à droite : un clic propose de rejoindre la personne ou de l'appeler au téléphone |
+| `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin entendus de soi seul, une seule fois en cas d'appuis répétés ; personnage qui lève son talkie). Indisponible dans la salle de classe et le bureau principal |
 | `M` | Couper ou ouvrir le micro |
 | Clic droit sur une personne de la liste des participants (appui long sur mobile) | Régler son volume pour soi (curseur, ou couper) ; mémorisé, rappelé par un badge « 🔉 40 % » dans la liste |
+| Même menu → « 📞 Appeler … » | Téléphone : appeler une personne où qu'elle soit dans l'espace. Un petit téléphone apparaît en bas de l'écran et ça sonne des deux côtés (20 s) ; une fois décroché, on s'entend jusqu'à ce que l'un raccroche. Sans réponse (ou refus, ou personne occupée), on peut laisser un message vocal de 20 s. Pas d'appels à la suite (30 s d'attente), et pas de téléphone dans la salle de classe ni le bureau principal |
 | `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
 | `P` | Vue en incrustation (Chrome / Edge sur ordinateur) : une petite fenêtre, par-dessus les autres, qui montre les alentours de son personnage pour voir qui s'approche. Elle peut aussi s'ouvrir toute seule en changeant d'onglet (à activer dans l'écran du personnage) |
 
@@ -110,6 +111,7 @@ public/
     panel.js       panneau latéral et participants
     chat.js        chat de zone et global
     social.js      réactions, main levée, bulles
+    phone.js       téléphone entre deux personnes, messages vocaux
     board.js       tableau blanc
     videos.js      partages d'écran reçus, projection
 relay/             relais de mise en relation auto-hébergé (Node, Docker)

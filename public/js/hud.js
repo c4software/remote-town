@@ -7,11 +7,12 @@ import { renderMap } from './map-render.js';
 import { setPtt, stopShare, toggleMic, toggleShare } from './media.js';
 import { dash } from './movement.js';
 import { renderPeople } from './panel.js';
+import { phoneZoneChange } from './phone.js';
 import { loop } from './render.js';
 import { shareLink } from './rooms.js';
 import { REACTIONS, sendReaction, toggleHand } from './social.js';
 import { S, users } from './state.js';
-import { MAP, canShareIn, isOnAir, zoneType } from './world.js';
+import { MAP, canShareIn, canTalkieIn, isOnAir, zoneType } from './world.js';
 
 export function showHelp() {
   try { localStorage.removeItem('rt-help'); } catch {}
@@ -51,6 +52,8 @@ export function onZoneChange(initial = false) {
   chat.unread.zone = 0;
   if (!initial) fetchHistory(S.me.zone, [...users.values()].filter((u) => !u.isMe && u.zone === S.me.zone).map((u) => u.id));
   if (S.sharing && !canShareIn(S.me.zone)) stopShare();
+  if (S.pttHeld && !canTalkieIn(S.me.zone)) setPtt(false); // on range le talkie en entrant
+  phoneZoneChange();
   for (const [z, b] of boards) if (b.owner === S.myId && z !== S.me.zone) closeMyBoard(z);
   refreshBoard();
   const tag = $('#zoneTag');

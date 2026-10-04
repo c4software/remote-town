@@ -169,8 +169,10 @@ export const sideBySide = (a, b) => !!a && !!b && a.id !== b.id && a.zone === b.
 export function sendsAudio(s, r) {
   if (!s || !r || s.id === r.id) return false;
   if (isOnAir(s)) return true; // pupitre : tout le monde entend
+  // Téléphone : `call` est l'identifiant de la personne en ligne (phone.js), où qu'elle soit
+  if (s.call && s.call === r.id && canCallIn(s.zone)) return true;
   // N : parler à proximité, uniquement dans la même zone (les murs bloquent le son)
-  if (s.ptt && s.zone === r.zone && dist(s, r) <= PROX_RADIUS) return true;
+  if (s.ptt && canTalkieIn(s.zone) && s.zone === r.zone && dist(s, r) <= PROX_RADIUS) return true;
   // Côte à côte dans un espace ouvert (couloir) : on s'entend sans N, si son micro (M) est ouvert
   if (s.mic && sideBySide(s, r)) return true;
   // M : micro partagé avec les personnes de la même pièce
@@ -187,3 +189,8 @@ export function sendsVideo(s, r) {
 // Zones où le micro (M) et le partage d'écran fonctionnent
 export const ROOM_TYPES = ['desk', 'class', 'main'];
 export const canShareIn = (zoneId) => ROOM_TYPES.includes(zoneType(zoneId));
+// Pas de talkie-walkie (N) dans les deux salles de classe : la salle de classe et le bureau principal
+export const NO_TALKIE_TYPES = ['class', 'main'];
+export const canTalkieIn = (zoneId) => !NO_TALKIE_TYPES.includes(zoneType(zoneId));
+// Le téléphone (phone.js) suit la même règle : ni appel lancé, ni appel reçu dans ces salles
+export const canCallIn = canTalkieIn;

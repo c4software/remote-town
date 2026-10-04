@@ -110,6 +110,71 @@ const scenarios = {
     t.check(vols[0] === 1 && vols[1] < 1, `N : volume progressif (${vols.map((v) => v?.toFixed(2)).join(' → ')})`);
   },
 
+  async 'téléphone'(t) {
+    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
+    await waitPeers([a, b]);
+    // Loin l'une de l'autre, micros coupés : seul le téléphone peut les relier
+    await place(a, 30, 10); await place(b, 20, 5);
+    await wait(500);
+    const call = async (page, name) => {
+      await page.evaluate((name) => {
+        const li = [...document.querySelectorAll('#people li')].find((l) => l.textContent.includes(name));
+        const r = li.getBoundingClientRect();
+        li.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 }));
+      }, name);
+      await page.click('#personMenu .pm-call');
+    };
+    // Son réellement reçu, mesuré sur la liaison (énergie audio décodée pendant 2 s) : en
+    // conversation à deux sens, l'indicateur de niveau lu par hears() reste parfois muet
+    const energy = (page) => page.evaluate(async () => {
+      let e = 0;
+      for (const pc of Object.values(rt.room.getPeers())) (await pc.getStats()).forEach((r) => { if (r.type === 'inbound-rtp' && r.kind === 'audio') e += r.totalAudioEnergy || 0; });
+      return e;
+    });
+    const gets = async (page) => { const e0 = await energy(page); await wait(2000); return (await energy(page)) - e0 > 0.01; };
+    const has = (page, sel) => page.$eval('#phone', (e, sel) => !e.hidden && !!e.querySelector(sel), sel);
+    await call(a, 'Bob');
+    await wait(1000);
+    t.check(await has(a, '.ph-out'), 'Alice : appel en cours vers Bob');
+    t.check(await has(b, '.ph-in .ph-accept'), 'Bob : ça sonne, il peut décrocher');
+    await b.click('#phone .ph-accept');
+    await wait(2500);
+    t.check(await has(a, '.ph-on') && await has(b, '.ph-on'), 'en ligne des deux côtés');
+    t.check(await gets(b), 'Bob entend Alice au téléphone');
+    t.check(await gets(a), 'Alice entend Bob au téléphone');
+    await a.click('#phone .ph-end');
+    await wait(1000);
+    t.check(await b.$eval('#phone', (e) => e.hidden), 'Alice raccroche : l\'appel se ferme chez Bob');
+    t.check(!(await gets(b)), 'après avoir raccroché : plus rien n\'est envoyé');
+    await call(a, 'Bob');
+    await wait(500);
+    t.check(await a.$eval('#phone', (e) => e.hidden) && await b.$eval('#phone', (e) => e.hidden), 'pas d\'appels à la suite : le rappel immédiat est refusé');
+    // Bob appelle Alice, qui refuse : il laisse un message vocal
+    await call(b, 'Alice');
+    await wait(1000);
+    await a.click('#phone .ph-end');
+    await wait(800);
+    t.check(await has(b, '.ph-away .ph-record'), 'appel refusé : Bob peut laisser un message');
+    await b.click('#phone .ph-record');
+    await wait(2000);
+    await b.click('#phone .ph-send');
+    await wait(1500);
+    const dur = await a.evaluate(() => new Promise((res) => {
+      const au = document.querySelector('#phone .ph-vmail audio');
+      if (!au) return res(-1);
+      au.onloadedmetadata = () => res(1); au.onerror = () => res(0);
+      if (au.readyState >= 1) res(1);
+      setTimeout(() => res(0), 3000);
+    }));
+    t.check(dur === 1, 'Alice reçoit le message vocal, lisible');
+    // Dans une salle de classe : pas de téléphone
+    await place(b, 65, 10);
+    await wait(500);
+    await call(b, 'Alice');
+    await wait(500);
+    t.check(await b.$eval('#phone', (e) => !e.querySelector('.ph-out')), 'depuis la salle de classe : appel impossible');
+  },
+
   async 'émotes'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
@@ -382,6 +447,8 @@ const scenarios = {
     await b.keyboard.press('KeyH'); await wait(800);
     t.check((await a.$$('#hands .hand-bubble')).length === 1, 'bulle de main levée');
     await a.click('#hands .hand-bubble');
+    t.check(await a.$eval('#personMenu', (e) => !e.hidden && !!e.querySelector('.pm-join') && !!e.querySelector('.pm-call')), 'clic sur la bulle : rejoindre ou appeler');
+    await a.click('#personMenu .pm-join');
     await pathDone(a);
     const pa = await me(a);
     t.check(Math.abs(pa.x - 66) + Math.abs(pa.y - 10) === 1, 'clic sur la bulle : on rejoint la personne');
