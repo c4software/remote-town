@@ -581,6 +581,29 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #chatInput, .field input, #micSelect, .ph-select { font-size: 16px; } /* évite le zoom auto d'iOS */
 }
 
+/* ---------- Bulle du prof (teacher.js) : en bas à gauche, par-dessus le tableau ; à côté du téléphone s'il est ouvert ---------- */
+#teacher {
+  position: fixed; left: 14px; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 31; padding: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; animation: hb-in .25s ease-out;
+}
+#teacher[hidden] { display: none; }
+#teacher canvas {
+  width: 66px; height: 66px; border-radius: 50%; background: var(--panel); border: 3px solid var(--purple);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35); image-rendering: pixelated; transition: border-color .15s, box-shadow .15s;
+}
+#teacher.talking canvas { border-color: var(--green); box-shadow: 0 0 0 4px rgba(6, 214, 160, .35), 0 6px 18px rgba(0, 0, 0, .35); }
+#teacher span {
+  max-width: 110px; padding: 2px 8px; border-radius: 10px; background: var(--bg); color: var(--text); font-size: 12px; font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, .3);
+}
+#teacher:hover canvas { filter: brightness(1.1); }
+#app:has(#phone:not([hidden])) #teacher { left: 330px; }
+@media (max-width: 560px) {
+  #teacher { left: 10px; bottom: calc(112px + env(safe-area-inset-bottom)); }
+  #teacher canvas { width: 54px; height: 54px; }
+  #app:has(#phone:not([hidden])) #teacher { display: none; }
+}
+
 /* ---------- Notifications des messages reçus (chat.js) : en haut à droite, un clic ouvre la conversation ---------- */
 #notifs { position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 14px; z-index: 56; width: min(340px, calc(100vw - 28px)); display: flex; flex-direction: column; gap: 8px; }
 .notif {

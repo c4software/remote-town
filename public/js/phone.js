@@ -82,6 +82,12 @@ export function openChat(key = CHAT_KEY.ZONE) {
   renderPhone();
   focusChat();
 }
+// Bouton de son personnage, dans la barre du bas : le téléphone s'ouvre sur « Personnage »
+export function openLook() {
+  if (call) return;
+  open = true; view = PHONE_VIEW.LOOK;
+  renderPhone();
+}
 export function openPerson(id) {
   if (call || !users.has(id)) return;
   open = true; view = PHONE_VIEW.PERSON; personId = id;

@@ -15,6 +15,7 @@ Fonctionne aussi sur mobile : on se déplace en touchant la carte, avec des bout
 - **Bureau principal** (à gauche) : le micro (`M`) et le partage d'écran sont partagés avec les personnes présentes dans la salle. Pour parler **à tout le monde**, où que les gens soient, on se place au **pupitre** avec `E` (ou en le touchant, sur mobile) : la voix est alors diffusée à tous, avec un effet « haut-parleur » de sonorisation, et son partage d'écran apparaît chez chacun en petite fenêtre (PiP) : un clic l'agrandit. `E` à nouveau ou s'éloigner du pupitre rend la parole.
 - **10 bureaux de 4 places** (table, 4 chaises) : le micro (`M`) et le partage d'écran (fonction native de Chrome) ne sont reçus que par les personnes **dans le même bureau**.
 - **Salle de classe** (au bout du couloir, 40 places élèves) : micro et partage d'écran reçus par **toute la classe**.
+- **Bulle du prof** (salle de classe et bureau principal) : la personne au bureau du prof reste visible de tout le monde. Depuis le fond de la salle, ou quand le tableau blanc recouvre la carte, son portrait apparaît dans une bulle en bas à gauche, avec un anneau vert quand elle parle ; un clic ouvre sa fiche.
 - **Tableau blanc** (salle de classe et bureau principal) : il s'ouvre uniquement depuis le **bureau du prof** (derrière le bureau de l'enseignant dans la classe, derrière le pupitre dans le bureau principal), avec le bouton tableau de la barre. La personne qui l'ouvre le pilote : elle seule dessine (couleurs, épaisseurs, gomme, tout effacer), écrit au clavier (outil « Texte » : cliquer sur le tableau puis taper, `Entrée` pour aller à la ligne, `Échap` pour terminer ; un clic sur un texte le reprend) et le ferme. Il s'affiche chez toutes les personnes de la pièce, y compris celles qui arrivent ensuite ; chacune peut le passer en **mode PiP** (petite fenêtre flottante, toujours à jour) tant qu'il est ouvert. Il se ferme quand le prof quitte la pièce ; son contenu (traits et textes) est alors gardé comme les messages du chat : par les personnes connectées, tant que l'espace n'est pas vide, et repris quand le tableau de la salle est rouvert. « Tout effacer » repart d'un tableau vide.
 - **Projection** : dans ces deux pièces, un partage d'écran s'ouvre automatiquement en grand chez les personnes présentes.
 - **Couloir** : pas de partage d'écran ; on parle avec `N` (à proximité) ou, micro ouvert, aux personnes juste à côté.
@@ -111,6 +112,7 @@ public/
     panel.js       participants, menu d'une main levée
     chat.js        discussions de groupe et messages directs
     social.js      réactions, main levée, bulles
+    teacher.js     bulle du prof (toujours visible dans les salles de classe)
     phone.js       téléphone : ouverture, navigation entre les pages
     pages/         les pages du téléphone, une par fichier (appel, accueil, contacts,
                    fiche, conversations, conversation, messagerie vocale, personnage,

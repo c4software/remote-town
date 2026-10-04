@@ -9,6 +9,7 @@ import { showHelp } from './hud.js';
 import { switchMic } from './media.js';
 import { connect, prepareIce, profile } from './net.js';
 import { renderPeople } from './panel.js';
+import { openLook } from './phone.js';
 import { canvas } from './render.js';
 import { cleanRoom, rememberSpace, roomName, roomUrl, shareLink } from './rooms.js';
 import { S, keys, users } from './state.js';
@@ -284,8 +285,10 @@ export function initProfile() {
 
   $('#profileCancel').onclick = () => closeProfile();
   $('#profileHelp').onclick = () => { closeProfile(); showHelp(); };
-  $('#mePill').onclick = openProfile;
-  $('#mePill').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(); } };
+  // Son personnage, dans la barre du bas : il ouvre la page « Personnage » du téléphone (l'écran
+  // complet reste accessible depuis cette page, pour le micro)
+  $('#mePill').onclick = openLook;
+  $('#mePill').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLook(); } };
 
   // Point de départ du cercle noir : là où l'on a cliqué (sinon le centre du bouton)
   let clickAt = null;

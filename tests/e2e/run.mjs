@@ -90,12 +90,13 @@ const scenarios = {
     t.check(await hears(b, 'Alice'), 'micro de bureau : entendu dans le bureau');
     t.check(!(await hears(c, 'Alice')), 'micro de bureau : pas entendu ailleurs');
     // Changement de micro en pleine conversation : on reste entendu
-    await a.click('#mePill'); await wait(300);
+    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
     const mics = await a.$$eval('#micSelect option', (o) => o.map((x) => x.value).filter(Boolean));
     if (mics.length) await a.select('#micSelect', mics.at(-1));
     await wait(1200);
     await a.click('#profileCancel'); await wait(500);
-    t.check(mics.length > 0 && await hears(b, 'Alice'), 'changement de micro : toujours entendu dans le bureau');
+    t.check(mics.length > 0, `changement de micro : ${mics.length} micro(s) proposé(s)`);
+    t.check(await hears(b, 'Alice'), 'changement de micro : toujours entendu dans le bureau');
     // Volume personnel : Bob coupe Alice depuis le menu du clic droit, puis rétablit
     const aliceId = await a.evaluate(() => rt.me.id);
     const aliceVolume = () => b.evaluate((id) => rt.links.get(id)?.audioEl?.volume, aliceId);
@@ -521,7 +522,15 @@ const scenarios = {
     await wait(500);
     t.check(await a.$eval('#boardBtn', (e) => e.hidden), 'pas de bouton loin du bureau du prof');
     await place(a, 68, 2); await wait(400);
+    // Bulle du prof : visible pour l'élève du fond, pas pour celui qui voit déjà le prof, ni pour le prof
+    const bubble = (p) => p.$eval('#teacher', (e) => (e.hidden ? null : e.textContent));
+    await place(b, 70, 19); await wait(600);
+    t.check(await bubble(b) === 'Alice', 'élève au fond de la classe : le prof apparaît dans une bulle');
+    await place(b, 70, 6); await wait(600);
+    t.check(await bubble(b) === null && await bubble(a) === null, 'prof visible à l\'écran : pas de bulle (ni pour le prof)');
+    await place(b, 70, 8); await wait(300);
     await a.click('#boardBtn'); await wait(800);
+    t.check(await bubble(b) === 'Alice' && await bubble(a) === null, 'tableau en grand : le prof en bulle pour l\'élève');
     t.check(await b.$eval('#board', (e) => !e.hidden), 'ouvert au bureau du prof : affiché chez l\'élève');
     const box = await a.$eval('#boardCanvas', (e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
     await a.mouse.move(box.x + box.w * 0.2, box.y + box.h * 0.5); await a.mouse.down();
@@ -607,19 +616,23 @@ const scenarios = {
   async 'profil'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
-    await a.click('#mePill'); await wait(200);
+    // Son personnage, dans la barre du bas : le téléphone s'ouvre sur la page « Personnage »
+    await a.click('#mePill'); await wait(500);
+    t.check(await a.$eval('#phone', (e) => !e.hidden && !!e.querySelector('.ph-look')) && await a.$eval('#join', (e) => e.hidden), 'bouton du personnage : téléphone ouvert sur « Personnage »');
+    await a.click('#phone .ph-close'); await wait(400);
+    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
     await a.click('#headChips [data-v=crown]'); await a.click('#bodyChips [data-v=cape]');
     await a.click('#joinSubmit'); await wait(1000);
     const look = (await seen(b, 'Alice')).look;
     t.check(look.head === 'crown' && look.body === 'cape', 'modification du personnage vue par les autres');
     // Pas de changement de pseudo une fois dans l'espace : champ verrouillé, et ignoré même forcé
-    await a.click('#mePill'); await wait(200);
+    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
     t.check(await a.$eval('#nameInput', (e) => e.readOnly && e.value === 'Alice'), 'écran du personnage en session : pseudo verrouillé');
     await a.$eval('#nameInput', (e) => { e.readOnly = false; e.value = 'Zoé'; });
     await a.click('#joinSubmit'); await wait(1000);
     t.check(await a.evaluate(() => rt.me.name) === 'Alice' && !!(await seen(b, 'Alice')), 'pseudo inchangé même en contournant le verrou');
     // Aide réaffichée depuis l'écran du personnage, puis fermée avec la croix
-    await a.click('#mePill'); await wait(200);
+    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
     await a.click('#profileHelp'); await wait(200);
     t.check(await a.$eval('#help', (e) => !e.hidden), 'aide réaffichée depuis l\'écran du personnage');
     await a.click('#help .help-close'); await wait(200);
@@ -660,8 +673,8 @@ const scenarios = {
       const block = log.split('===== DIAGNOSTIC').at(-1) || '';
       t.check(block.includes('Nom : Alice') && block.includes('===== FIN ====='), 'diagnostic journalisé par le relais');
     }
-    await a.click('#mePill'); await wait(200);
     t.check(await a.$eval('#messages', (e) => !e.innerText.includes('/diag')), '/diag n\'est pas envoyé comme message');
+    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
     t.check(await a.$eval('#waitDiag', (e) => e.offsetParent === null) && await a.$eval('#profileDiag', (e) => e.offsetParent === null), 'boutons Diagnostic masqués');
   },
 

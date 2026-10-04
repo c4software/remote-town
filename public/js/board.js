@@ -22,7 +22,17 @@ export const atTeacherDesk = () => {
   const a = S.me && TEACHER_AREAS[S.me.zone];
   return !!a && S.me.x >= a.x0 && S.me.x <= a.x1 && S.me.y >= a.y0 && S.me.y <= a.y1;
 };
-let boardShown = null;            // pièce dont le tableau est affiché en grand
+// Le « prof » d'une salle, pour la bulle qui le garde visible (teacher.js) : la personne qui
+// tient le tableau blanc, sinon celle qui se trouve au bureau du prof
+export function teacherOf(zone) {
+  const owner = users.get(boards.get(zone)?.owner);
+  if (owner && owner.zone === zone) return owner;
+  const a = TEACHER_AREAS[zone];
+  return a ? [...users.values()].find((u) => u.zone === zone && u.x >= a.x0 && u.x <= a.x1 && u.y >= a.y0 && u.y <= a.y1) || null : null;
+}
+// Le tableau de ma salle est affiché en grand (il recouvre la carte)
+export const boardLarge = () => !!boardShown && !boardPip.has(boardShown);
+let boardShown = null;            // pièce dont le tableau est affiché en grand ou en PiP
 const pen = { c: BOARD_COLORS[0], w: BOARD_SIZES[1], eraser: false, text: false };
 let editing = null;               // texte en cours de saisie : { id, c, w, x, y, ta }, textTimer : envoi groupé
 let textTimer = null;

@@ -14,6 +14,7 @@ import { initPhone } from './phone.js';
 import { initPip } from './pip.js';
 import { initProfile } from './profile.js';
 import { initSpaces } from './spaces.js';
+import { initTeacher } from './teacher.js';
 import { initVideos } from './videos.js';
 
 initProfile(); // écran de connexion : la connexion démarre quand on le valide
@@ -27,6 +28,7 @@ initEmotes();
 initSpaces();
 initPip();
 initPhone();
+initTeacher();
 initDiag();
 initAdmin();
 initDebug(); // en local ; sur le site publié, après vérification du jeton (admin.js)
