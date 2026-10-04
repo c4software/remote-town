@@ -2,7 +2,7 @@
 // présence, attente et reconnexion. Il n'y a pas d'hôte : chacun est relié à tous.
 import { customRingRev, neighbourBeep, pttReaches } from './audio.js';
 import { lookBody, lookHead } from './avatar.js';
-import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
+import { dropBoardsOf, fetchSavedBoards, onBoardMsg, savedBoards, syncBoardsTo } from './board.js';
 import { fetchHistory, onChat, publicHistory } from './chat.js';
 import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, PHONE, REACTIONS, RELAYS, RING_STYLES, STUN_SERVERS } from './constantes.js';
 import { isBanned, onKick } from './admin.js';
@@ -99,6 +99,7 @@ function joinNet() {
     ringfile: S.room.makeAction('ringfile', { onMessage: (d, { peerId, metadata }) => onRingFile(d, peerId, metadata) }),
     vmail: S.room.makeAction('vmail', { onMessage: (d, { peerId, metadata }) => onVmail(d, peerId, metadata) }),
     jingle: S.room.makeAction('jingle', { onMessage: (d, { peerId }) => users.has(peerId) && onJingle(users.get(peerId)) }),
+    wbsaved: S.room.makeAction('wbsaved', { kind: 'request', onRequest: () => savedBoards() }),
     history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => publicHistory(String(d?.channel)) }),
   };
   S.room.onPeerJoin = (id) => {
@@ -313,6 +314,7 @@ function onHello(d, { peerId }) {
     syncBoardsTo(peerId);
     if (performance.now() - S.joinedAt > 5000) toast(`${u.name} a rejoint l'espace`);
     if (!S.globalHistoryLoaded) { S.globalHistoryLoaded = true; fetchHistory('global', [peerId]); }
+    fetchSavedBoards(peerId); // tableaux fermés gardés par les autres (une fois)
     if (u.zone === S.me.zone) fetchHistory(S.me.zone, [peerId]);
   }
   renderPeople(); updateRouting(); updatePresence();

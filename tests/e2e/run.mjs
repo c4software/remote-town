@@ -569,12 +569,24 @@ const scenarios = {
     t.check(await items(b) === null, 'tableau fermé : il disparaît chez l\'élève');
     await a.click('#boardBtn'); await wait(1000);
     t.check(await items(a) === 'texte,trait' && await items(b) === 'texte,trait' && (await texts(c)).join() === 'Bonjour\nla classe !', 'tableau rouvert : traits et texte retrouvés, chez le prof et les élèves');
-    // Quitter la salle l'enregistre aussi, et un rechargement de page ne le perd pas
+    // Quitter la salle le garde aussi ; rien n'est écrit dans le navigateur (comme le chat)
     await place(a, 30, 10); await wait(800);
-    t.check(await items(b) === null && await a.evaluate(() => Object.values(JSON.parse(localStorage.getItem('rt-boards')))[0].length === 2), 'sortie de la salle : tableau fermé et enregistré dans le navigateur');
+    t.check(await items(b) === null && await a.evaluate(() => localStorage.getItem('rt-boards') === null), 'sortie de la salle : tableau fermé, rien dans le stockage du navigateur');
     await place(a, 68, 2); await wait(500);
     await a.click('#boardBtn'); await wait(1000);
     t.check(await items(a) === 'texte,trait' && await items(b) === 'texte,trait', 'retour dans la salle : tableau retrouvé');
+    // Comme l'historique du chat : le prof recharge sa page, les autres ont gardé son tableau
+    await a.click('#boardClose'); await wait(600);
+    await a.reload();
+    await a.$eval('#nameInput', (e) => { e.value = ''; });
+    await a.type('#nameInput', 'Alice');
+    await a.click('.btn-primary');
+    await a.waitForFunction(() => window.rt?.me && !rt.warp);
+    await waitPeers([a, b, c]);
+    await wait(2500);
+    await place(a, 68, 2); await wait(500);
+    await a.click('#boardBtn'); await wait(1200);
+    t.check(await items(a) === 'texte,trait' && await items(b) === 'texte,trait', 'prof reconnecté : le tableau gardé par les autres est retrouvé');
   },
 
   async 'mains levées'(t) {

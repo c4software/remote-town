@@ -162,7 +162,6 @@ export const BOARD_ERASER = { c: '#ffffff', w: 40 };
 export const BOARD_TEXT_MAX = 400, BOARD_TEXT_LINES = 20; // un bloc de texte : caractères et lignes au plus
 export const BOARD_FONT = '"DM Sans", system-ui, sans-serif', BOARD_LINE = 1.2;
 export const boardFontPx = (w) => 20 + w * 3;       // taille du texte selon l'épaisseur choisie (32, 47, 74 px)
-export const BOARD_SAVE_MAX = 1500000; // caractères : au-delà, le tableau enregistré reste en mémoire seulement
 // Messages de l'action `wb`
 export const WB_MSG = Object.freeze({ OPEN: 'open', SEG: 'seg', TEXT: 'txt', CLEAR: 'clear', CLOSE: 'close', SYNC: 'sync' });
 

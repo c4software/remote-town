@@ -23,7 +23,7 @@ export const S = {
   // car Trystero abandonne définitivement un relais après ~2 min d'échecs.
   tr: trysteroModule,
   room: null,       // salle Trystero (joinRoom)
-  net: null,        // actions réseau : hello, move, state, chat, wb, react, jingle, call, vmail, ringfile, history
+  net: null,        // actions réseau : hello, move, state, chat, wb, react, jingle, call, vmail, ringfile, wbsaved, history
 
   // --- Audio et partage d'écran ---
   audioCtx: null,

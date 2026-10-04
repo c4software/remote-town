@@ -2,7 +2,7 @@
 // Il s'ouvre au bureau du prof ; la personne qui l'ouvre dessine ou écrit au clavier, il s'affiche chez tous
 // ceux de la pièce (grand format ou PiP). Chacun garde l'état des tableaux ; le
 // propriétaire l'envoie aux nouveaux venus.
-import { BOARD_COLORS, BOARD_ERASER, BOARD_FONT, BOARD_H, BOARD_LINE, BOARD_SAVE_MAX, BOARD_SIZES, BOARD_TEXT_LINES, BOARD_TEXT_MAX, BOARD_W, WB_MSG, boardFontPx } from './constantes.js';
+import { BOARD_COLORS, BOARD_ERASER, BOARD_FONT, BOARD_H, BOARD_LINE, BOARD_SIZES, BOARD_TEXT_LINES, BOARD_TEXT_MAX, BOARD_W, WB_MSG, boardFontPx } from './constantes.js';
 import { $, ofName, toast } from './dom.js';
 import { updateUI } from './hud.js';
 import { broadcast } from './net.js';
@@ -74,7 +74,7 @@ export function onBoardMsg(d, { peerId }) {
   else if (d.t === WB_MSG.SEG) addSeg(b, d);
   else if (d.t === WB_MSG.TEXT) setText(b, d);
   else if (d.t === WB_MSG.CLEAR) b.strokes.clear();
-  else if (d.t === WB_MSG.CLOSE) boards.delete(z);
+  else if (d.t === WB_MSG.CLOSE) { saveBoard(z, b); boards.delete(z); }
   refreshBoard();
 }
 
@@ -89,36 +89,44 @@ export function syncBoardsTo(peerId) {
 }
 
 // ============================================================
-// Mon tableau est enregistré quand il se ferme (bouton « Fermer », sortie de la salle,
-// reconnexion, page quittée) et retrouvé à la réouverture : traits et textes. Gardé par
-// espace et par salle, en mémoire et dans le navigateur (« rt-boards », si la taille le permet).
+// Un tableau fermé survit comme les messages du chat, ni plus ni moins : son contenu (traits
+// et textes) est gardé en mémoire par les personnes connectées, par salle, et demandé à une
+// personne déjà là quand on arrive. Rouvert, le tableau de la salle reprend ce contenu. Rien
+// n'est écrit dans le navigateur : il disparaît quand l'espace se vide, et on repart de zéro
+// en changeant d'espace.
 // ============================================================
-const saved = new Map(); // « espace:salle » -> contenu (boardItems)
-const savedKey = (z) => `${S.roomId}:${z}`;
-function loadSaved() {
-  if (saved.loaded) return;
-  saved.loaded = true;
-  try {
-    for (const [k, items] of Object.entries(JSON.parse(localStorage.getItem('rt-boards')) || {})) if (Array.isArray(items)) saved.set(k, items);
-  } catch {}
-}
+const saved = new Map(); // salle -> contenu du dernier tableau fermé (boardItems)
+let savedAsked = false;  // contenu déjà demandé à une personne présente (une fois par espace)
 function saveBoard(z, b) {
-  loadSaved();
   const items = boardItems(b);
-  if (items.length) saved.set(savedKey(z), items); else saved.delete(savedKey(z));
-  try {
-    const text = JSON.stringify(Object.fromEntries(saved));
-    if (text.length <= BOARD_SAVE_MAX) localStorage.setItem('rt-boards', text);
-  } catch {} // trop gros ou stockage indisponible : gardé en mémoire seulement
+  if (items.length) saved.set(z, items); else saved.delete(z);
 }
-function saveMyBoards() {
-  for (const [z, b] of boards) if (b.owner === S.myId) saveBoard(z, b);
+// Réponse à une personne qui arrive (action `wbsaved`)
+export const savedBoards = () => [...saved].map(([z, strokes]) => ({ z, strokes }));
+// À la connexion : ce que les autres ont gardé (comme l'historique du chat « Tout le monde »)
+export async function fetchSavedBoards(peerId) {
+  if (savedAsked || !S.net) return;
+  savedAsked = true;
+  const [res] = await S.net.wbsaved.requestMany({}, { targets: [peerId], timeoutMs: 5000 }).catch(() => []);
+  const list = res?.status === 'fulfilled' ? res.value : null;
+  if (!Array.isArray(list)) return;
+  for (const d of list.slice(0, 4)) {
+    const z = String(d?.z || '');
+    if (!boardZone(z) || saved.has(z) || !Array.isArray(d.strokes)) continue;
+    const tmp = { strokes: new Map() };
+    for (const item of d.strokes.slice(-5000)) addItem(tmp, item); // contenu reçu : revalidé
+    saveBoard(z, tmp);
+  }
+}
+export function resetBoards() {
+  saved.clear();
+  savedAsked = false;
 }
 
 export function dropBoardsOf(id) {
   let changed = false;
-  if (id === S.myId) saveMyBoards(); // reconnexion sous un nouvel identifiant : on garde le contenu
-  for (const [z, b] of boards) if (b.owner === id) { boards.delete(z); changed = true; }
+  // Propriétaire parti (ou moi, reconnecté sous un nouvel identifiant) : son tableau est gardé
+  for (const [z, b] of boards) if (b.owner === id) { saveBoard(z, b); boards.delete(z); changed = true; }
   if (changed) refreshBoard();
 }
 
@@ -126,8 +134,7 @@ function openBoard() {
   if (!S.me || !boardZone(S.me.zone) || boards.has(S.me.zone)) return;
   if (!atTeacherDesk()) return toast('Le tableau blanc s\'ouvre depuis le bureau du prof.');
   const z = S.me.zone, b = { owner: S.myId, strokes: new Map() };
-  loadSaved();
-  for (const item of (saved.get(savedKey(z)) || []).slice(-5000)) addItem(b, item); // contenu enregistré, revalidé
+  for (const item of saved.get(z) || []) addItem(b, item); // contenu du dernier tableau fermé de la salle
   boards.set(z, b);
   broadcast('wb', { t: WB_MSG.OPEN, z });
   if (b.strokes.size) broadcast('wb', { t: WB_MSG.SYNC, z, strokes: boardItems(b) });
@@ -138,7 +145,7 @@ function openBoard() {
 export function closeMyBoard(z) {
   const b = boards.get(z);
   if (b?.owner !== S.myId) return;
-  endText(); // texte en cours de saisie : validé avant l'enregistrement
+  endText(); // texte en cours de saisie : validé avant d'être gardé
   saveBoard(z, b);
   boards.delete(z);
   broadcast('wb', { t: WB_MSG.CLOSE, z });
@@ -327,7 +334,7 @@ function renderPenTools() {
 
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initBoard() {
-  addEventListener('pagehide', () => { endText(); saveMyBoards(); }); // page rechargée ou fermée
+  try { localStorage.removeItem('rt-boards'); } catch {} // enregistrement de la v2.34.0, abandonné
   bcanvas.addEventListener('pointerdown', (e) => {
     if (boardPip.has(boardShown)) return togglePip(); // en PiP, un clic agrandit
     if (boards.get(boardShown)?.owner !== S.myId) return;
