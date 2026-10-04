@@ -23,7 +23,7 @@ export const S = {
   // car Trystero abandonne définitivement un relais après ~2 min d'échecs.
   tr: trysteroModule,
   room: null,       // salle Trystero (joinRoom)
-  net: null,        // actions réseau : hello, move, state, chat, wb, react, jingle, call, vmail, history
+  net: null,        // actions réseau : hello, move, state, chat, wb, react, jingle, call, vmail, ringfile, history
 
   // --- Audio et partage d'écran ---
   audioCtx: null,
@@ -32,6 +32,9 @@ export const S = {
   micTrack: null,
   localAnalyser: null,
   micOn: false,     // micro (M)
+  ring: 'ip',       // sonnerie du téléphone choisie (RING_STYLES d'audio.js), réglée dans le téléphone (phone.js)
+  otherRings: true, // jouer la sonnerie personnelle (fichier audio) des voisins ; sinon le motif par défaut
+  dnd: false,       // « ne pas déranger » : les appels reçus vont à la messagerie sans sonner
   pttHeld: false,   // N maintenu
   screenStream: null,
   screenTrack: null,
@@ -55,6 +58,5 @@ export const S = {
   cam: { x: 0, y: 0, zoom: 2 },
   focusKey: null,   // partage d'écran affiché en grand
   pipOn: false,     // vue en incrustation ouverte en changeant d'onglet (pip.js), réglée dans l'écran du personnage
-  activePanel: 'chat',
   globalHistoryLoaded: false,
 };

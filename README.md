@@ -30,7 +30,7 @@ On s'assoit sur les chaises et sur les canapés du coin salon (`E`, ou en les to
 
 ## Chat
 
-Un clic sur un nom, dans le chat ou dans la liste des participants, emmène auprès de la personne.
+Un clic sur un nom dans une discussion, ou « Rejoindre » sur la fiche d'une personne (téléphone → Contacts), emmène auprès d'elle.
 
 Deux onglets : **la zone où vous êtes** (seules les personnes présentes le reçoivent) et **Tout le monde**. Sans serveur, l'historique vit chez les participants : en arrivant, on le récupère auprès des personnes déjà connectées. Quand tout le monde est parti, il disparaît.
 
@@ -56,10 +56,10 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `H` (ou bouton ✋ de la barre) | Lever / baisser la main (✋ reste affichée). Les mains levées apparaissent en bulles en bas à droite : un clic propose de rejoindre la personne ou de l'appeler au téléphone |
 | `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin ; en cas d'appuis répétés, les voisins ne les entendent que la première fois et ne voient plus que le personnage lever son talkie). Indisponible dans la salle de classe et le bureau principal |
 | `M` | Couper ou ouvrir le micro |
-| Clic droit sur une personne de la liste des participants (appui long sur mobile) | Régler son volume pour soi (curseur, ou couper) ; mémorisé, rappelé par un badge « 🔉 40 % » dans la liste |
-| Même menu → « 📞 Appeler … » | Téléphone : appeler une personne où qu'elle soit dans l'espace. Un petit téléphone apparaît en bas de l'écran et ça sonne des deux côtés (20 s) ; une fois décroché, on s'entend jusqu'à ce que l'un raccroche. Sans réponse (ou refus, ou personne occupée), on peut laisser un message vocal de 20 s. Pas d'appels à la suite (30 s d'attente), et pas de téléphone dans la salle de classe ni le bureau principal |
-| `Entrée` / `Échap` | Écrire dans le chat / quitter le champ |
-| `P` | Vue en incrustation (Chrome / Edge sur ordinateur) : une petite fenêtre, par-dessus les autres, qui montre les alentours de son personnage pour voir qui s'approche. Elle peut aussi s'ouvrir toute seule en changeant d'onglet (à activer dans l'écran du personnage) |
+| Bouton 📱 de la barre du bas | Ouvrir le téléphone : **Contacts** (fiche d'une personne : l'appeler, lui écrire, la rejoindre, régler son volume pour soi), **Messages** (groupes « Tout le monde » et salle où l'on se trouve, messages directs entre deux personnes), **Messagerie vocale**, **Mon personnage** (nom, style, couleurs, accessoires, sans quitter la carte) et **Réglages** (sonnerie parmi quatre motifs ou un fichier audio à soi, sonneries personnelles des autres, « ne pas déranger », incrustation) |
+| Téléphone → Contacts → « Appeler » | Appeler une personne où qu'elle soit dans l'espace. Ça sonne des deux côtés (20 s) ; les personnes proches entendent la sonnerie choisie (fichier audio personnel compris, sauf si elles l'ont refusé dans leurs réglages), plus ou moins fort selon la distance, et voient le personnage brandir son téléphone, puis le tenir à l'oreille. Une fois décroché, on s'entend jusqu'à ce que l'un raccroche ; les autres n'entendent rien, sauf si l'on active le haut-parleur. Sans réponse (ou refus, ou personne occupée), on peut laisser un message vocal de 20 s. Pas d'appels à la suite (30 s d'attente), et pas de téléphone dans la salle de classe ni le bureau principal |
+| `Entrée` | Écrire dans la discussion de la salle (ouvre le téléphone) |
+| `P` | Vue en incrustation (Chrome / Edge sur ordinateur) : une petite fenêtre, par-dessus les autres, qui montre les alentours de son personnage pour voir qui s'approche. Elle peut aussi s'ouvrir toute seule en changeant d'onglet (à activer dans les réglages du téléphone) |
 
 ## Comment ça marche
 
@@ -93,7 +93,7 @@ public/
   js/
     main.js        point d'entrée : branche les modules, accès ?debug
     state.js       état partagé (S, users, keys, myIds)
-    config.js      constantes (vitesses, palettes, relais, STUN, clavier)
+    constantes.js  constantes et énumérations (réglages, palettes, listes de choix, réseau)
     diag.js        rapport sur la connexion, copié et envoyé au relais (/diag dans le chat)
     world.js       carte, zones, règles « qui entend / voit qui » (module pur)
     dom.js         utilitaires d'interface ($, toast…)
@@ -108,10 +108,10 @@ public/
     profile.js     écran du personnage
     rooms.js       salles et liens d'invitation
     hud.js         démarrage, changement de zone, barre du bas, aide
-    panel.js       panneau latéral et participants
-    chat.js        chat de zone et global
+    panel.js       participants, menu d'une main levée
+    chat.js        discussions de groupe et messages directs
     social.js      réactions, main levée, bulles
-    phone.js       téléphone entre deux personnes, messages vocaux
+    phone.js       téléphone : contacts, messages, appels, messagerie vocale, réglages
     board.js       tableau blanc
     videos.js      partages d'écran reçus, projection
 relay/             relais de mise en relation auto-hébergé (Node, Docker)

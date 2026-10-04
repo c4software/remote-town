@@ -10,16 +10,14 @@
 // absent de l'aide.
 //
 // L'expulsion est coopérative : la personne visée quitte l'espace, et les autres coupent leur
-// liaison avec elle et l'ignorent. Elle ne peut pas revenir dans cet espace avant BAN_MS
+// liaison avec elle et l'ignorent. Elle ne peut pas revenir dans cet espace avant KICK.banMs
 // depuis ce navigateur ; une version modifiée de l'application pourrait passer outre.
-import { ADMIN_KEY } from './config.js';
+import { ADMIN_KEY, KICK } from './constantes.js';
 import { initDebug } from './debug.js';
 import { $, toast } from './dom.js';
 import { broadcast, dropPeer, leaveRoom } from './net.js';
 import { S, users } from './state.js';
 
-const BAN_MS = 15 * 60000;   // retour impossible pendant 15 min dans le même espace
-const MAX_AGE_MS = 2 * 60000; // un ordre plus vieux (ou rejoué) est ignoré
 const banned = new Set();    // pairs expulsés de cet espace : ignorés s'ils se représentent
 
 const b64u = {
@@ -94,7 +92,7 @@ export async function kick(u) {
 export async function onKick(d) {
   const target = typeof d?.target === 'string' ? d.target.slice(0, 64) : '';
   const ts = Number(d?.ts);
-  if (!target || typeof d?.sig !== 'string' || d.sig.length > 200 || !Number.isFinite(ts) || Math.abs(Date.now() - ts) > MAX_AGE_MS) return;
+  if (!target || typeof d?.sig !== 'string' || d.sig.length > 200 || !Number.isFinite(ts) || Math.abs(Date.now() - ts) > KICK.maxAgeMs) return;
   const key = await verifyKey();
   if (!key) return;
   let ok = false;
@@ -115,8 +113,8 @@ export const isBanned = (id) => banned.has(id);
 
 // C'est moi : on quitte l'espace, et on ne peut pas y revenir tout de suite
 function expelled() {
-  $('#kickedText').textContent = `Un administrateur vous a retiré·e de cet espace. Vous pourrez y revenir dans ${BAN_MS / 60000} minutes.`;
-  try { localStorage.setItem(`rt-kicked:${S.roomId}`, String(Date.now() + BAN_MS)); } catch {}
+  $('#kickedText').textContent = `Un administrateur vous a retiré·e de cet espace. Vous pourrez y revenir dans ${KICK.banMs / 60000} minutes.`;
+  try { localStorage.setItem(`rt-kicked:${S.roomId}`, String(Date.now() + KICK.banMs)); } catch {}
   leaveRoom();
   $('#kicked').hidden = false;
 }

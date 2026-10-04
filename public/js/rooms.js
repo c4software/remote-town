@@ -1,4 +1,5 @@
 // Salles : nom de salle normalisé, lien d'invitation (copie ou partage natif).
+import { SPACES_MAX } from './constantes.js';
 import { $, toast } from './dom.js';
 
 export const cleanRoom = (v) => String(v).toLowerCase().trim()
@@ -8,7 +9,7 @@ export const cleanRoom = (v) => String(v).toLowerCase().trim()
 export const roomName = (id) => (id === 'lobby' ? 'Espace principal' : id);
 
 // Espaces de travail déjà visités, du plus récent au plus ancien (localStorage « rt-spaces »)
-const SPACES_KEY = 'rt-spaces', SPACES_MAX = 15;
+const SPACES_KEY = 'rt-spaces';
 export function savedSpaces() {
   try {
     const list = JSON.parse(localStorage.getItem(SPACES_KEY));

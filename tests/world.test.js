@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, isBlocked, isOnAir, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -89,6 +89,31 @@ test('téléphone : on s\'entend où qu\'on soit, sauf depuis une salle de class
   const k = at(65, 10, { call: b.id });
   assert.equal(canCallIn(k.zone), false);
   assert.equal(sendsAudio(k, b), false, 'pas de téléphone depuis la salle de classe');
+});
+
+test('sonnerie du téléphone : entendue à 4 cases, de plus en plus bas, dans la même zone', () => {
+  const a = at(30, 10, { phone: 'ring' });
+  assert.equal(hearsRing(a, at(34, 10)), true, '4 cases');
+  assert.equal(hearsRing(a, at(35, 10)), false, '5 cases');
+  assert.ok(ringVolume(a, at(31, 10)) > ringVolume(a, at(33, 10)), 'plus fort de près');
+  assert.ok(ringVolume(a, at(34, 10)) > 0 && ringVolume(a, at(31, 10)) <= 0.6);
+  assert.equal(hearsRing({ ...a, phone: 'call' }, at(31, 10)), false, 'en ligne : plus de sonnerie');
+  assert.equal(hearsRing(at(20, 9, { phone: 'ring' }), at(20, 7)), false, 'autre zone derrière le mur');
+  assert.equal(hearsRing(a, a), false, 'pas soi-même');
+});
+
+test('haut-parleur du téléphone : l\'appel s\'entend autour de la personne qui l\'active', () => {
+  const a = at(30, 10), b = at(20, 5), nearA = at(32, 10), nearB = at(21, 5), far = at(45, 10);
+  a.call = b.id; b.call = a.id;
+  assert.equal(speakerHolder(a, b, nearA), null, 'sans haut-parleur : les voisins n\'entendent rien');
+  assert.equal(sendsAudio(a, nearA), false);
+  a.speaker = true;
+  assert.equal(speakerHolder(a, b, nearA), a, 'sa propre voix, entendue par ses voisins');
+  assert.equal(speakerHolder(b, a, nearA), a, 'la voix du correspondant sort de son téléphone');
+  assert.equal(speakerHolder(b, a, far), null, 'pas plus loin que la portée');
+  assert.equal(speakerHolder(b, a, nearB), null, 'les voisins du correspondant n\'entendent rien');
+  assert.equal(speakerHolder(a, b, b), null, 'le correspondant est déjà en ligne');
+  assert.equal(speakerHolder({ ...a, call: null }, b, nearA), null, 'hors appel : rien');
 });
 
 test('côte à côte dans le couloir : seulement si son micro est ouvert', () => {

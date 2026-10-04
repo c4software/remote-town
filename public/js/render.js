@@ -1,11 +1,11 @@
 // Rendu de la scène à chaque frame : caméra, personnages, effets, étiquettes.
 import { sampleLevel } from './audio.js';
 import { HAT_HEIGHT, drawAvatar } from './avatar.js';
-import { CROUCH_MS, DELTA, HOP_MS, STAMINA, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './config.js';
+import { CROUCH_MS, DELTA, HOP_MS, STAMINA, STEP_MS, TRAIL_MS, WORLD_H, WORLD_W } from './constantes.js';
 import { $, typing } from './dom.js';
 import { drawEmote } from './emotes.js';
 import { drawChairBack } from './map-render.js';
-import { links } from './media.js';
+import { audible, links } from './media.js';
 import { chairNearMe, myStepMs, step } from './movement.js';
 import { isTransmitting } from './panel.js';
 import { drawHandAndReactions, sixSevenPump } from './social.js';
@@ -17,6 +17,32 @@ export const canvas = $('#world');
 export const ctx = canvas.getContext('2d');
 
 // Talkie levé près de la tête, avec des ondes radio qui s'échappent de l'antenne
+// Téléphone : qui sonne (appareil brandi qui vibre, ondes des deux côtés) ou à l'oreille (en ligne)
+function drawPhone(u, cx, by, dir, now) {
+  const side = dir === 'left' ? -1 : 1;
+  const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+  r(side > 0 ? cx + 6 : cx - 9, by - 20, 3, 5, shade(u.look.shirt, -35)); // bras levé
+  if (u.phone === 'call') {
+    const dx = side > 0 ? cx + 6 : cx - 9;
+    r(dx, by - 29, 3, 8, '#2b2d42');
+    r(dx + 1, by - 27, 1, 1, '#06d6a0');
+    r(dx, by - 21, 3, 2, u.look.skin);
+    return;
+  }
+  const dx = cx + side * 9 - (side < 0 ? 4 : 0) + Math.round(Math.sin(now / 35)), dy = by - 31;
+  r(dx, dy + 9, 4, 2, u.look.skin);
+  r(dx, dy, 4, 9, '#2b2d42');
+  r(dx + 1, dy + 1, 2, 5, '#ffd166');
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 2; i++) {
+    const phase = (now / 600 + i / 2) % 1;
+    ctx.strokeStyle = `rgba(255,209,102,${0.9 * (1 - phase)})`;
+    for (const a0 of [-Math.PI / 4, (3 * Math.PI) / 4]) {
+      ctx.beginPath(); ctx.arc(dx + 2, dy + 4, 5 + phase * 7, a0, a0 + Math.PI / 2); ctx.stroke();
+    }
+  }
+}
+
 function drawWalkie(u, cx, by, dir, now) {
   const side = dir === 'left' ? -1 : 1;
   const dark = shade(u.look.shirt, -35);
@@ -130,7 +156,7 @@ function sampleLevels(now) {
   S.me.level = isTransmitting(S.me) ? sampleLevel(S.localAnalyser) : 0;
   for (const [id, L] of links) {
     const u = users.get(id);
-    if (u) u.level = sendsAudio(u, S.me) ? sampleLevel(L.analyser) : 0;
+    if (u) u.level = audible(u) ? sampleLevel(L.analyser) : 0;
   }
 }
 
@@ -218,6 +244,7 @@ function draw() {
     ctx.globalAlpha = 1;
     if (chair) drawChairBack(ctx, chair);
     if (u.ptt && canTalkieIn(u.zone)) drawWalkie(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
+    if (u.phone) drawPhone(u, cx, by - lift + (crouched ? 5 : 0), dir, now);
     if (isOnAir(u)) drawSpeakerWaves(cx, by - 24, now);
     if (u.level > 0.04) {
       ctx.strokeStyle = '#06d6a0'; ctx.lineWidth = 1.5;

@@ -1,5 +1,5 @@
 // Audio local : micro, mesure du niveau, bips du talkie-walkie, effet « haut-parleur » du pupitre.
-import { WALKIE_BEEP_GAP } from './config.js';
+import { WALKIE_BEEP_GAP } from './constantes.js';
 import { toast } from './dom.js';
 import { S } from './state.js';
 import { PROX_RADIUS, canTalkieIn } from './world.js';
@@ -162,37 +162,73 @@ export function chime(notes, volume) {
 }
 
 // Sonneries du téléphone (phone.js), rendues en WAV et jouées en boucle par un élément
-// <audio>, comme le carillon. Chez l'appelé : motif électronique de quatre notes joué deux
-// fois, façon standard téléphonique de la série « 24 » ; chez l'appelant : tonalité de
-// retour d'appel (440 Hz, 1,5 s toutes les 5 s). Notes : [fréquence, début, durée].
-const RING_MOTIF = [0, 0.62].flatMap((t) => [[1175, t, 0.09], [1175, t + 0.11, 0.09], [1480, t + 0.22, 0.09], [1175, t + 0.33, 0.16]]);
+// <audio>, comme le carillon. Celle de l'appelé se choisit dans l'écran du personnage
+// (S.ring, liste RING_STYLES) : motifs originaux synthétisés, ou un fichier audio de son
+// choix, gardé dans ce navigateur seulement (« rt-ring-file »). Chez l'appelant : tonalité
+// de retour d'appel (440 Hz, 1,5 s toutes les 5 s). Notes : [fréquence, début, durée].
+// Trille : deux notes alternées très vite, à partir de l'instant t
+const trill = (t, low, high, step, steps) => Array.from({ length: steps }, (_, i) => [i % 2 ? high : low, t + i * step, step + 0.004]);
 const RINGS = {
-  in: { seconds: 2.4, type: 'square', amp: 0.14, tones: RING_MOTIF },
+  ip: { seconds: 3, type: 'triangle', amp: 0.22, tones: [0, 0.62].flatMap((t) => trill(t, 1318, 1661, 0.032, 14)) },
+  bell: { seconds: 4, type: 'sine', amp: 0.2, tones: [0, 0.95].flatMap((t) => trill(t, 880, 1109, 0.025, 26)) },
+  beeps: { seconds: 2.4, type: 'square', amp: 0.12, tones: [0, 0.2, 0.4].map((t) => [1000, t, 0.12]) },
+  chime: { seconds: 3, type: 'sine', amp: 0.22, tones: [[784, 0, 0.3], [988, 0.2, 0.3], [1175, 0.4, 0.5]] },
   out: { seconds: 5, type: 'sine', amp: 0.12, tones: [[440, 0, 1.5]] },
 };
+export const customRing = () => { try { return localStorage.getItem('rt-ring-file') || ''; } catch { return ''; } };
+// Empreinte du fichier (sa taille), annoncée aux autres : s'il change, ils le redemandent
+let ringRev = null;
+export const customRingRev = () => (ringRev ??= customRing().length);
+export function setCustomRing(dataUrl) {
+  try { localStorage.setItem('rt-ring-file', dataUrl); ringRev = dataUrl.length; return true; } catch { return false; }
+}
 function scheduleTones(ac, { type, amp, tones }) {
   for (const [freq, at, dur] of tones) {
     const osc = ac.createOscillator();
     osc.type = type; osc.frequency.value = freq;
     const env = ac.createGain();
     env.gain.setValueAtTime(0, at);
-    env.gain.linearRampToValueAtTime(amp, at + 0.006);
-    env.gain.setValueAtTime(amp, at + dur - 0.01);
+    env.gain.linearRampToValueAtTime(amp, at + 0.004);
+    env.gain.setValueAtTime(amp, at + dur - 0.006);
     env.gain.linearRampToValueAtTime(0, at + dur);
     osc.connect(env).connect(ac.destination);
     osc.start(at); osc.stop(at + dur + 0.02);
   }
 }
 let ringEl = null;
-export function ring(kind) {
+// kind : 'in' (sonnerie choisie par l'appelé) ou 'out' (retour d'appel)
+export function ring(kind, loop = true) {
   stopRing();
   const el = ringEl = new Audio();
-  el.loop = true;
-  rendered(`ring-${kind}`, RINGS[kind].seconds, (off) => scheduleTones(off, RINGS[kind]))
-    .then((url) => { if (ringEl !== el) return; el.src = url; return el.play(); })
+  el.loop = loop;
+  const style = kind === 'out' ? 'out' : RINGS[S.ring] ? S.ring : 'ip';
+  const url = kind === 'in' && S.ring === 'file' && customRing() ? Promise.resolve(customRing())
+    : rendered(`ring-${style}`, RINGS[style].seconds, (off) => scheduleTones(off, RINGS[style]));
+  url.then((src) => { if (ringEl !== el) return; el.src = src; return el.play(); })
     .catch(() => {});
 }
 export function stopRing() { ringEl?.pause(); ringEl = null; }
+// Sonnerie du téléphone d'un voisin (`style` : null pour arrêter), au volume donné (selon la
+// distance) : le motif qu'il a choisi, ou son fichier audio personnel s'il nous l'a envoyé
+// (`url`, phone.js) ; en attendant, ou si on n'en veut pas, le motif par défaut.
+let nearEl = null, nearKey = null;
+export function neighbourRing(style, volume, url = null) {
+  if (style && !url && (!RINGS[style] || style === 'out')) style = 'ip';
+  const key = style ? url || style : null;
+  if (key !== nearKey) {
+    nearEl?.pause();
+    nearEl = null; nearKey = key;
+    if (key) {
+      const el = nearEl = Object.assign(new Audio(), { loop: true });
+      (url ? Promise.resolve(url) : rendered(`ring-${style}`, RINGS[style].seconds, (off) => scheduleTones(off, RINGS[style])))
+        .then((src) => { if (nearEl !== el) return; el.src = src; return el.play(); })
+        .catch(() => {});
+    }
+  }
+  if (nearEl) nearEl.volume = Math.max(0, Math.min(1, volume));
+}
+// Pour les tests : ce qu'on entend d'un voisin
+export const nearRingInfo = () => (nearEl ? { volume: nearEl.volume, custom: String(nearKey).startsWith('blob:'), key: String(nearKey).slice(0, 12) } : null);
 
 // Musique de transition de la porte des espaces (~3,6 s, jouée seulement chez la
 // personne qui passe la porte) : souffle qui monte, nappe d'accord, arpège

@@ -4,11 +4,12 @@ import { isBanned } from './admin.js';
 import { initMic, makeAnalyser, setSpeakerFx, walkieBeep } from './audio.js';
 import { $, toast } from './dom.js';
 import { updateUI } from './hud.js';
-import { broadcast } from './net.js';
+import { broadcast, phoneState } from './net.js';
 import { renderPeople } from './panel.js';
+import { nearbyRing } from './phone.js';
 import { S, users } from './state.js';
 import { renderVideos } from './videos.js';
-import { PROX_RADIUS, ROOM_TYPES, canShareIn, canTalkieIn, isOnAir, sendsAudio, sendsVideo, sideBySide, zoneType } from './world.js';
+import { PROX_RADIUS, ROOM_TYPES, canShareIn, canTalkieIn, isOnAir, sendsAudio, sendsVideo, sideBySide, speakerHolder, zoneType } from './world.js';
 
 // ============================================================
 // Médias : pour chaque pair, une copie de notre micro / écran
@@ -58,7 +59,8 @@ function addOut(track, kind, peerId) {
 // Choisit, pour un pair, si on lui envoie notre micro / écran
 function applySenders(u) {
   const L = link(u.id);
-  const a = !!S.micTrack && sendsAudio(S.me, u);
+  // Règles de zone, ou haut-parleur du téléphone (le mien, ou celui de mon correspondant)
+  const a = !!S.micTrack && (sendsAudio(S.me, u) || !!speakerHolder(S.me, users.get(S.me.call), u));
   // Côte à côte, ou téléphone qui sonne (callPrep, phone.js) : canal préparé à l'avance mais
   // muet, pour que M ou « Décrocher » soit instantané
   if ((a || (S.micTrack && (sideBySide(S.me, u) || u.callPrep))) && !L.micOut) L.micOut = addOut(S.micTrack.clone(), 'mic', u.id);
@@ -87,11 +89,16 @@ function notifyBeside() {
   besideIds = now;
 }
 
+// Est-ce que la voix de `u` me parvient ? (règles de zone, ou haut-parleur d'un téléphone)
+export const audible = (u) => sendsAudio(u, S.me) || !!speakerHolder(u, users.get(u.call), S.me);
+
 // Volume d'une voix : progressif pour le N (plein à 1 case, 25 % au bord de la portée),
 // plein pour toutes les autres raisons (micro de pièce, pupitre, côte à côte)
 function distanceVolume(u) {
   if (!S.me || sendsAudio({ ...u, ptt: false }, S.me)) return 1;
-  const d = Math.hypot(u.x - S.me.x, u.y - S.me.y);
+  // Voix sortie d'un haut-parleur de téléphone : la distance se mesure depuis ce téléphone
+  const from = (!u.ptt && speakerHolder(u, users.get(u.call), S.me)) || u;
+  const d = Math.hypot(from.x - S.me.x, from.y - S.me.y);
   return Math.max(0.25, Math.min(1, 1 - ((d - 1) / (PROX_RADIUS - 1)) * 0.75));
 }
 
@@ -118,6 +125,7 @@ export function setPersonalVolume(u, v) {
 export function updateRouting() {
   if (!S.me) return;
   notifyBeside();
+  nearbyRing();
   for (const u of users.values()) if (!u.isMe) applySenders(u);
   for (const [id, L] of links) {
     const u = users.get(id);
@@ -161,7 +169,7 @@ export async function switchMic(deviceId) {
 
 export function pushState() {
   S.me.mic = S.micOn; S.me.ptt = S.pttHeld; S.me.sharing = S.sharing;
-  broadcast('state', { mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, dab: !!S.me.dab, emote: S.me.emote || null });
+  broadcast('state', { mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, dab: !!S.me.dab, emote: S.me.emote || null, ...phoneState() });
   updateRouting();
   renderPeople();
 }

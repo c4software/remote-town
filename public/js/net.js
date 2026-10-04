@@ -1,10 +1,10 @@
 // Réseau pair-à-pair (Trystero) : connexion à la salle, messages reçus des autres,
 // présence, attente et reconnexion. Il n'y a pas d'hôte : chacun est relié à tous.
-import { neighbourBeep, pttReaches } from './audio.js';
+import { customRingRev, neighbourBeep, pttReaches } from './audio.js';
 import { lookBody, lookHead } from './avatar.js';
 import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
-import { chatStore, fetchHistory, onChat } from './chat.js';
-import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, RELAYS, STUN_SERVERS } from './config.js';
+import { fetchHistory, onChat, publicHistory } from './chat.js';
+import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, PHONE, REACTIONS, RELAYS, RING_STYLES, STUN_SERVERS } from './constantes.js';
 import { isBanned, onKick } from './admin.js';
 import { $, cleanName, debugMode, sameName, toast } from './dom.js';
 import { cleanEmote } from './emotes.js';
@@ -12,15 +12,15 @@ import { startApp } from './hud.js';
 import { closeLink, onPeerStream, updateRouting } from './media.js';
 import { resolveOverlap, startDash } from './movement.js';
 import { renderPeople } from './panel.js';
-import { onCallMsg, onVmail, phonePeerLeft } from './phone.js';
+import { onCallMsg, onRingFile, onVmail, phonePeerLeft, phonePeerState } from './phone.js';
 import { forceRename, look } from './profile.js';
 import { shareLink } from './rooms.js';
-import { REACTIONS, addReaction, onJingle } from './social.js';
+import { addReaction, onJingle } from './social.js';
 import { firstArrival } from './spaces.js';
 import { S, myIds, users } from './state.js';
 import { MAP, PORTAL_SPOT, isBlocked, zoneAt } from './world.js';
 
-export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, dab: !!S.me.dab, emote: S.me.emote || null, age: Math.round(performance.now() - S.joinedAt), mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing });
+export const profile = () => ({ name: S.me.name, look: S.me.look, x: S.me.x, y: S.me.y, dir: S.me.dir, seated: S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, onAir: !!S.me.onAir, hand: !!S.me.hand, six: !!S.me.sixSeven, dab: !!S.me.dab, emote: S.me.emote || null, age: Math.round(performance.now() - S.joinedAt), mic: S.micOn, ptt: S.pttHeld, sharing: S.sharing, ...phoneState() });
 
 // On arrive par la porte des espaces, comme en changeant d'espace (firstArrival)
 export function connect(name) {
@@ -96,9 +96,10 @@ function joinNet() {
     }),
     kick: S.room.makeAction('kick', { onMessage: (d) => onKick(d) }),
     call: S.room.makeAction('call', { onMessage: (d, { peerId }) => onCallMsg(d, peerId) }),
+    ringfile: S.room.makeAction('ringfile', { onMessage: (d, { peerId, metadata }) => onRingFile(d, peerId, metadata) }),
     vmail: S.room.makeAction('vmail', { onMessage: (d, { peerId, metadata }) => onVmail(d, peerId, metadata) }),
     jingle: S.room.makeAction('jingle', { onMessage: (d, { peerId }) => users.has(peerId) && onJingle(users.get(peerId)) }),
-    history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => chatStore.get(String(d?.channel)) || [] }),
+    history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => publicHistory(String(d?.channel)) }),
   };
   S.room.onPeerJoin = (id) => {
     if (isBanned(id)) return dropPeer(id); // expulsé de cet espace : on ne le reprend pas
@@ -258,6 +259,19 @@ function watchConnection() {
   $('#waitRetry').onclick = relaunch;
 }
 
+// Téléphone (phone.js), vu des autres : `phone` (qui sonne / au téléphone), `ring` (sonnerie
+// choisie, entendue des voisins), `call` (correspondant), `spk` (haut-parleur)
+export const phoneState = () => ({
+  phone: S.me.phone || null, ring: S.ring, rv: S.ring === 'file' ? customRingRev() : 0, call: S.me.call || null, spk: !!S.me.speaker,
+});
+const remotePhone = (d, peerId) => ({
+  phone: Object.values(PHONE).includes(d?.phone) ? d.phone : null,
+  ring: RING_STYLES.some((r) => r.id === d?.ring) ? d.ring : 'ip',
+  ringRev: Number(d?.rv) || 0, // empreinte de son fichier de sonnerie personnel
+  // Mon correspondant : c'est notre appel qui fait foi, pas ce qu'il annonce
+  call: S.me?.call === peerId ? S.myId : typeof d?.call === 'string' ? d.call.slice(0, 40) : null,
+  speaker: !!d?.spk,
+});
 export function broadcast(action, data) { S.net?.[action].send(data).catch(() => {}); }
 
 // Applique une position reçue ; refuse les cases bloquées ou hors carte
@@ -290,7 +304,7 @@ function onHello(d, { peerId }) {
   u.crouch = !!d?.crouch;
   if (d?.ask) S.net?.hello.send(profile(), { target: peerId }).catch(() => {});
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab });
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab, ...remotePhone(d, peerId) });
   receiveEmote(u, d?.emote);
   users.set(peerId, u);
   checkNameClash(u, Number(d?.age));
@@ -346,10 +360,11 @@ function onRemoteState(d, { peerId }) {
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab });
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab, ...remotePhone(d, peerId) });
   receiveEmote(u, d?.emote);
   const talking = pttReaches(u);
   if (talking !== wasTalking) neighbourBeep(u, talking);
+  phonePeerState(peerId);
   updateRouting(); renderPeople();
 }
 

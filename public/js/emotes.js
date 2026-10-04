@@ -1,19 +1,13 @@
 // Émotes (statuts animés, en boucle) choisies dans une roue au clic droit maintenu :
 // travail, AFK, sieste, café, réflexion. Partagées dans le message `state` (champ `emote`),
 // dessinées au-dessus de l'étiquette du nom. Se déplacer retire l'émote.
+import { EMOTES } from './constantes.js';
 import { $ } from './dom.js';
 import { pushState } from './media.js';
 import { renderPeople } from './panel.js';
 import { canvas, ctx } from './render.js';
 import { S } from './state.js';
 
-export const EMOTES = [
-  { id: 'work', icon: '💻', label: 'Travail' },
-  { id: 'afk', icon: '⏳', label: 'AFK' },
-  { id: 'sleep', icon: '😴', label: 'Sieste' },
-  { id: 'coffee', icon: '☕', label: 'Café' },
-  { id: 'think', icon: '🤔', label: 'Réflexion' },
-];
 const IDS = EMOTES.map((e) => e.id);
 export const cleanEmote = (e) => (IDS.includes(e) ? e : null);
 export const emoteIcon = (e) => EMOTES.find((x) => x.id === e)?.icon || '';

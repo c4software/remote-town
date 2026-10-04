@@ -20,16 +20,34 @@ const scenarios = {
     await a.keyboard.press('KeyV');
     await wait(500);
     t.check(await b.evaluate(() => [...rt.users.values()].some((u) => u.name === 'Alice' && u.jumpAt > 0)), 'V : Bob voit Alice sauter');
-    await a.evaluate(() => document.querySelector('.chat-tabs [data-chan=global]').click());
+    // Discussions du téléphone : groupe « Tout le monde », puis message direct
+    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-chats'); await a.click('#phone .ph-conv[data-conv=global]');
     await a.type('#chatInput', 'bonjour à tous');
     await a.keyboard.press('Enter');
     await wait(1200);
-    await b.evaluate(() => document.querySelector('.chat-tabs [data-chan=global]').click());
+    t.check(await b.$eval('#phoneBtn .badge', (e) => !e.hidden && e.textContent === '1'), 'message non lu : pastille sur le bouton du téléphone');
+    await b.evaluate(() => rt.openChat('global'));
+    await wait(500);
     t.check(await b.evaluate(() => document.querySelector('#messages').innerText.includes('bonjour à tous')), 'chat global reçu');
+    t.check(await b.$eval('#phoneBtn .badge', (e) => e.hidden), 'conversation ouverte : plus de pastille');
+    const c = await join(t, 'Chloé');
+    await waitPeers([a, b, c]);
+    await b.click('#phone .ph-back'); await b.click('#phone .ph-back'); await b.click('#phone .ph-nav-contacts');
+    await b.evaluate(() => [...document.querySelectorAll('#phone .ph-contact')].find((r) => r.textContent.includes('Alice')).querySelector('.ph-info').click());
+    await b.click('#phone .ph-act-msg');
+    await b.type('#chatInput', 'juste pour toi');
+    await b.keyboard.press('Enter');
+    await wait(1200);
+    const dms = (page) => page.evaluate(() => { rt.openChat('dm:bob'); return document.querySelector('#messages').innerText; });
+    t.check((await dms(a)).includes('juste pour toi'), 'message direct reçu par Alice');
+    t.check(!(await c.evaluate(() => { rt.openChat('dm:bob'); const t = document.querySelector('#messages').innerText; rt.openChat('global'); return t + document.querySelector('#messages').innerText; })).includes('juste pour toi'), 'message direct : pas vu par Chloé');
+    await c.close();
+    await waitPeers([a, b]);
     await place(b, 45, 11);
     await wait(600);
-    await a.click('.side-tabs [data-panel=people]');
-    await a.click('#people li.join-row');
+    await a.click('#phone .ph-back'); await a.click('#phone .ph-back'); await a.click('#phone .ph-nav-contacts');
+    await a.click('#phone .ph-contact .ph-info');
+    await a.click('#phone .ph-act-join');
     await pathDone(a);
     const pa = await me(a);
     t.check(Math.abs(pa.x - 45) + Math.abs(pa.y - 11) === 1, 'clic sur un participant : on le rejoint');
@@ -79,17 +97,19 @@ const scenarios = {
     // Volume personnel : Bob coupe Alice depuis le menu du clic droit, puis rétablit
     const aliceId = await a.evaluate(() => rt.me.id);
     const aliceVolume = () => b.evaluate((id) => rt.links.get(id)?.audioEl?.volume, aliceId);
-    await b.click('.side-tabs [data-panel=people]');
-    await b.click(`#people li[data-id="${aliceId}"]`, { button: 'right' });
-    t.check(await b.$eval('#personMenu', (e) => !e.hidden && e.textContent.includes('Alice')), 'clic droit : menu « Volume d\'Alice »');
-    await b.click('#personMenu .pm-vol button');
+    await b.evaluate((id) => rt.openPerson(id), aliceId);
+    await wait(500);
+    t.check(await b.$eval('#phone .ph-person', (e) => e.textContent.includes('Volume d\'Alice')), 'fiche d\'Alice dans le téléphone : « Volume d\'Alice »');
+    await b.click('#phone .ph-vol button');
     await wait(300);
     t.check(await aliceVolume() === 0, 'son d\'Alice coupé pour Bob');
-    t.check(await b.$eval(`#people li[data-id="${aliceId}"] .p-vol`, (e) => e.textContent.includes('0 %')), 'badge « 🔇 0 % » dans la liste');
+    await b.click('#phone .ph-back');
+    t.check(await b.$eval(`#phone .ph-contact[data-id="${aliceId}"]`, (e) => e.textContent.includes('0 %')), 'rappel « 🔇 0 % » dans les contacts');
     t.check(await b.evaluate(() => JSON.parse(localStorage.getItem('rt-volumes')).Alice === 0), 'réglage mémorisé');
-    await b.click(`#people li[data-id="${aliceId}"] .p-vol`);
-    await b.click('#personMenu .pm-vol button');
+    await b.click(`#phone .ph-contact[data-id="${aliceId}"] .ph-info`);
+    await b.click('#phone .ph-vol button');
     await wait(300);
+    await b.click('#phone .ph-close');
     t.check(await aliceVolume() === 1, 'son d\'Alice rétabli');
     t.check(!(await hears(c, 'Alice')), 'changement de micro : toujours pas entendu ailleurs');
     await a.keyboard.press('KeyM');
@@ -116,13 +136,11 @@ const scenarios = {
     // Loin l'une de l'autre, micros coupés : seul le téléphone peut les relier
     await place(a, 30, 10); await place(b, 20, 5);
     await wait(500);
+    // Appel depuis la fiche de la personne, dans les contacts du téléphone
     const call = async (page, name) => {
-      await page.evaluate((name) => {
-        const li = [...document.querySelectorAll('#people li')].find((l) => l.textContent.includes(name));
-        const r = li.getBoundingClientRect();
-        li.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 }));
-      }, name);
-      await page.click('#personMenu .pm-call');
+      await page.evaluate((name) => rt.openPerson([...rt.users.values()].find((u) => u.name === name).id), name);
+      await wait(500); // le téléphone monte du bas de l'écran
+      await page.click('#phone .ph-act-call');
     };
     // Son réellement reçu, mesuré sur la liaison (énergie audio décodée pendant 2 s) : en
     // conversation à deux sens, l'indicateur de niveau lu par hears() reste parfois muet
@@ -133,18 +151,45 @@ const scenarios = {
     });
     const gets = async (page) => { const e0 = await energy(page); await wait(2000); return (await energy(page)) - e0 > 0.01; };
     const has = (page, sel) => page.$eval('#phone', (e, sel) => !e.hidden && !!e.querySelector(sel), sel);
+    // Téléphone replié : un bouton ; déplié : contacts, messagerie, réglages
+    t.check(await a.$eval('#phone', (e) => e.hidden) && await a.$eval('#bar #phoneBtn', (e) => !e.hidden), 'hors appel : téléphone replié, bouton dans la barre');
+    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-settings');
+    t.check(await a.$$eval('#phone .ph-ring', (o) => o.map((x) => x.dataset.ring).join()) === 'ip,bell,beeps,chime,file', 'réglages : choix de la sonnerie');
+    await a.click('#phone .ph-ring[data-ring="bell"]');
+    t.check(await a.evaluate(() => JSON.parse(localStorage.getItem('rt-prefs')).ring) === 'bell', 'sonnerie choisie mémorisée');
+    await a.click('#phone .ph-back'); await a.click('#phone .ph-nav-contacts');
+    t.check(await a.$$eval('#phone .ph-contact', (o) => o.map((x) => x.querySelector('b').textContent).join()) === 'Bob', 'contacts : Bob');
+    await a.click('#phone .ph-back'); await a.click('#phone .ph-nav-profile');
+    await a.click('#phone .ph-chips[data-part="shirt"] .ph-sw:nth-child(3)');
+    await a.select('#phone .ph-select[data-part="head"]', 'cap');
+    await wait(600);
+    t.check(await a.evaluate(() => rt.me.look.shirt === '#ef476f' && rt.me.look.head === 'cap'), '« Mon personnage » dans le téléphone : couleur et accessoire appliqués');
+    const lb = await seen(b, 'Alice');
+    t.check(lb.look.shirt === '#ef476f' && lb.look.head === 'cap', 'Bob voit le nouveau personnage d\'Alice');
+    await a.$eval('#phone .ph-input', (e) => { e.value = 'Bob'; e.dispatchEvent(new Event('change')); });
+    t.check(await a.evaluate(() => rt.me.name) === 'Alice', 'pseudo déjà pris : refusé');
+    await a.click('#phone .ph-close');
     await call(a, 'Bob');
     await wait(1000);
     t.check(await has(a, '.ph-out'), 'Alice : appel en cours vers Bob');
     t.check(await has(b, '.ph-in .ph-accept'), 'Bob : ça sonne, il peut décrocher');
+    const shown = (page, who) => page.evaluate((who) => [...rt.users.values()].find((x) => x.name === who).phone ?? null, who);
+    t.check(await shown(a, 'Bob') === 'ring' && await shown(b, 'Alice') === 'call', 'vu des autres : le téléphone de Bob sonne, Alice est au téléphone');
     await b.click('#phone .ph-accept');
     await wait(2500);
     t.check(await has(a, '.ph-on') && await has(b, '.ph-on'), 'en ligne des deux côtés');
     t.check(await gets(b), 'Bob entend Alice au téléphone');
     t.check(await gets(a), 'Alice entend Bob au téléphone');
+    // Haut-parleur : annoncé aux autres, et signalé à la personne en ligne
+    await a.click('#phone .ph-spk');
+    await wait(800);
+    t.check(await a.evaluate(() => rt.me.speaker === true) && await b.evaluate(() => [...rt.users.values()].find((x) => x.name === 'Alice').speaker === true), 'haut-parleur activé par Alice, vu de Bob');
+    t.check(await has(b, '.ph-warn'), 'Bob est prévenu que le haut-parleur est activé chez Alice');
     await a.click('#phone .ph-end');
     await wait(1000);
+    t.check(await a.evaluate(() => !rt.me.speaker), 'fin de l\'appel : haut-parleur coupé');
     t.check(await b.$eval('#phone', (e) => e.hidden), 'Alice raccroche : l\'appel se ferme chez Bob');
+    t.check(await shown(a, 'Bob') === null && await shown(b, 'Alice') === null, 'plus personne au téléphone');
     t.check(!(await gets(b)), 'après avoir raccroché : plus rien n\'est envoyé');
     await call(a, 'Bob');
     await wait(500);
@@ -159,6 +204,8 @@ const scenarios = {
     await wait(2000);
     await b.click('#phone .ph-send');
     await wait(1500);
+    t.check(await a.$eval('#phoneBtn .badge', (e) => !e.hidden && e.textContent === '1'), 'pastille « 1 message » sur le bouton du téléphone');
+    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-vmail');
     const dur = await a.evaluate(() => new Promise((res) => {
       const au = document.querySelector('#phone .ph-vmail audio');
       if (!au) return res(-1);
@@ -167,12 +214,63 @@ const scenarios = {
       setTimeout(() => res(0), 3000);
     }));
     t.check(dur === 1, 'Alice reçoit le message vocal, lisible');
+    // Ne pas déranger : l'appel va droit à la messagerie, sans sonner
+    await a.click('#phone .ph-back'); await a.click('#phone .ph-nav-settings'); await a.click('#phone .ph-dnd'); await a.click('#phone .ph-close');
+    const c = await join(t, 'Chloé');
+    await waitPeers([a, b, c]);
+    await place(c, 34, 10); await wait(500);
+    await c.click('#phoneBtn'); await wait(500); await c.click('#phone .ph-nav-contacts');
+    await c.click('#phone .ph-contact:first-child .ph-dial');
+    await wait(1200);
+    t.check(await has(c, '.ph-away .ph-record') && await a.$eval('#phone', (e) => e.hidden), 'ne pas déranger : appel depuis les contacts renvoyé vers la messagerie, sans sonner');
+    await c.click('#phone .ph-ghost');
     // Dans une salle de classe : pas de téléphone
     await place(b, 65, 10);
     await wait(500);
     await call(b, 'Alice');
     await wait(500);
     t.check(await b.$eval('#phone', (e) => !e.querySelector('.ph-out')), 'depuis la salle de classe : appel impossible');
+  },
+
+  async 'sonnerie personnelle'(t) {
+    // Un petit fichier WAV (0,5 s de 880 Hz) comme sonnerie de Bob
+    const { writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const n = 4000, wav = Buffer.alloc(44 + n * 2);
+    wav.write('RIFF', 0); wav.writeUInt32LE(36 + n * 2, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(16000, 28);
+    wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(n * 2, 40);
+    for (let i = 0; i < n; i++) wav.writeInt16LE(Math.round(8000 * Math.sin((2 * Math.PI * 880 * i) / 8000)), 44 + i * 2);
+    const file = `${tmpdir()}/rt-sonnerie-${Date.now()}.wav`;
+    writeFileSync(file, wav);
+    const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
+    await waitPeers([a, b, c]);
+    await place(a, 45, 10); await place(b, 30, 10); await place(c, 32, 10);
+    await wait(500);
+    await b.click('#phoneBtn'); await wait(500); await b.click('#phone .ph-nav-settings');
+    const [chooser] = await Promise.all([b.waitForFileChooser(), b.click('#phone .ph-ring[data-ring=file]')]);
+    await chooser.accept([file]);
+    await wait(800);
+    t.check(await b.evaluate(() => JSON.parse(localStorage.getItem('rt-prefs')).ring === 'file' && localStorage.getItem('rt-ring-file').startsWith('data:audio')), 'Bob choisit un fichier audio comme sonnerie');
+    await b.click('#phone .ph-close');
+    await a.evaluate(() => rt.openPerson([...rt.users.values()].find((u) => u.name === 'Bob').id));
+    await wait(500);
+    await a.click('#phone .ph-act-call');
+    await wait(2500);
+    const near = await c.evaluate(() => rt.nearRing);
+    t.check(near?.custom === true && near.volume > 0, `Chloé, à 2 cases, entend la sonnerie personnelle de Bob (volume ${near?.volume?.toFixed(2)})`);
+    t.check(await a.evaluate(() => rt.nearRing) === null, 'Alice, loin, n\'entend pas la sonnerie de Bob');
+    await place(c, 34, 10); await wait(500);
+    const far = await c.evaluate(() => rt.nearRing);
+    t.check(far?.volume > 0 && far.volume < near.volume, `plus loin : moins fort (${far?.volume?.toFixed(2)})`);
+    // Réglage « Sonneries personnelles des autres » coupé : retour au motif par défaut
+    await c.click('#phoneBtn'); await wait(500); await c.click('#phone .ph-nav-settings'); await c.click('#phone .ph-others');
+    await wait(500);
+    const plain = await c.evaluate(() => rt.nearRing);
+    t.check(plain?.custom === false && plain.key === 'ip', 'réglage coupé : Chloé entend la sonnerie par défaut');
+    await a.click('#phone .ph-end');
+    await wait(800);
+    t.check(await c.evaluate(() => rt.nearRing) === null, 'appel annulé : la sonnerie s\'arrête chez Chloé');
   },
 
   async 'émotes'(t) {
@@ -236,16 +334,16 @@ const scenarios = {
     for (const p of [a, b, c]) await p.evaluate((k) => rt.setAdminTestKey(k), { x: pub.x, y: pub.y });
     await a.evaluate((tk) => rt.loadAdminToken(tk), token);
     // Sans jeton, le clic droit dans la liste ne propose rien
-    await c.click('.side-tabs [data-panel=people]');
-    await c.click('#people li[data-id]:not(.me-row)', { button: 'right' });
-    t.check(await c.$eval('#personMenu', (e) => !e.hidden && !e.querySelector('.pm-kick')), 'sans jeton : volume seulement, pas d\'expulsion');
-    // Alice expulse Bob : clic droit sur sa ligne, puis confirmation
-    await a.click('.side-tabs [data-panel=people]');
     const bobId = await b.evaluate(() => rt.me.id);
+    await c.evaluate((id) => rt.openPerson(id), bobId);
+    await wait(500);
+    t.check(await c.$eval('#phone', (e) => !e.hidden && !e.querySelector('.ph-kick')), 'sans jeton : fiche sans expulsion');
+    // Alice expulse Bob : sa fiche dans le téléphone, puis confirmation
     a.once('dialog', (d) => d.accept());
-    await a.click(`#people li[data-id="${bobId}"]`, { button: 'right' });
-    t.check(await a.$eval('#personMenu .pm-kick', (e) => e.textContent.includes('Bob')), 'avec jeton : menu « Expulser Bob »');
-    await a.click('#personMenu .pm-kick');
+    await a.evaluate((id) => rt.openPerson(id), bobId);
+    await wait(500);
+    t.check(await a.$eval('#phone .ph-kick', (e) => e.textContent.includes('Bob')), 'avec jeton : « Expulser Bob » dans sa fiche');
+    await a.click('#phone .ph-kick');
     await wait(1500);
     t.check(await b.$eval('#kicked', (e) => !e.hidden), 'Bob voit l\'écran d\'expulsion');
     t.check(await b.evaluate(() => rt.users.size === 1), 'Bob ne voit plus personne');
@@ -439,7 +537,7 @@ const scenarios = {
     await a.keyboard.type('la classe');
     await wait(600);
     t.check((await texts(b)).join() === 'Bonjour\nla classe', 'texte tapé au clavier : il apparaît chez l\'élève pendant la saisie');
-    t.check((await me(a)).zone === 'class' && await a.$eval('#chatInput', (e) => e.value === ''), 'taper ne déplace pas le personnage et n\'écrit pas dans le chat');
+    t.check((await me(a)).zone === 'class' && await a.evaluate(() => !document.querySelector('#chatInput')?.value), 'taper ne déplace pas le personnage et n\'écrit pas dans le chat');
     await a.keyboard.press('Escape');
     await wait(300);
     t.check(await a.$('#boardText') === null && (await texts(a)).length === 1, 'Échap termine la saisie, le texte reste');
@@ -498,7 +596,8 @@ const scenarios = {
     await a.waitForFunction(() => !document.querySelector('#waiting').hidden, { timeout: 15000 }); // seule depuis 3 s
     await a.bringToFront(); // le presse-papiers exige une page au premier plan
     // Commande /diag dans le chat (les boutons sont masqués)
-    await a.evaluate(() => document.querySelector('.chat-tabs [data-chan=global]')?.click());
+    await a.evaluate(() => rt.openChat('global'));
+    await wait(500);
     await a.click('#chatInput');
     await a.type('#chatInput', '/diag');
     await a.keyboard.press('Enter');
@@ -552,10 +651,10 @@ const scenarios = {
     await a.keyboard.press('KeyP');
     await wait(300);
     t.check(await a.evaluate(() => !documentPictureInPicture.window), 'P la referme');
-    await a.click('#mePill');
-    await a.click('#pipChips [data-pip="on"]');
-    t.check(await a.evaluate(() => rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === true), 'activable dans le profil, mémorisé');
-    await a.click('#pipChips [data-pip="off"]');
+    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-settings');
+    await a.click('#phone .ph-pip');
+    t.check(await a.evaluate(() => rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === true), 'activable dans les réglages du téléphone, mémorisé');
+    await a.click('#phone .ph-pip');
     t.check(await a.evaluate(() => !rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === false), 'puis désactivable');
   },
 

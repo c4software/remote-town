@@ -194,3 +194,23 @@ export const NO_TALKIE_TYPES = ['class', 'main'];
 export const canTalkieIn = (zoneId) => !NO_TALKIE_TYPES.includes(zoneType(zoneId));
 // Le téléphone (phone.js) suit la même règle : ni appel lancé, ni appel reçu dans ces salles
 export const canCallIn = canTalkieIn;
+// Téléphone qui sonne (`phone: 'ring'`, phone.js) : les personnes proches l'entendent aussi,
+// dans la même zone, d'autant plus bas qu'elles sont loin (0 : pas entendu)
+export const RING_RADIUS = 4;
+export function ringVolume(s, r) {
+  if (!s || !r || s.id === r.id || s.phone !== 'ring' || s.zone !== r.zone || !canCallIn(s.zone)) return 0;
+  const d = dist(s, r);
+  return d > RING_RADIUS ? 0 : Math.max(0.1, Math.min(0.6, 0.6 - ((d - 1) / (RING_RADIUS - 1)) * 0.5));
+}
+export const hearsRing = (s, r) => ringVolume(s, r) > 0;
+
+// Haut-parleur du téléphone (`speaker`) : la conversation s'entend autour de la personne qui
+// l'a activé, dans sa zone. Renvoie la personne dont le téléphone porte la voix de `s` jusqu'à
+// `r` (`s` qui parle fort, ou son correspondant `partner` qui a mis le haut-parleur), sinon null.
+const nearPhone = (holder, r) => holder.zone === r.zone && canCallIn(holder.zone) && dist(holder, r) <= PROX_RADIUS;
+export function speakerHolder(s, partner, r) {
+  if (!s?.call || !r || s.id === r.id || s.call === r.id) return null;
+  if (s.speaker && nearPhone(s, r)) return s;
+  if (partner && partner.id === s.call && partner.call === s.id && partner.speaker && nearPhone(partner, r)) return partner;
+  return null;
+}

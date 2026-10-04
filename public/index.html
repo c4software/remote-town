@@ -37,10 +37,7 @@
               <small id="roomLink" class="room-link"></small>
             </div>
             <div class="field"><span>Style</span>
-              <div class="chips" id="styleChips">
-                <button type="button" data-style="boy">Gars</button>
-                <button type="button" data-style="girl">Fille</button>
-              </div>
+              <div class="chips" id="styleChips"></div>
             </div>
             <div class="field"><span>Haut</span><div class="swatches" data-part="shirt"></div></div>
             <div class="field"><span>Cheveux</span><div class="swatches" data-part="hair"></div></div>
@@ -48,50 +45,16 @@
           </div>
           <div class="join-col">
             <div class="field"><span>Tête</span>
-              <div class="chips" id="headChips">
-                <button type="button" data-v="">Aucun</button>
-                <button type="button" data-v="cap">🧢 Casquette</button>
-                <button type="button" data-v="beanie">🧶 Bonnet</button>
-                <button type="button" data-v="tophat">🎩 Haut-de-forme</button>
-                <button type="button" data-v="partyhat">🥳 Chapeau de fête</button>
-                <button type="button" data-v="crown">👑 Couronne</button>
-                <button type="button" data-v="unicorn">🦄 Licorne</button>
-                <button type="button" data-v="catears">🐱 Oreilles de chat</button>
-                <button type="button" data-v="flower">🌸 Fleur</button>
-                <button type="button" data-v="headphones">🎧 Casque audio</button>
-                <button type="button" data-v="specs">👓 Lunettes de vue</button>
-                <button type="button" data-v="glasses">🤓 Grosses lunettes</button>
-                <button type="button" data-v="shades">🕶️ Lunettes de soleil</button>
-              </div>
+              <div class="chips" id="headChips"></div>
             </div>
             <div class="field"><span>Corps</span>
-              <div class="chips" id="bodyChips">
-                <button type="button" data-v="">Aucun</button>
-                <button type="button" data-v="metal">🤘 T-shirt metal</button>
-                <button type="button" data-v="claude">✳️ T-shirt Claude</button>
-                <button type="button" data-v="codex">⌨️ T-shirt Codex</button>
-                <button type="button" data-v="linux">🐧 T-shirt Linux</button>
-                <button type="button" data-v="windows">🪟 T-shirt Windows</button>
-                <button type="button" data-v="macos">🍎 T-shirt macOS</button>
-                <button type="button" data-v="tie">👔 Cravate</button>
-                <button type="button" data-v="bowtie">🎀 Nœud papillon</button>
-                <button type="button" data-v="scarf">🧣 Écharpe</button>
-                <button type="button" data-v="medal">🏅 Médaille</button>
-                <button type="button" data-v="backpack">🎒 Sac à dos</button>
-                <button type="button" data-v="cape">🦸 Cape</button>
-              </div>
+              <div class="chips" id="bodyChips"></div>
             </div>
             <div class="join-settings">
               <div class="field"><span>Micro</span>
                 <div class="mic-row">
                   <select id="micSelect"><option value="">Micro par défaut</option></select>
                   <i id="micLevel" title="Niveau du micro"><b></b></i>
-                </div>
-              </div>
-              <div class="field" id="pipField" hidden><span title="Petite vue autour de son personnage, ouverte en changeant d'onglet (aussi avec P)">Incrustation (onglet caché)</span>
-                <div class="chips" id="pipChips">
-                  <button type="button" data-pip="on">🗺️ Activée</button>
-                  <button type="button" data-pip="off">Désactivée</button>
                 </div>
               </div>
             </div>
@@ -170,35 +133,11 @@
       <div><kbd>E</kbd> devant la porte violette du couloir : changer d'espace de travail</div>
       <div>Bureau du prof (classe, pupitre) : bouton tableau pour ouvrir le tableau blanc (dessin, ou outil « Texte » pour écrire au clavier)</div>
       <div><kbd>1</kbd>…<kbd>6</kbd> : réactions · <kbd>H</kbd> : lever la main</div>
-      <div>Clic droit sur une personne (liste des participants) : régler son volume, l'appeler au téléphone</div>
+      <div>Bouton téléphone de la barre : contacts (appeler, écrire, rejoindre, volume), messages, personnage, réglages</div>
       <div>Clic droit maintenu : émote (travail, AFK, sieste, café, réflexion)</div>
-      <div><kbd>Entrée</kbd> : écrire dans le chat</div>
-      <div><kbd>P</kbd> : petite vue en incrustation autour de soi (ou en changeant d'onglet, à activer dans le profil)</div>
+      <div><kbd>Entrée</kbd> : écrire dans la discussion de la salle (téléphone)</div>
+      <div><kbd>P</kbd> : petite vue en incrustation autour de soi (ou en changeant d'onglet, à activer dans les réglages du téléphone)</div>
     </div>
-
-    <aside id="sidebar">
-      <div class="side-tabs">
-        <button data-panel="chat" class="active">Chat</button>
-        <button data-panel="people">Participants <span id="peopleCount">0</span></button>
-        <button class="side-close" aria-label="Fermer le panneau">×</button>
-      </div>
-      <section class="panel" data-panel="chat">
-        <div class="chat-tabs">
-          <button data-chan="zone" class="active"><span id="zoneChanName">Zone</span><i class="badge" hidden></i></button>
-          <button data-chan="global">Tout le monde<i class="badge" hidden></i></button>
-        </div>
-        <div id="messages"></div>
-        <form id="chatForm" autocomplete="off">
-          <input id="chatInput" maxlength="1000" placeholder="Message…">
-          <button type="submit" aria-label="Envoyer">
-            <svg viewBox="0 0 24 24"><path d="M3 11.5 21 3l-8.5 18-2-7.5z"/></svg>
-          </button>
-        </form>
-      </section>
-      <section class="panel" data-panel="people" hidden>
-        <ul id="people"></ul>
-      </section>
-    </aside>
 
     <nav id="bar">
       <div class="me-pill" id="mePill" role="button" tabindex="0" title="Modifier mon personnage">
@@ -236,11 +175,8 @@
         <button id="inviteBtn" class="round" title="Inviter : copier le lien de la salle">
           <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
         </button>
-        <button id="peopleBtn" class="round" title="Participants">
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>
-        </button>
-        <button id="chatBtn" class="round" title="Chat">
-          <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.8 7L3 21l2-6A8 8 0 1 1 21 12z"/></svg>
+        <button id="phoneBtn" class="round" title="Téléphone : contacts, messages, réglages">
+          <svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
           <i class="badge" hidden></i>
         </button>
         <button id="helpBtn" class="round" title="Afficher l'aide" hidden>

@@ -4,7 +4,7 @@
 // même personne, même apparence.
 import { banMinutesLeft } from './admin.js';
 import { portalMusic } from './audio.js';
-import { chat, chatStore, renderChat } from './chat.js';
+import { resetChat } from './chat.js';
 import { $, toast } from './dom.js';
 import { pushState, setPtt, stopShare } from './media.js';
 import { onMyMove, sendMove, stepAsideIfTaken } from './movement.js';
@@ -97,10 +97,8 @@ async function warp(id) {
   setWarp({ ...S.warp, phase: 'wait', at: performance.now() });
   await Promise.all([switchRoom(id), wait(MIN_WAIT_MS)]);
   // Nouvel espace : le chat de l'ancien n'a plus de sens
-  chatStore.clear();
-  chat.unread.zone = chat.unread.global = 0;
+  resetChat();
   S.globalHistoryLoaded = false;
-  renderChat();
   history.replaceState(null, '', roomUrl(id));
   rememberSpace(id);
   rememberRoom(id);

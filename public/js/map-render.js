@@ -1,5 +1,5 @@
 // Rendu de la carte (sols, murs, mobilier), pré-calculé une fois dans un canvas hors écran.
-import { WORLD_H, WORLD_W } from './config.js';
+import { WORLD_H, WORLD_W } from './constantes.js';
 import { MAP, MAP_H, MAP_W, T, TILE, shade, tileAt, zoneAt } from './world.js';
 
 const MS = 2; // résolution du canvas de la carte

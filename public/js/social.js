@@ -1,6 +1,7 @@
 // Réactions (1 à 6), main levée (H) et bulles des mains levées en bas à droite.
 import { drawAvatar } from './avatar.js';
 import { chime } from './audio.js';
+import { JINGLE_GAP, MAX_HANDS, REACTIONS, REACT_MS } from './constantes.js';
 import { $, ofName, toast } from './dom.js';
 import { pushState } from './media.js';
 import { openHandMenu } from './panel.js';
@@ -9,8 +10,6 @@ import { ctx } from './render.js';
 import { S, users } from './state.js';
 import { MAP, isOnAir } from './world.js';
 
-export const REACTIONS = ['👍', '❤️', '😂', '🎉', '👏', '😮'];
-const REACT_MS = 3000;
 let lastReactAt = 0;
 
 export function addReaction(u, e) {
@@ -48,7 +47,6 @@ export function sendReaction(e) {
 // Jingle d'annonce (J) : seulement depuis le pupitre, joué chez tout le monde.
 // Juste le carillon : la voix de synthèse d'autrefois perturbait le son.
 const JINGLE = [523.25, 659.25, 783.99, 1046.5]; // do, mi, sol, do
-const JINGLE_GAP = 3000; // ms entre deux jingles d'une même personne (le carillon dure ~2,3 s)
 export function sendJingle() {
   if (!S.me) return;
   if (!isOnAir(S.me)) return toast("🔔 Le jingle d'annonce se joue depuis le pupitre (E)");
@@ -120,7 +118,6 @@ function renderHandBtn() {
 // ============================================================
 // Mains levées : bulles en bas à droite ; un clic emmène auprès de la personne
 // ============================================================
-const MAX_HANDS = 6;
 
 function headPortrait(u) {
   const c = document.createElement('canvas');

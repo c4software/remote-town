@@ -10,6 +10,7 @@ import { initEmotes } from './emotes.js';
 import { initHud } from './hud.js';
 import { initInput } from './input.js';
 import { initPanel } from './panel.js';
+import { initPhone } from './phone.js';
 import { initPip } from './pip.js';
 import { initProfile } from './profile.js';
 import { initSpaces } from './spaces.js';
@@ -25,6 +26,7 @@ initInput();
 initEmotes();
 initSpaces();
 initPip();
+initPhone();
 initDiag();
 initAdmin();
 initDebug(); // en local ; sur le site publié, après vérification du jeton (admin.js)

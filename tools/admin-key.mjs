@@ -1,12 +1,12 @@
 // Génère la clé d'administration de Remote Town (expulsion, voir public/js/admin.js).
 //   node tools/admin-key.mjs
-// - écrit la clé PUBLIQUE dans public/js/config.js (ADMIN_KEY), à commiter et publier ;
+// - écrit la clé PUBLIQUE dans public/js/constantes.js (ADMIN_KEY), à commiter et publier ;
 // - affiche le JETON (clé privée), les étapes et le lien d'activation dans la console, sans
 //   l'écrire nulle part : à copier dans un gestionnaire de mots de passe, jamais dans le dépôt.
 // Relancer l'outil change de clé : l'ancien jeton ne fonctionne plus.
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const CONFIG = new URL('../public/js/config.js', import.meta.url);
+const CONFIG = new URL('../public/js/constantes.js', import.meta.url);
 const SITE = 'https://distance.brosseau.ovh/';
 
 const { publicKey, privateKey } = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
@@ -16,7 +16,7 @@ const priv = await crypto.subtle.exportKey('jwk', privateKey);
 const config = readFileSync(CONFIG, 'utf8');
 const line = `export const ADMIN_KEY = { x: '${pub.x}', y: '${pub.y}' };`;
 const updated = config.replace(/^export const ADMIN_KEY = .*;$/m, line);
-if (updated === config && !config.includes(line)) throw new Error('ADMIN_KEY introuvable dans config.js');
+if (updated === config && !config.includes(line)) throw new Error('ADMIN_KEY introuvable dans constantes.js');
 writeFileSync(CONFIG, updated);
 
 const token = Buffer.from(JSON.stringify({ x: priv.x, y: priv.y, d: priv.d })).toString('base64url');
@@ -27,8 +27,8 @@ les administrateurs, jamais dans le dépôt) :
   ${token}
 
 Étapes :
-  1. Publier la clé publique, écrite dans public/js/config.js :
-       git add public/js/config.js && git commit -m "Nouvelle clé d'administration" && git push
+  1. Publier la clé publique, écrite dans public/js/constantes.js :
+       git add public/js/constantes.js && git commit -m "Nouvelle clé d'administration" && git push
      Le nouveau jeton ne fonctionne qu'une fois le site publié (jusqu'à 10 min de cache
      GitHub Pages) ; à ce moment-là, l'ancien jeton cesse de fonctionner.
   2. Ouvrir une fois ce lien dans chaque navigateur d'administrateur :

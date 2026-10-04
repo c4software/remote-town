@@ -1,15 +1,14 @@
 // Écran du personnage : connexion (nom, salle, apparence) et modification en cours de session.
 // Le profil est mémorisé dans le navigateur (localStorage « rt-prefs »).
 import { banMinutesLeft } from './admin.js';
-import { initMic, portalMusic, sampleLevel } from './audio.js';
-import { cleanBody, cleanHead, drawAvatar, lookBody, lookHead } from './avatar.js';
-import { PALETTE } from './config.js';
+import { customRing, initMic, portalMusic, sampleLevel } from './audio.js';
+import { drawAvatar, lookBody, lookHead } from './avatar.js';
+import { BODY_OPTIONS, HEAD_OPTIONS, PALETTE, RING_STYLES, STYLES } from './constantes.js';
 import { $, cleanName, sameName, toast } from './dom.js';
 import { showHelp } from './hud.js';
 import { switchMic } from './media.js';
 import { connect, prepareIce, profile } from './net.js';
 import { renderPeople } from './panel.js';
-import { setPipOn } from './pip.js';
 import { canvas } from './render.js';
 import { cleanRoom, rememberSpace, roomName, roomUrl, shareLink } from './rooms.js';
 import { S, keys, users } from './state.js';
@@ -30,9 +29,9 @@ export const look = {
 // Profil (nom, apparence, dernière salle) mémorisé dans le navigateur à chaque modification
 const nameInput = $('#nameInput');
 const roomInput = $('#roomInput');
-function savePrefs() {
+export function savePrefs() {
   try {
-    localStorage.setItem('rt-prefs', JSON.stringify({ name: cleanName(nameInput.value), look, room: roomInput.value.trim(), mic: S.micDevice, pipAuto: S.pipOn }));
+    localStorage.setItem('rt-prefs', JSON.stringify({ name: cleanName(nameInput.value), look, room: roomInput.value.trim(), mic: S.micDevice, pipAuto: S.pipOn, ring: S.ring, dnd: S.dnd, otherRings: S.otherRings }));
   } catch {}
 }
 const showRoomLink = () => { $('#roomLink').textContent = roomUrl(cleanRoom(roomInput.value)); };
@@ -77,8 +76,7 @@ function syncPickers() {
   document.querySelectorAll('.swatches').forEach((box) => {
     box.querySelectorAll('button').forEach((b) => b.classList.toggle('sel', b.title === look[box.dataset.part]));
   });
-  document.querySelectorAll('#styleChips button').forEach((b) => b.classList.toggle('sel', b.dataset.style === look.style));
-  for (const part of ['head', 'body']) {
+  for (const part of ['style', 'head', 'body']) {
     document.querySelectorAll(`#${part}Chips button`).forEach((b) => b.classList.toggle('sel', (b.dataset.v || null) === look[part]));
   }
   drawPreview();
@@ -175,6 +173,12 @@ function applyProfile() {
   S.renameForced = null;
   S.me.name = name;
   S.me.look = { ...look };
+  publishProfile();
+  closeProfile(false);
+}
+
+// Mon nom et mon apparence ont changé : mémorisés, affichés (barre du bas, liste) et envoyés
+function publishProfile() {
   savePrefs();
   $('#meName').textContent = S.me.name;
   const mc = $('#meAvatar').getContext('2d');
@@ -182,7 +186,24 @@ function applyProfile() {
   drawAvatar(mc, S.me.look, 16, 37, 'down');
   S.net?.hello.send(profile()).catch(() => {}); // les autres mettent à jour nom et apparence
   renderPeople();
-  closeProfile(false);
+}
+
+// Modification directe depuis le téléphone (phone.js), appliquée tout de suite. Les valeurs
+// viennent des mêmes listes que l'écran du personnage (PALETTE, puces d'accessoires).
+export function setLook(part, value) {
+  look[part] = value;
+  S.me.look = { ...look };
+  publishProfile();
+}
+// Renvoie un message d'erreur, ou '' si le pseudo est accepté
+export function renameMe(raw) {
+  const name = cleanName(raw);
+  if (!name) return 'Le pseudo ne peut pas être vide.';
+  const clash = [...users.values()].find((u) => !u.isMe && sameName(u.name, name));
+  if (clash) return `Le pseudo « ${clash.name} » est déjà pris dans cet espace : choisissez-en un autre.`;
+  S.me.name = nameInput.value = name;
+  publishProfile();
+  return '';
 }
 
 const center = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
@@ -202,18 +223,17 @@ function coverFrom([x, y], name) {
 
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initProfile() {
+  // Téléphone (phone.js) : sonnerie et « ne pas déranger », réglés dans le téléphone lui-même
+  S.ring = RING_STYLES.some((x) => x.id === prefs.ring) && (prefs.ring !== 'file' || customRing()) ? prefs.ring : 'ip';
+  S.dnd = prefs.dnd === true;
+  S.otherRings = prefs.otherRings !== false;
   S.micDevice = typeof prefs.mic === 'string' ? prefs.mic : '';
   renderMics();
   $('#micSelect').addEventListener('change', onMicChange);
   navigator.mediaDevices?.addEventListener?.('devicechange', renderMics);
-  // Vue en incrustation (pip.js) : désactivée par défaut, proposée seulement si le navigateur
-  // sait l'afficher. « pipAuto » et non plus « pip », enregistré activé par la v2.28.0
+  // Vue en incrustation (pip.js) : désactivée par défaut, réglée dans le téléphone (phone.js).
+  // « pipAuto » et non plus « pip », enregistré activé par la v2.28.0
   S.pipOn = prefs.pipAuto === true;
-  $('#pipField').hidden = !('documentPictureInPicture' in window);
-  const pipChips = document.querySelectorAll('#pipChips button');
-  const syncPip = () => pipChips.forEach((b) => b.classList.toggle('sel', (b.dataset.pip === 'on') === S.pipOn));
-  pipChips.forEach((b) => { b.onclick = () => { setPipOn(b.dataset.pip === 'on'); syncPip(); savePrefs(); }; });
-  syncPip();
   nameInput.value = prefs.name || '';
   roomInput.value = new URLSearchParams(location.search).get('room') ?? prefs.room ?? '';
   nameInput.addEventListener('input', savePrefs);
@@ -236,26 +256,26 @@ export function initProfile() {
       box.append(b);
     }
   });
-  document.querySelectorAll('#styleChips button').forEach((b) => {
-    b.classList.toggle('sel', b.dataset.style === look.style);
-    b.onclick = () => {
-      look.style = b.dataset.style;
-      document.querySelectorAll('#styleChips button').forEach((x) => x.classList.toggle('sel', x === b));
-      drawPreview();
-      savePrefs();
-    };
-  });
-  for (const [part, clean] of [['head', cleanHead], ['body', cleanBody]]) {
-    document.querySelectorAll(`#${part}Chips button`).forEach((b) => {
-      b.classList.toggle('sel', (b.dataset.v || null) === look[part]);
+  // Puces du style et des accessoires, construites depuis les listes d'avatar.js
+  const chips = (id, part, options, move) => {
+    const box = $(id);
+    for (const o of options) {
+      const b = Object.assign(document.createElement('button'), { type: 'button', textContent: o.label });
+      b.dataset.v = o.id ?? '';
+      b.classList.toggle('sel', o.id === look[part]);
       b.onclick = () => {
-        look[part] = clean(b.dataset.v);
-        document.querySelectorAll(`#${part}Chips button`).forEach((x) => x.classList.toggle('sel', x === b));
-        playPreview('turn');
+        look[part] = o.id;
+        box.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
+        if (move) playPreview(move); else drawPreview();
         savePrefs();
       };
-    });
-  }
+      box.append(b);
+    }
+  };
+  const none = { id: null, label: 'Aucun' };
+  chips('#styleChips', 'style', STYLES);
+  chips('#headChips', 'head', [none, ...HEAD_OPTIONS], 'turn');
+  chips('#bodyChips', 'body', [none, ...BODY_OPTIONS], 'turn');
   drawPreview();
   $('#preview').onclick = () => playPreview('hop');
   document.fonts?.ready.then(drawPreview);

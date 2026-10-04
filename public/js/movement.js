@@ -2,8 +2,8 @@
 // accroupi, dash, rejoindre quelqu'un. Chaque changement est diffusé par sendMove().
 import { initMic } from './audio.js';
 import { atTeacherDesk, boards } from './board.js';
-import { renderChat } from './chat.js';
-import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STAMINA, STEP_MS } from './config.js';
+import { phoneClose } from './phone.js';
+import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STAMINA, STEP_MS } from './constantes.js';
 import { $, toast, typing } from './dom.js';
 import { clearEmoteOnMove } from './emotes.js';
 import { onZoneChange } from './hud.js';
@@ -318,7 +318,7 @@ export function goToUser(id) {
 
 // Depuis le chat ou la liste : sur téléphone, le panneau recouvre la carte, on le ferme
 export function joinFromPanel(id) {
-  if (innerWidth <= 560) { $('#sidebar').classList.add('closed'); renderChat(); }
+  phoneClose(true); // sur mobile, le téléphone masque la carte
   goToUser(id);
 }
 

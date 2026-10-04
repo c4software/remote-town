@@ -2,6 +2,7 @@
 import { drawAvatar } from './avatar.js';
 import { atTeacherDesk, boardPip, boards, closeMyBoard, refreshBoard } from './board.js';
 import { chat, fetchHistory, renderChat } from './chat.js';
+import { REACTIONS } from './constantes.js';
 import { $, toast } from './dom.js';
 import { renderMap } from './map-render.js';
 import { setPtt, stopShare, toggleMic, toggleShare } from './media.js';
@@ -10,7 +11,7 @@ import { renderPeople } from './panel.js';
 import { phoneZoneChange } from './phone.js';
 import { loop } from './render.js';
 import { shareLink } from './rooms.js';
-import { REACTIONS, sendReaction, toggleHand } from './social.js';
+import { sendReaction, toggleHand } from './social.js';
 import { S, users } from './state.js';
 import { MAP, canShareIn, canTalkieIn, isOnAir, zoneType } from './world.js';
 
@@ -33,7 +34,6 @@ export function startApp() {
   $('#meName').textContent = S.me.name;
   drawAvatar($('#meAvatar').getContext('2d'), S.me.look, 16, 37, 'down');
   chat.zoneId = S.me.zone;
-  if (innerWidth < 900) $('#sidebar').classList.add('closed');
   S.mapCanvas = renderMap();
   document.fonts?.ready.then(() => { S.mapCanvas = renderMap(); });
   onZoneChange(true);
@@ -49,7 +49,7 @@ let lastZoneToast = null;
 export function onZoneChange(initial = false) {
   const z = MAP.zoneById[S.me.zone];
   chat.zoneId = S.me.zone;
-  chat.unread.zone = 0;
+  delete chat.unread.zone;
   if (!initial) fetchHistory(S.me.zone, [...users.values()].filter((u) => !u.isMe && u.zone === S.me.zone).map((u) => u.id));
   if (S.sharing && !canShareIn(S.me.zone)) stopShare();
   if (S.pttHeld && !canTalkieIn(S.me.zone)) setPtt(false); // on range le talkie en entrant

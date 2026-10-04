@@ -1,13 +1,13 @@
 // Clavier et souris : raccourcis, directions tenues, clic sur la carte.
-import { DIRS } from './config.js';
+import { DIRS, REACTIONS } from './constantes.js';
 import { $, toast, typing } from './dom.js';
 import { setPtt, toggleMic } from './media.js';
 import { bfs, chairBusy, dash, freeLecternSpot, interact, jump, sendMove, sitOn, startOnAir, stopOnAir, toggleCrouch } from './movement.js';
-import { showPanel } from './panel.js';
+import { openChat } from './phone.js';
 import { togglePip } from './pip.js';
 import { closeProfile } from './profile.js';
 import { canvas } from './render.js';
-import { REACTIONS, sendJingle, sendReaction, setDab, setSixSeven, toggleHand } from './social.js';
+import { sendJingle, sendReaction, setDab, setSixSeven, toggleHand } from './social.js';
 import { openSpaces, spacesOpen } from './spaces.js';
 import { S, keys } from './state.js';
 import { closeFocus } from './videos.js';
@@ -48,7 +48,7 @@ export function initInput() {
       return;
     }
     if (typing()) return;
-    if (e.code === 'Enter') { e.preventDefault(); if ($('#sidebar').classList.contains('closed') || S.activePanel !== 'chat') showPanel('chat'); else $('#chatInput').focus(); return; }
+    if (e.code === 'Enter') { e.preventDefault(); openChat(); return; }
     if (e.code === 'KeyN') { e.preventDefault(); if (!e.repeat) setPtt(true); return; }
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) dash(); return; }
     // preventDefault : si E ouvre la porte des espaces, le « e » ne s'écrit pas dans son champ
@@ -78,7 +78,6 @@ export function initInput() {
     if (DIRS[e.code]) keys.delete(DIRS[e.code]);
   });
   addEventListener('blur', () => { keys.clear(); digitsHeld.clear(); S.sprinting = false; if (S.me) { setPtt(false); setSixSeven(false); setDab(false); } });
-  $('#chatInput').addEventListener('focus', () => keys.clear());
 
   canvas.addEventListener('click', (e) => {
     if (!S.me) return;

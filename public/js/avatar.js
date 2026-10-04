@@ -1,10 +1,10 @@
 // Dessin pixel-art des personnages et de leurs accessoires (tête et corps).
 // Fonctions pures : elles dessinent dans le contexte canvas qu'on leur passe.
+import { BODY_OPTIONS, HEAD_OPTIONS } from './constantes.js';
 import { shade } from './world.js';
 
-// Accessoires choisis sur l'écran de connexion : un pour la tête, un pour le corps
-const HEADS = ['unicorn', 'cap', 'shades', 'glasses', 'specs', 'tophat', 'headphones', 'crown', 'beanie', 'partyhat', 'catears', 'flower'];
-const BODIES = ['metal', 'claude', 'codex', 'linux', 'windows', 'macos', 'scarf', 'tie', 'bowtie', 'backpack', 'cape', 'medal'];
+const HEADS = HEAD_OPTIONS.map((o) => o.id);
+const BODIES = BODY_OPTIONS.map((o) => o.id);
 export const cleanHead = (d) => (HEADS.includes(d) ? d : null);
 export const cleanBody = (d) => (BODIES.includes(d) ? d : null);
 // Ancien format (un seul accessoire « deco ») : rangé dans la bonne catégorie

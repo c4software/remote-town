@@ -2,12 +2,14 @@
 // ouverte avec ?debug, en local, ou sur le site publié avec un jeton d'administration
 // vérifié (voir debugMode dans dom.js et admin.js).
 import { loadToken, setTestKey } from './admin.js';
+import { nearRingInfo } from './audio.js';
 import { boards } from './board.js';
 import { diagnostic, lastDiag } from './diag.js';
 import { debugMode } from './dom.js';
 import { links } from './media.js';
 import { bfs, onMyMove, sendMove, sitOn, toggleSit } from './movement.js';
 import { rejoin, relaunch } from './net.js';
+import { openChat, openPerson } from './phone.js';
 import { S, users } from './state.js';
 
 // Appelé au démarrage (main.js), puis par admin.js une fois le jeton vérifié
@@ -31,7 +33,10 @@ export function initDebug() {
     toggleSit: () => toggleSit(),
     rejoin: () => rejoin(),
     relaunch: () => relaunch(),
+    get nearRing() { return nearRingInfo(); }, // sonnerie d'un voisin en cours (tests)
     diag: () => diagnostic(),
+    openChat: (key) => openChat(key),     // téléphone : conversation 'global', 'zone' ou 'dm:<pseudo>'
+    openPerson: (id) => openPerson(id),   // téléphone : fiche d'une personne
     setAdminTestKey: setTestKey, // tests de l'expulsion avec une clé jetable
     loadAdminToken: loadToken,
     get lastDiag() { return lastDiag(); },
