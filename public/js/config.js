@@ -13,7 +13,7 @@ export const DASH_TILES = 3;     // Espace : bond de 3 cases
 export const DASH_COOLDOWN = 450;
 export const TRAIL_MS = 260;     // durée de la traînée du dash
 export const HOP_MS = 220;       // petit bond : V (sauter) ou en levant le talkie (N)
-export const WALKIE_BEEP_GAP = 3000; // N répété avant ce délai : pas de nouveau bip
+export const WALKIE_BEEP_GAP = 3000; // N répété avant ce délai : pas de nouveau bip chez les voisins
 // Téléphone (phone.js) : durée de la sonnerie, délai entre deux appels, temps laissé pour
 // choisir de laisser un message, durée et taille maximales du message, messages gardés
 export const CALL = { ringMs: 20000, gapMs: 30000, awayMs: 20000, vmailMs: 20000, vmailBytes: 400000, vmailKeep: 5 };

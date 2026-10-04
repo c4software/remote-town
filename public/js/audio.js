@@ -1,6 +1,8 @@
 // Audio local : micro, mesure du niveau, bips du talkie-walkie, effet « haut-parleur » du pupitre.
+import { WALKIE_BEEP_GAP } from './config.js';
 import { toast } from './dom.js';
 import { S } from './state.js';
+import { PROX_RADIUS, canTalkieIn } from './world.js';
 
 export async function initMic() {
   if (S.micTrack) return true;
@@ -48,6 +50,22 @@ export function sampleLevel(a) {
 // ============================================================
 // Talkie-walkie : bips d'ouverture / fin de N et dessin de l'appareil
 // ============================================================
+// N d'un autre participant qui nous parvient (indépendamment du micro de pièce ou du côte à côte)
+export const pttReaches = (u) => !!S.me && !!u.ptt && canTalkieIn(u.zone) && u.zone === S.me.zone
+  && Math.hypot(u.x - S.me.x, u.y - S.me.y) <= PROX_RADIUS;
+
+// Bips du talkie d'un voisin : entendus au premier appui seulement. En cas d'appuis répétés
+// (chaque appui relance le délai : tant qu'il martèle N, on n'entend rien), il ne reste que
+// l'animation ; lui s'entend toujours. Le bip de fin ne suit que si celui d'ouverture a été joué.
+export function neighbourBeep(u, on) {
+  if (on) {
+    const now = performance.now();
+    u.pttBeeped = now - (u.pttBeepAt ?? -Infinity) >= WALKIE_BEEP_GAP;
+    u.pttBeepAt = now;
+  }
+  if (u.pttBeeped) walkieBeep(on ? 'start' : 'end', 0.12);
+}
+
 export function walkieBeep(kind, volume) {
   if (!S.audioCtx) return;
   S.audioCtx.resume?.();

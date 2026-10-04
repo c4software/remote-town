@@ -54,7 +54,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | `B` maintenu | Dab (vu par tout le monde) |
 | `1` … `6` (ou bouton 🙂) | Réactions 👍 ❤️ 😂 🎉 👏 😮 au-dessus du personnage |
 | `H` (ou bouton ✋ de la barre) | Lever / baisser la main (✋ reste affichée). Les mains levées apparaissent en bulles en bas à droite : un clic propose de rejoindre la personne ou de l'appeler au téléphone |
-| `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin entendus de soi seul, une seule fois en cas d'appuis répétés ; personnage qui lève son talkie). Indisponible dans la salle de classe et le bureau principal |
+| `N` maintenu | Talkie-walkie : parler à proximité (bips d'ouverture et de fin ; en cas d'appuis répétés, les voisins ne les entendent que la première fois et ne voient plus que le personnage lever son talkie). Indisponible dans la salle de classe et le bureau principal |
 | `M` | Couper ou ouvrir le micro |
 | Clic droit sur une personne de la liste des participants (appui long sur mobile) | Régler son volume pour soi (curseur, ou couper) ; mémorisé, rappelé par un badge « 🔉 40 % » dans la liste |
 | Même menu → « 📞 Appeler … » | Téléphone : appeler une personne où qu'elle soit dans l'espace. Un petit téléphone apparaît en bas de l'écran et ça sonne des deux côtés (20 s) ; une fois décroché, on s'entend jusqu'à ce que l'un raccroche. Sans réponse (ou refus, ou personne occupée), on peut laisser un message vocal de 20 s. Pas d'appels à la suite (30 s d'attente), et pas de téléphone dans la salle de classe ni le bureau principal |

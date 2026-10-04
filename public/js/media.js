@@ -2,7 +2,6 @@
 // voix reçues (volume, effet), et actions micro / N / partage d'écran.
 import { isBanned } from './admin.js';
 import { initMic, makeAnalyser, setSpeakerFx, walkieBeep } from './audio.js';
-import { WALKIE_BEEP_GAP } from './config.js';
 import { $, toast } from './dom.js';
 import { updateUI } from './hud.js';
 import { broadcast } from './net.js';
@@ -174,25 +173,13 @@ export async function toggleMic() {
   pushState();
 }
 
-// Bips du talkie : entendus seulement par la personne qui appuie, et une seule fois en cas d'appuis répétés (chaque appui relance le délai : tant qu'on
-// martèle N, on reste muet). Le bip de fin ne suit que si celui d'ouverture a été joué.
-let lastPttAt = -Infinity, beeped = false;
-function pttBeep(on) {
-  if (on) {
-    const now = performance.now();
-    beeped = now - lastPttAt >= WALKIE_BEEP_GAP;
-    lastPttAt = now;
-  }
-  if (beeped) walkieBeep(on ? 'start' : 'end', 0.25);
-}
-
 export async function setPtt(on) {
   if (on === S.pttHeld) return;
   if (on && !canTalkieIn(S.me.zone)) return toast('Pas de talkie-walkie dans cette salle : ouvrez votre micro (M) pour parler.');
   if (on && !S.micTrack && !(await initMic())) return;
   S.pttHeld = on;
   if (on) S.me.pttAt = performance.now();
-  pttBeep(on);
+  walkieBeep(on ? 'start' : 'end', 0.25); // soi-même : toujours ; chez les voisins : neighbourBeep (audio.js)
   pushState();
 }
 

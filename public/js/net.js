@@ -1,5 +1,6 @@
 // Réseau pair-à-pair (Trystero) : connexion à la salle, messages reçus des autres,
 // présence, attente et reconnexion. Il n'y a pas d'hôte : chacun est relié à tous.
+import { neighbourBeep, pttReaches } from './audio.js';
 import { lookBody, lookHead } from './avatar.js';
 import { dropBoardsOf, onBoardMsg, syncBoardsTo } from './board.js';
 import { chatStore, fetchHistory, onChat } from './chat.js';
@@ -341,11 +342,14 @@ function onRemoteMove(d, { peerId }) {
 function onRemoteState(d, { peerId }) {
   const u = users.get(peerId);
   if (!u) return;
+  const wasTalking = pttReaches(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
   if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
   Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab });
   receiveEmote(u, d?.emote);
+  const talking = pttReaches(u);
+  if (talking !== wasTalking) neighbourBeep(u, talking);
   updateRouting(); renderPeople();
 }
 
