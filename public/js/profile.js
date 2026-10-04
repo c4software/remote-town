@@ -123,12 +123,20 @@ function meterMic() {
   meterLoop = requestAnimationFrame(tick);
 }
 
+// Pseudo choisi à la connexion, puis fixe : on ne change pas d'identité une fois dans
+// l'espace. Seule exception : il est déjà pris (forceRename), il faut alors en changer.
+function lockName(on) {
+  nameInput.readOnly = on;
+  nameInput.title = on ? 'Le pseudo se choisit à la connexion : il ne se change pas dans l\'espace' : '';
+}
+
 export function openProfile() {
   if (!S.me) return;
   S.editingProfile = true;
   $('#profileCancel').hidden = $('#profileHelp').hidden = false;
   Object.assign(look, S.me.look);
   nameInput.value = S.me.name;
+  lockName(true); // une fois dans l'espace, on ne change plus de pseudo
   syncPickers();
   $('#joinSub').textContent = 'Modifiez votre personnage : les autres verront le changement tout de suite.';
   $('#roomField').hidden = true;
@@ -149,6 +157,7 @@ export function forceRename(taken) {
   openProfile();
   $('#joinSub').textContent = `Le pseudo « ${taken} » est déjà pris dans cet espace : choisissez-en un autre pour continuer.`;
   $('#profileCancel').hidden = $('#profileHelp').hidden = true;
+  lockName(false);
   nameInput.focus(); nameInput.select();
 }
 
@@ -156,12 +165,14 @@ export function closeProfile(restore = true) {
   if (S.renameForced) return;
   if (restore) { Object.assign(look, S.me.look); nameInput.value = S.me.name; savePrefs(); }
   S.editingProfile = false;
+  lockName(false); // l'écran fermé : le champ redevient libre pour une prochaine connexion
   $('#join').hidden = true;
   canvas.focus?.();
 }
 
 function applyProfile() {
-  const name = cleanName(nameInput.value);
+  // Pseudo verrouillé (pas de renommage imposé) : celui de la connexion est gardé quoi qu'il arrive
+  const name = S.renameForced ? cleanName(nameInput.value) : S.me.name;
   nameInput.value = name; // l'utilisateur voit le pseudo tel qu'il sera affiché
   if (!name) return nameInput.focus();
   const clash = [...users.values()].find((u) => !u.isMe && sameName(u.name, name));
@@ -194,16 +205,6 @@ export function setLook(part, value) {
   look[part] = value;
   S.me.look = { ...look };
   publishProfile();
-}
-// Renvoie un message d'erreur, ou '' si le pseudo est accepté
-export function renameMe(raw) {
-  const name = cleanName(raw);
-  if (!name) return 'Le pseudo ne peut pas être vide.';
-  const clash = [...users.values()].find((u) => !u.isMe && sameName(u.name, name));
-  if (clash) return `Le pseudo « ${clash.name} » est déjà pris dans cet espace : choisissez-en un autre.`;
-  S.me.name = nameInput.value = name;
-  publishProfile();
-  return '';
 }
 
 const center = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };

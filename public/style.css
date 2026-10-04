@@ -78,6 +78,8 @@ body.warp-in #app > :not(#world) { animation: warp-ui-in .5s ease-out; }
   width: 100%; min-width: 0; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 15px; outline: none;
 }
 .field input:focus { border-color: var(--purple); }
+.field input:read-only { color: var(--muted); cursor: not-allowed; }
+.field input:read-only:focus { border-color: var(--border); }
 .mic-row { display: flex; gap: 8px; align-items: center; }
 #micSelect {
   flex: 1; min-width: 0; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 9px 10px;
@@ -363,9 +365,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .ph-ring:not(.sel), .ph-others:not(.sel) { padding-left: 34px; }
 .ph-dnd.sel svg { color: var(--yellow); }
 .ph-pip.sel svg { color: var(--green); }
-.ph-look .ph-avatar { align-self: center; flex: 0 0 auto; }
-.ph-input { width: 100%; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 7px 9px; font-size: 14px; color: var(--text); outline: none; text-align: center; }
-.ph-input:focus { border-color: var(--purple); }
+.ph-look .ph-avatar, .ph-look .ph-name { align-self: center; flex: 0 0 auto; }
 .ph-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 2px; }
 .ph-select { width: 100%; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 6px 8px; font-size: 13px; color: var(--text); outline: none; }
 .ph-select:focus { border-color: var(--purple); }
@@ -578,7 +578,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .join-card { padding: 20px; }
   .preview-wrap { flex-basis: 100%; height: 150px; }
   .btn-ghost .copy-label { display: none; }
-  #chatInput, .field input, #micSelect, .ph-input, .ph-select { font-size: 16px; } /* évite le zoom auto d'iOS */
+  #chatInput, .field input, #micSelect, .ph-select { font-size: 16px; } /* évite le zoom auto d'iOS */
 }
 
 /* ---------- Notifications des messages reçus (chat.js) : en haut à droite, un clic ouvre la conversation ---------- */

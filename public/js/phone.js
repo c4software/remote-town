@@ -14,7 +14,7 @@ import { personalVolume, pushState, setPersonalVolume } from './media.js';
 import { joinFromPanel } from './movement.js';
 import { isTransmitting } from './panel.js';
 import { setPipOn } from './pip.js';
-import { openProfile, renameMe, savePrefs, setLook } from './profile.js';
+import { openProfile, savePrefs, setLook } from './profile.js';
 import { S, users } from './state.js';
 import { MAP, canCallIn, hearsRing, ringVolume } from './world.js';
 
@@ -485,19 +485,13 @@ function settingsPage() {
   return page;
 }
 
-// Mon personnage : nom, style, couleurs et accessoires, appliqués tout de suite et vus des
-// autres. Mêmes listes que l'écran du personnage : STYLES, HEAD_OPTIONS, BODY_OPTIONS (avatar.js).
+// Mon personnage : style, couleurs et accessoires, appliqués tout de suite et vus des autres
+// (pas le nom). Mêmes listes que l'écran du personnage : STYLES, HEAD_OPTIONS, BODY_OPTIONS (avatar.js).
 function lookPage() {
   const page = el('div', 'ph-list ph-look'), look = S.me.look;
   const pick = (part, v) => () => { setLook(part, v); render(); };
-  const name = Object.assign(el('input', 'ph-input'), { value: S.me.name, maxLength: 24, spellcheck: false });
-  name.setAttribute('aria-label', 'Votre nom');
-  name.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') name.blur(); };
-  name.onchange = () => {
-    const err = renameMe(name.value);
-    if (err) { toast(err); name.value = S.me.name; } else render();
-  };
-  page.append(miniAvatar(look, 'ph-avatar'), name);
+  // Le nom est affiché, pas modifiable ici : on ne change pas d'identité depuis le téléphone
+  page.append(miniAvatar(look, 'ph-avatar'), el('div', 'ph-name', S.me.name));
   // Style et accessoires : listes déroulantes (une trentaine de choix, à l'étroit en puces)
   const select = (title, part, options) => {
     const sel = el('select', 'ph-select');

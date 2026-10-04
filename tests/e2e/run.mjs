@@ -168,8 +168,7 @@ const scenarios = {
     t.check(await a.evaluate(() => rt.me.look.shirt === '#ef476f' && rt.me.look.head === 'cap'), '« Mon personnage » dans le téléphone : couleur et accessoire appliqués');
     const lb = await seen(b, 'Alice');
     t.check(lb.look.shirt === '#ef476f' && lb.look.head === 'cap', 'Bob voit le nouveau personnage d\'Alice');
-    await a.$eval('#phone .ph-input', (e) => { e.value = 'Bob'; e.dispatchEvent(new Event('change')); });
-    t.check(await a.evaluate(() => rt.me.name) === 'Alice', 'pseudo déjà pris : refusé');
+    t.check(await a.$eval('#phone .ph-look', (e) => !e.querySelector('input') && e.querySelector('.ph-name').textContent === 'Alice'), 'le nom est affiché, pas modifiable dans le téléphone');
     await a.click('#phone .ph-close');
     await call(a, 'Bob');
     await wait(1000);
@@ -582,6 +581,12 @@ const scenarios = {
     await a.click('#joinSubmit'); await wait(1000);
     const look = (await seen(b, 'Alice')).look;
     t.check(look.head === 'crown' && look.body === 'cape', 'modification du personnage vue par les autres');
+    // Pas de changement de pseudo une fois dans l'espace : champ verrouillé, et ignoré même forcé
+    await a.click('#mePill'); await wait(200);
+    t.check(await a.$eval('#nameInput', (e) => e.readOnly && e.value === 'Alice'), 'écran du personnage en session : pseudo verrouillé');
+    await a.$eval('#nameInput', (e) => { e.readOnly = false; e.value = 'Zoé'; });
+    await a.click('#joinSubmit'); await wait(1000);
+    t.check(await a.evaluate(() => rt.me.name) === 'Alice' && !!(await seen(b, 'Alice')), 'pseudo inchangé même en contournant le verrou');
     // Aide réaffichée depuis l'écran du personnage, puis fermée avec la croix
     await a.click('#mePill'); await wait(200);
     await a.click('#profileHelp'); await wait(200);
