@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "for f in public/js/*.js; do node --check \"$f\" || exit 1; done",
+    "check": "for f in public/js/*.js public/js/pages/*.js; do node --check \"$f\" || exit 1; done",
     "test": "node --test tests/*.test.js",
     "test:e2e": "node tests/e2e/run.mjs"
   },

@@ -46,10 +46,13 @@ Modules de `public/js/` :
 | `rooms.js` | Nom de salle, lien d'invitation, espaces enregistrés (`rt-spaces`) |
 | `hud.js` | Démarrage de l'app, changement de zone, barre du bas, aide |
 | `panel.js` | Participants : qui parle (`isTransmitting`), `renderPeople()` (rafraîchit les contacts du téléphone et les mains levées), menu d'une main levée (rejoindre, appeler, écrire) |
-| `chat.js` | Discussions : groupes « Tout le monde » et salle courante, messages directs entre deux personnes (`dm:<pseudo>`), historique, non-lus ; fournit au téléphone la liste des conversations et la page d'une conversation |
+| `chat.js` | Discussions : groupes « Tout le monde » et salle courante, messages directs entre deux personnes (`dm:<pseudo>`), historique, non-lus, notifications des messages reçus. Ses deux pages sont dans `pages/chats.js` et `pages/chat.js` |
 | `social.js` | Réactions, main levée, bulles des mains levées, jingle du pupitre |
 | `spaces.js` | Porte des espaces (couloir) : fenêtre de choix, espaces enregistrés, passage animé d'un espace à l'autre (`S.warp`), arrivée initiale par la porte (`firstArrival`), écriteau du nom de l'espace |
-| `phone.js` | Téléphone (bouton de la barre du bas) : contacts et fiche d'une personne (appeler, écrire, rejoindre, volume, expulsion), messages (`chat.js`), appels, messagerie vocale, personnage, réglages ; voir « Téléphone » |
+| `phone.js` | Téléphone, la coque (bouton de la barre du bas) : ouverture et fermeture, navigation entre les pages (`PHONE_VIEW`), affichage d'ensemble, pastille ; voir « Téléphone » |
+| `pages/` | Les pages du téléphone, **une par fichier**, chacune exportant sa fonction de page : `call.js` (écran de l'appel), `home.js`, `contacts.js`, `person.js` (fiche : appeler, écrire, rejoindre, volume, expulsion), `chats.js` (liste des conversations), `chat.js` (une conversation), `vmail.js` (messagerie vocale), `look.js` (personnage), `settings.js` (réglages). `ui.js` : icônes, boutons et portraits partagés |
+| `call.js` | Appels : état de l'appel en cours (`call`), ordres `CALL_MSG`, phases `CALL_PHASE`, règles (salles de classe, pas d'appels à la suite, ne pas déranger), messages vocaux |
+| `ring.js` | Sonnerie des téléphones voisins : volume selon la distance, fichier audio personnel envoyé à la demande (action `ringfile`) |
 | `admin.js` | Modération : expulsion signée (fiche de la personne dans le téléphone, avec le jeton d'administration) |
 | `emotes.js` | Émotes animées (travail, AFK…) : roue du clic droit, dessin au-dessus du nom |
 | `board.js` | Tableau blanc (classe, bureau principal) : dessin, et écriture au clavier (outil « Texte » : une zone de saisie `#boardText` posée à l'endroit cliqué ; le texte est un élément de `strokes` avec `text`, renvoyé en entier à chaque frappe). Un tableau fermé (bouton, sortie de la salle, départ du propriétaire) survit **comme les messages du chat, ni plus ni moins** : son contenu est gardé en mémoire par les personnes connectées (`saveBoard`, par salle), demandé à une personne présente quand on arrive (action `wbsaved`, `fetchSavedBoards`), repris par le tableau rouvert dans la salle (`openBoard`, puis `sync`), jamais écrit dans le navigateur, perdu quand l'espace se vide et remis à zéro en changeant d'espace (`resetBoards`) |
@@ -85,12 +88,12 @@ Modules de `public/js/` :
 | `wb` | tableau blanc : `open`, `seg`, `txt` (bloc de texte entier : `id, c, w, p: [x, y], s`), `clear`, `close`, `sync` | par le propriétaire du tableau |
 | `react` | `{ e }` (emoji de la liste `REACTIONS`) | à tous |
 | `jingle` | `{}` (carillon d'annonce, joué seulement si l'auteur est au pupitre) | à tous, avec `J` au pupitre |
-| `call` | `{ t }` : `ring`, `accept`, `decline`, `busy`, `cancel`, `end` | à la personne appelée / appelante seulement (`phone.js`) |
+| `call` | `{ t }` : `ring`, `accept`, `decline`, `busy`, `cancel`, `end` | à la personne appelée / appelante seulement (`call.js`) |
 | `vmail` | binaire (message vocal, 400 Ko au plus), métadonnée `{ type }` | à la personne qui a manqué l'appel |
 | `ringfile` | `{ ask: true }`, ou binaire (sonnerie personnelle, 600 Ko au plus), métadonnée `{ type }` | demande : par un voisin qui entend sonner ; fichier : en réponse, à lui seul |
 | `kick` | `{ target, ts, sig }` (expulsion signée, vérifiée par chacun) | à tous, par un administrateur |
 
-- **Téléphone** (`phone.js`) : il s'ouvre avec le bouton téléphone de la barre du bas (`#phoneBtn`, pastille : messages non lus et messages vocaux) et monte du bas de l'écran (`#phone`, animation `ph-up` / `ph-down`). Il remplace le panneau latéral : il n'y a plus ni liste des participants ni chat ailleurs. Pages (`PHONE_VIEW`) : accueil, contacts, fiche d'une personne (appeler, écrire, rejoindre, volume, expulsion pour les administrateurs), messages (liste des conversations puis conversation, fournies par `chat.js`), messagerie vocale, personnage, réglages. `Entrée` ouvre la discussion de la salle (`openChat`).
+- **Téléphone** (`phone.js`, `pages/`, `call.js`, `ring.js`) : il s'ouvre avec le bouton téléphone de la barre du bas (`#phoneBtn`, pastille : messages non lus et messages vocaux) et monte du bas de l'écran (`#phone`, animation `ph-up` / `ph-down`). Il remplace le panneau latéral : il n'y a plus ni liste des participants ni chat ailleurs. Pages (`PHONE_VIEW`) : accueil, contacts, fiche d'une personne (appeler, écrire, rejoindre, volume, expulsion pour les administrateurs), messages (liste des conversations puis conversation, fournies par `chat.js`), messagerie vocale, personnage, réglages. `Entrée` ouvre la discussion de la salle (`openChat`).
   - **Appel** : phases `CALL_PHASE`, ordres `CALL_MSG`. Pendant l'appel, chacun note l'autre dans le champ `call` de son participant ; `sendsAudio` (`world.js`) envoie alors le micro, même coupé (décrocher est une action explicite, comme le `N`). Dès la sonnerie, le canal du micro est préparé muet (`callPrep`, `applySenders`). Réglages dans `CALL` (`constantes.js`).
   - **Règles** : pas de téléphone dans les salles de classe (`canCallIn`, mêmes salles que le talkie : appel impossible, appelé « non disponible », appel coupé en y entrant) ; pas d'appels à la suite (`gapMs` : côté appelant, et côté appelé qui refuse sans sonner) ; « ne pas déranger » (`S.dnd`) renvoie l'appelant vers la messagerie sans que ça sonne.
   - **Message vocal** : sans réponse au bout de `ringMs`, refus ou personne occupée, l'appelant peut enregistrer un message (`MediaRecorder`, `vmailMs`), accepté par l'appelé seulement après un appel manqué de cette personne, un seul par appel, taille bornée ; les messages reçus ne vivent que dans la page.
@@ -135,12 +138,14 @@ Volontairement absente de l'aide et du README.
 
 **Ajouter une constante, une liste de choix ou une énumération** : dans `constantes.js`, jamais en dur dans un module ni dans `index.html` (les écrans construisent leurs choix depuis ces listes). Seules exceptions : `world.js` (module pur, qui ne peut pas importer `constantes.js`) et les données de dessin (pixel-art, icônes), qui restent près du code qui les dessine.
 
+**Ajouter une page au téléphone** : un fichier dans `public/js/pages/` qui exporte la fonction de la page (elle renvoie un élément, construit avec `el` / `btn` de `pages/ui.js`), une entrée dans `PHONE_VIEW` (`constantes.js`), puis dans `phone.js` son titre et sa fonction dans `pageScreen()` ; un lien depuis `pages/home.js` si elle s'ouvre de l'accueil. Les imports y sont relatifs au dossier (`../state.js`).
+
 **Ajouter un bouton à la barre du bas** : `index.html` (`#bar`), le branchement dans `hud.js` (`initHud`), le style dans `style.css`. Vérifier que la barre tient sur un téléphone de 360 px de large (boutons réduits sous 420 px).
 
 ## Tests et vérifications
 
 ```bash
-npm run check      # syntaxe de tous les modules (aussi en CI)
+npm run check      # syntaxe de tous les modules, dossier pages/ compris (aussi en CI)
 npm test           # tests unitaires de world.js (aussi en CI, bloque le déploiement)
 npm install        # une fois, pour puppeteer-core
 npm run test:e2e   # scénarios de bout en bout (Chrome sans interface, plusieurs participants)

@@ -111,7 +111,12 @@ public/
     panel.js       participants, menu d'une main levée
     chat.js        discussions de groupe et messages directs
     social.js      réactions, main levée, bulles
-    phone.js       téléphone : contacts, messages, appels, messagerie vocale, réglages
+    phone.js       téléphone : ouverture, navigation entre les pages
+    pages/         les pages du téléphone, une par fichier (appel, accueil, contacts,
+                   fiche, conversations, conversation, messagerie vocale, personnage,
+                   réglages) et ui.js (icônes, boutons, portraits)
+    call.js        appels et messages vocaux
+    ring.js        sonnerie des téléphones voisins
     board.js       tableau blanc
     videos.js      partages d'écran reçus, projection
 relay/             relais de mise en relation auto-hébergé (Node, Docker)

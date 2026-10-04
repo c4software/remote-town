@@ -1,11 +1,12 @@
 // Chat : groupes de discussion (« Tout le monde », la salle où l'on se trouve) et messages
 // directs entre deux personnes. Il s'affiche dans le téléphone (phone.js) : ce module garde
-// les messages, les envoie, les reçoit, et fournit les deux pages (liste, conversation).
+// les messages, les envoie, les reçoit et les annonce ; les deux pages (liste, conversation)
+// sont dans pages/chats.js et pages/chat.js.
 import { drawAvatar } from './avatar.js';
 import { CHAT_KEEP, CHAT_KEY, COLOR, NOTIF_MS, PHONE_VIEW } from './constantes.js';
-import { runDiag } from './diag.js';
 import { $, cleanName, toast } from './dom.js';
-import { joinFromPanel } from './movement.js';
+import { renderMessages } from './pages/chat.js';
+import { el } from './pages/ui.js';
 import { openChat, phoneBadge, phoneRefresh } from './phone.js';
 import { S, myIds, users } from './state.js';
 import { MAP } from './world.js';
@@ -20,9 +21,9 @@ export const chatStore = new Map();
 let msgSeq = 0;
 // Messages directs rangés par pseudo (unique dans l'espace), car l'identifiant change à chaque reconnexion
 export const dmKey = (u) => `${CHAT_KEY.DM}${u.name.toLocaleLowerCase('fr')}`;
-const dmUser = (key) => [...users.values()].find((u) => !u.isMe && dmKey(u) === key);
+export const dmUser = (key) => [...users.values()].find((u) => !u.isMe && dmKey(u) === key);
 const storeKey = (key) => (key === CHAT_KEY.ZONE ? chat.zoneId : key);
-const chatList = (key) => chatStore.get(storeKey(key)) || [];
+export const chatList = (key) => chatStore.get(storeKey(key)) || [];
 // Historique partagé à la demande (action `history`) : les groupes seulement, jamais les messages directs
 export const publicHistory = (channel) => (channel === CHAT_KEY.GLOBAL || MAP.zoneById[channel] ? chatStore.get(channel) || [] : []);
 
@@ -59,7 +60,7 @@ export async function fetchHistory(channel, targets) {
   if (added) renderChat();
 }
 
-function sendChat(key, text) {
+export function sendChat(key, text) {
   if (!S.net) return toast('Reconnexion en cours, réessayez dans un instant.');
   const msg = { id: `${S.myId}-${(msgSeq++).toString(36)}`, from: S.myId, name: S.me.name, color: S.me.look.shirt, text, ts: Date.now() };
   if (key.startsWith(CHAT_KEY.DM)) {
@@ -94,7 +95,7 @@ export function onChat(channel, msg, peerId) {
 function received(key, msg) {
   if (storeMsgs(key, [msg])) notify(key, msg);
 }
-const convTitle = (key) => (key === CHAT_KEY.GLOBAL ? 'Tout le monde' : key === CHAT_KEY.ZONE ? MAP.zoneById[chat.zoneId]?.name || 'Salle'
+export const convTitle = (key) => (key === CHAT_KEY.GLOBAL ? 'Tout le monde' : key === CHAT_KEY.ZONE ? MAP.zoneById[chat.zoneId]?.name || 'Salle'
   : dmUser(key)?.name || chatList(key).find((m) => !myIds.has(m.from))?.name || key.slice(3));
 function notify(key, msg) {
   msg = chatList(key).find((m) => m.id === msg.id) || msg;
@@ -107,6 +108,7 @@ function notify(key, msg) {
 
 // Notification d'un message reçu, façon téléphone : portrait de la personne, son nom, la
 // conversation et le début du message. Un clic ouvre la conversation.
+export const fmtTime = (ts) => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 function showNotif(key, msg) {
   const box = $('#notifs'), card = Object.assign(el('button', 'notif'), { type: 'button' });
   card.dataset.conv = key;
@@ -130,7 +132,7 @@ function showNotif(key, msg) {
   while (box.children.length > 3) box.firstChild.remove();
 }
 // La conversation est ouverte : ses notifications encore affichées disparaissent
-function clearNotifs(key) {
+export function clearNotifs(key) {
   document.querySelectorAll('#notifs .notif').forEach((n) => { if (n.dataset.conv === key) n.remove(); });
 }
 
@@ -141,101 +143,6 @@ export function resetChat() {
   chatStore.clear();
   chat.unread = {};
   renderChat();
-}
-
-// ============================================================
-// Pages du téléphone
-// ============================================================
-const el = (tag, cls, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
-const fmtTime = (ts) => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-// Liste des conversations : les deux groupes, puis les messages directs (les plus récents d'abord)
-export function chatsPage(openConv) {
-  const page = el('div', 'ph-list ph-chats');
-  const dms = [...chatStore.keys()].filter((k) => k.startsWith(CHAT_KEY.DM) && chatList(k).length)
-    .sort((a, b) => chatList(b).at(-1).ts - chatList(a).at(-1).ts);
-  const row = (key, icon) => {
-    const b = Object.assign(el('button', 'ph-item ph-conv'), { type: 'button', onclick: () => openConv(key) });
-    b.dataset.conv = key;
-    const info = el('div', 'ph-info'), last = chatList(key).at(-1);
-    info.append(el('b', '', `${icon} ${convTitle(key)}`), el('small', '', last ? `${myIds.has(last.from) ? 'Vous' : last.name} : ${last.text}` : 'Aucun message'));
-    b.append(info);
-    if (chat.unread[key]) b.append(el('i', 'badge', chat.unread[key]));
-    return b;
-  };
-  page.append(el('div', 'ph-title', 'Groupes'), row(CHAT_KEY.GLOBAL, '🌍'), row(CHAT_KEY.ZONE, '📍'));
-  page.append(el('div', 'ph-title', 'Messages directs'));
-  if (dms.length) page.append(...dms.map((k) => row(k, '👤')));
-  else page.append(el('small', 'ph-note', 'Pour écrire à quelqu\'un : Contacts, puis « Message ».'));
-  return page;
-}
-
-// Conversation : éléments gardés d'un affichage à l'autre, pour ne pas perdre le texte en
-// cours de saisie quand un message arrive
-let conv = null;
-function convEl() {
-  if (conv) return conv;
-  conv = el('div', 'ph-chat');
-  const form = Object.assign(el('form', ''), { id: 'chatForm', autocomplete: 'off' });
-  const input = Object.assign(el('input', ''), { id: 'chatInput', maxLength: 1000, placeholder: 'Message…' });
-  const send = Object.assign(el('button', ''), { type: 'submit' });
-  send.setAttribute('aria-label', 'Envoyer');
-  send.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 11.5 21 3l-8.5 18-2-7.5z"/></svg>';
-  input.addEventListener('keydown', (e) => e.stopPropagation()); // pas de raccourcis du jeu en écrivant
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (!text || !chat.open) return;
-    input.value = '';
-    // Commande /diag : diagnostic de la connexion (diag.js), jamais envoyée aux autres
-    if (text.toLowerCase() === '/diag') return runDiag();
-    sendChat(chat.open, text);
-  });
-  form.append(input, send);
-  conv.append(Object.assign(el('div', ''), { id: 'messages' }), form);
-  return conv;
-}
-export function chatPage(key) {
-  if (chat.open !== key) convEl().querySelector('#chatInput').value = '';
-  chat.open = key;
-  const page = convEl();
-  renderMessages();
-  return page;
-}
-export const chatTitle = convTitle;
-export const focusChat = () => conv?.querySelector('#chatInput').focus();
-
-function renderMessages() {
-  const box = conv?.querySelector('#messages');
-  if (!box || !chat.open) return;
-  const key = chat.open, list = chatList(key);
-  delete chat.unread[key];
-  clearNotifs(key);
-  const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
-  box.replaceChildren();
-  if (!list.length) {
-    box.append(el('div', 'msg-empty', key === CHAT_KEY.GLOBAL ? 'Aucun message. Ce groupe est lu par tout le monde.'
-      : key === CHAT_KEY.ZONE ? `Aucun message dans « ${convTitle(key)} ». Seules les personnes présentes ici le verront.`
-      : `Aucun message. Seul·e ${convTitle(key)} verra ce que vous écrivez ici.`));
-  }
-  for (const m of list) {
-    const row = el('div', 'msg'), av = el('div', 'msg-av', m.name.slice(0, 1).toUpperCase());
-    av.style.background = m.color;
-    const body = el('div', 'msg-body'), head = el('div', 'msg-head');
-    const b = el('b', '', myIds.has(m.from) ? `${m.name} (vous)` : m.name);
-    if (!myIds.has(m.from) && users.has(m.from)) {
-      b.className = 'join-link'; b.title = `Rejoindre ${m.name}`;
-      b.onclick = () => joinFromPanel(m.from);
-    }
-    head.append(b, el('time', '', fmtTime(m.ts)));
-    body.append(head, el('div', 'msg-text', m.text));
-    row.append(av, body);
-    box.append(row);
-  }
-  if (stick || list.at(-1)?.from === S.myId) box.scrollTop = box.scrollHeight;
-  const input = conv.querySelector('#chatInput');
-  input.disabled = key.startsWith(CHAT_KEY.DM) && !dmUser(key);
-  input.placeholder = input.disabled ? 'Personne partie' : 'Message…';
 }
 
 // Quelque chose a changé (message, zone, personnes) : conversation ouverte, liste et pastille

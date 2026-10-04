@@ -6,7 +6,7 @@ import { $, toast } from './dom.js';
 import { updateUI } from './hud.js';
 import { broadcast, phoneState } from './net.js';
 import { renderPeople } from './panel.js';
-import { nearbyRing } from './phone.js';
+import { nearbyRing } from './ring.js';
 import { S, users } from './state.js';
 import { renderVideos } from './videos.js';
 import { PROX_RADIUS, ROOM_TYPES, canShareIn, canTalkieIn, isOnAir, sendsAudio, sendsVideo, sideBySide, speakerHolder, zoneType } from './world.js';

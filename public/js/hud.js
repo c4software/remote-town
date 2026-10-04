@@ -8,7 +8,7 @@ import { renderMap } from './map-render.js';
 import { setPtt, stopShare, toggleMic, toggleShare } from './media.js';
 import { dash } from './movement.js';
 import { renderPeople } from './panel.js';
-import { phoneZoneChange } from './phone.js';
+import { phoneZoneChange } from './call.js';
 import { loop } from './render.js';
 import { shareLink } from './rooms.js';
 import { sendReaction, toggleHand } from './social.js';
