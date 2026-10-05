@@ -9,6 +9,7 @@
 // Lancer : node server.mjs (PORT=8080 par défaut). Voir README.md.
 import { createHmac, randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
+import { isIP } from 'node:net';
 import { WebSocketServer } from 'ws';
 
 const PORT = Number(process.env.PORT) || 8080;
@@ -38,23 +39,47 @@ const TURN_SECRET = process.env.TURN_SECRET || '';
 // Durée des identifiants : la page les garde pour toute la session (Trystero les reçoit une
 // fois, en rejoignant la salle), donc une journée de cours entière
 const TURN_TTL = 24 * 3600;
+// Identifiants TURN par minute et par adresse : une classe entière derrière la même adresse
+// arrive dans la même minute (une demande par page). Au-delà : liste vide, pas d'erreur, pour
+// que la page ne prenne pas le relais pour injoignable.
+const TURN_PER_MIN = Number(process.env.TURN_PER_MIN) || 120;
 
 const allowed = (origin) => ALLOWED.some((re) => re.test(origin || ''));
 // Adresse réelle du client : transmise par Nginx Proxy Manager (seul à joindre le conteneur)
-const clientIp = (req) => String(req.headers['x-real-ip'] || req.socket.remoteAddress || '?').slice(0, 64);
+const clientIp = (req) => ipKey(String(req.headers['x-real-ip'] || req.socket.remoteAddress || '?').slice(0, 64));
+
+// Clé des compteurs par adresse (connexions, diagnostics, identifiants TURN). IPv4 : l'adresse.
+// IPv6 : le préfixe /64, parce qu'un même abonné dispose de tout un /64 et changerait
+// d'adresse à chaque demande. Une IPv4 présentée en IPv6 (::ffff:1.2.3.4) compte comme l'IPv4.
+export function ipKey(raw) {
+  const ip = raw.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, '');
+  if (isIP(ip) === 4) return ip;
+  if (isIP(ip) !== 6) return ip;
+  let [head, tail = ''] = ip.split('::');
+  // Fin en notation IPv4 (::ffff:1.2.3.4) : ramenée à deux groupes hexadécimaux
+  const v4 = (tail || head).match(/(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  const hex = v4 ? `${((v4[1] << 8) | +v4[2]).toString(16)}:${((v4[3] << 8) | +v4[4]).toString(16)}` : '';
+  if (v4) { if (ip.includes('::')) tail = tail.replace(v4[0], hex); else head = head.replace(v4[0], hex); }
+  const h = head ? head.split(':') : [], t = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...h, ...Array(8 - h.length - t.length).fill('0'), ...t] : h;
+  const g = groups.map((x) => parseInt(x, 16) || 0);
+  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return `${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`;
+  return `${g.slice(0, 4).map((x) => x.toString(16)).join(':')}::/64`;
+}
 
 // Compteurs, écrits dans le journal une fois par minute (docker logs remote-town-relay)
 const stats = { msgIn: 0, msgOut: 0, refused: {} };
 const refuse = (why) => { stats.refused[why] = (stats.refused[why] || 0) + 1; };
 const perIp = new Map(); // ip -> connexions ouvertes
 const diagAt = new Map(); // ip -> heure du dernier diagnostic reçu
+const turnAsked = new Map(); // ip -> { at, n } : identifiants TURN donnés dans la minute
 
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   if (req.url === '/diag') return onDiag(req, res);
   if (req.url === '/turn' && allowed(req.headers.origin)) {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': req.headers.origin, Vary: 'Origin', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify(turnServers()));
+    return res.end(JSON.stringify(turnAllowed(clientIp(req)) ? turnServers() : { iceServers: [] }));
   }
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('Introuvable');
@@ -63,6 +88,16 @@ const http = createServer((req, res) => {
 // Identifiants TURN temporaires (« TURN REST API » de coturn, use-auth-secret) : le nom
 // porte la date d'expiration, le mot de passe est sa signature avec le secret partagé.
 // Une partie aléatoire dans le nom : le quota de coturn se compte par nom, donc par page.
+function turnAllowed(ip) {
+  if (!TURN_HOST || !TURN_SECRET) return true;
+  const now = Date.now();
+  for (const [k, v] of turnAsked) if (now - v.at > 60000) turnAsked.delete(k);
+  const mine = turnAsked.get(ip) || { at: now, n: 0 };
+  turnAsked.set(ip, mine);
+  if (++mine.n <= TURN_PER_MIN) return true;
+  refuse('turn');
+  return false;
+}
 function turnServers() {
   if (!TURN_HOST || !TURN_SECRET) return { iceServers: [] };
   const username = `${Math.floor(Date.now() / 1000) + TURN_TTL}:${randomBytes(6).toString('hex')}`;
