@@ -68,7 +68,7 @@ services:
       # Plafonds : relais ouverts par identifiant (une page en prépare une quarantaine en
       # arrivant) et au total, débit par relais (un partage d'écran passe)
       - --user-quota=120
-      - --total-quota=6000
+      - --total-quota=9000
       - --max-bps=400000
     read_only: true
     tmpfs:

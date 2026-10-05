@@ -25,7 +25,7 @@ const PING_MS = 25000;      // garde la connexion ouverte derrière le reverse p
 // Plafonds de connexions : une salle entière derrière la même IP (école, entreprise) doit
 // passer, avec une marge pour les onglets en double et les reconnexions
 const MAX_CONNS = Number(process.env.MAX_CONNS) || 1000;
-const MAX_PER_IP = Number(process.env.MAX_PER_IP) || 150;
+const MAX_PER_IP = Number(process.env.MAX_PER_IP) || 400;
 const MAX_TOPICS = 32;      // sujets (« #x ») par filtre
 // Diagnostics (bouton « 🩺 Diagnostic » de l'application, POST /diag) : écrits dans le
 // journal, bornés en taille et en fréquence par adresse pour ne pas l'inonder
@@ -42,7 +42,7 @@ const TURN_TTL = 24 * 3600;
 // Identifiants TURN par minute et par adresse : une classe entière derrière la même adresse
 // arrive dans la même minute (une demande par page). Au-delà : liste vide, pas d'erreur, pour
 // que la page ne prenne pas le relais pour injoignable.
-const TURN_PER_MIN = Number(process.env.TURN_PER_MIN) || 120;
+const TURN_PER_MIN = Number(process.env.TURN_PER_MIN) || 400;
 
 const allowed = (origin) => ALLOWED.some((re) => re.test(origin || ''));
 // Adresse réelle du client : transmise par Nginx Proxy Manager (seul à joindre le conteneur)
