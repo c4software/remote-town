@@ -441,6 +441,16 @@ const scenarios = {
     t.check((await seen(b, 'Alice')).onAir, 'E près du pupitre : en direct');
     t.check(await hears(b, 'Alice'), 'entendu depuis le couloir');
     t.check(await b.$eval('#broadcast', (e) => !e.hidden), 'bandeau « en direct »');
+    // Effet haut-parleur : appliqué sous Chrome, pas sous Firefox (voix entendue telle quelle)
+    const fxOf = (p) => p.evaluate(() => { const u = [...rt.users.values()].find((x) => x.name === 'Alice'); const L = rt.links.get(u.id); return { fx: !!L?.fx, muted: !!L?.audioEl?.muted }; });
+    const f = await join(t, 'Fanny', { setup: (page) => page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64; rv:147.0) Gecko/20100101 Firefox/147.0') });
+    await place(f, 42, 11);
+    await wait(2500);
+    const [fxB, fxF] = [await fxOf(b), await fxOf(f)];
+    t.check(fxB.fx && fxB.muted, 'voix du pupitre : effet haut-parleur sous Chrome');
+    t.check(!fxF.fx && !fxF.muted && await hears(f, 'Alice'), 'voix du pupitre sous Firefox : sans effet, entendue');
+    await f.close();
+    await waitPeers([a, b]);
     // Compte les carillons réellement lus (fichier WAV joué par un élément <audio>)
     const spyChime = (p) => p.evaluate(() => {
       window.chimesPlayed = 0;

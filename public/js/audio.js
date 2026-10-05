@@ -1,6 +1,6 @@
 // Audio local : micro, mesure du niveau, bips du talkie-walkie, effet « haut-parleur » du pupitre.
 import { WALKIE_BEEP_GAP } from './constantes.js';
-import { toast } from './dom.js';
+import { isFirefox, toast } from './dom.js';
 import { S } from './state.js';
 import { PROX_RADIUS, canTalkieIn } from './world.js';
 
@@ -288,7 +288,8 @@ export function portalMusic() {
 // Pupitre : effet « haut-parleur » sur la voix diffusée à tout le monde.
 // Seulement pendant la diffusion : la voix passe alors par Web Audio (filtre
 // de sonorisation, légère saturation, écho de salle) et l'élément <audio> est coupé.
-// Si Web Audio n'est pas disponible, on garde le son normal.
+// Si Web Audio n'est pas disponible, on garde le son normal. Pas d'effet sous Firefox :
+// la voix du pupitre y est entendue telle quelle.
 // ============================================================
 let roomImpulse = null;
 function getRoomImpulse() {
@@ -305,7 +306,7 @@ function getRoomImpulse() {
 export function setSpeakerFx(L, on) {
   if (!L?.audioEl) return;
   const ready = S.audioCtx && S.audioCtx.state === 'running' && L.audioStream;
-  if (on && ready && !L.fx) {
+  if (on && ready && !L.fx && !isFirefox()) {
     try {
       const src = S.audioCtx.createMediaStreamSource(L.audioStream);
       const hp = S.audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 350;

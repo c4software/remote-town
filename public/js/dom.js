@@ -13,6 +13,8 @@ export function toast(text) {
   setTimeout(() => el.remove(), 3500);
   while ($('#toasts').children.length > 4) $('#toasts').firstChild.remove();
 }
+// Firefox : pas un navigateur cible, quelques effets y sont désactivés (voir setSpeakerFx)
+export const isFirefox = () => /firefox/i.test(navigator.userAgent);
 export const typing = () => ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
 
 // Mode débogage (?debug : window.rt, ?net=…) : en local (serveur des tests), ou sur le site

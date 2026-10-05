@@ -33,7 +33,7 @@ Modules de `public/js/` :
 | `state.js` | État partagé : `S` (session), `users`, `keys`, `myIds` |
 | `constantes.js` | Constantes et énumérations : vitesses, palettes, relais Nostr, clavier, et les listes de choix qui sont la seule source pour les écrans et la validation du réseau (`STYLES`, `HEAD_OPTIONS`, `BODY_OPTIONS`, `EMOTES`, `REACTIONS`, `RING_STYLES`), les énumérations (`PHONE`, `CALL_PHASE`, `CALL_MSG`, `PHONE_VIEW`, `CHAT_KEY`, `WB_MSG`) et les réglages du téléphone, du chat, du tableau, de la modération. Importe `world.js` (qui reste pur et garde ses propres constantes : carte, rayons, types de zone) |
 | `world.js` | Carte, zones, mobilier, règles `sendsAudio` / `sendsVideo` / `sideBySide` / `isOnAir`. **Module pur** (ni DOM ni état), testé par `npm test` |
-| `dom.js` | `$`, `toast`, `typing`, `ofName` |
+| `dom.js` | `$`, `toast`, `typing`, `ofName`, `isFirefox` |
 | `avatar.js` | Dessin des personnages et accessoires (fonctions pures sur un contexte canvas) |
 | `map-render.js` | Dessin de la carte, pré-calculé une fois |
 | `render.js` | Boucle `requestAnimationFrame`, caméra, personnages, effets, étiquettes |
@@ -171,7 +171,7 @@ NET=http://localhost:8090 DIAG_LOG=/tmp/relay.log npm run test:e2e -- diagnostic
 
 ## Pièges connus
 
-- **Audio** : ne pas faire passer tout l'audio par Web Audio ni utiliser la synthèse vocale pendant les échanges (une « annonce » carillon + voix a cassé le son et a été retirée). Le carillon seul est sans risque (`chime` dans `audio.js` : rendu une fois en WAV, joué par un élément `<audio>` comme les voix) : c'est le jingle `J` du pupitre. L'effet haut-parleur ne s'applique qu'à la voix diffusée depuis le pupitre, avec retour au son normal en cas de problème.
+- **Audio** : ne pas faire passer tout l'audio par Web Audio ni utiliser la synthèse vocale pendant les échanges (une « annonce » carillon + voix a cassé le son et a été retirée). Le carillon seul est sans risque (`chime` dans `audio.js` : rendu une fois en WAV, joué par un élément `<audio>` comme les voix) : c'est le jingle `J` du pupitre. L'effet haut-parleur ne s'applique qu'à la voix diffusée depuis le pupitre, avec retour au son normal en cas de problème ; il est désactivé sous Firefox (`isFirefox` dans `dom.js`), où la voix du pupitre est entendue telle quelle.
 - **Mobile** : pas de `getDisplayMedia` (bouton masqué) ; la barre du bas est déjà pleine ; l'aide clavier n'est utile que sur ordinateur.
 - **Places assises** : `MAP.chairs` contient les chaises et chaque case des canapés (`world.js`). Pour une place orientée vers le haut, le dossier est redessiné par-dessus la personne assise (`drawChairBack`), sinon elle semble assise dans le mauvais sens.
 - **Partage d'écran et tableau blanc** sont limités aux pièces (`canShareIn`, `boardZone`) ; le tableau ne s'ouvre qu'au bureau du prof (`TEACHER_AREAS` dans `board.js`).
