@@ -1,6 +1,9 @@
 # Relais Remote Town, inclus dans ~/server/docker-compose.yml (services/remote-town-relay).
 # Pas de port publié : Nginx Proxy Manager le joint par son nom (remote-town-relay:8080)
 # sur le réseau du projet (server_default).
+# TURN_SECRET (secret partagé entre le relais et coturn) et TURN_HOST (nom public du serveur
+# TURN) viennent du fichier .env de ce dossier, sur le serveur seulement, jamais dans le dépôt.
+# Voir README.md.
 services:
   remote-town-relay:
     build: .
@@ -8,12 +11,72 @@ services:
     restart: unless-stopped
     environment:
       - ALLOWED_ORIGINS=https://distance.brosseau.ovh,https://c4software.github.io
+      # Vide = /turn ne propose pas le serveur TURN (à activer dans .env une fois ses ports ouverts)
+      - TURN_HOST=${TURN_HOST:-}
+      - TURN_SECRET=${TURN_SECRET:?TURN_SECRET manquant (services/remote-town-relay/.env)}
     # Durcissement : rien à écrire, aucun droit Linux, ressources plafonnées
     read_only: true
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
     mem_limit: 128m
+    pids_limit: 64
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "1"
+
+  # Serveur TURN (coturn) : relaie le son et l'image des paires qui ne se joignent pas
+  # directement (NAT strict). Réseau de l'hôte : il lui faut le port 3478 (UDP et TCP) et une
+  # large plage de ports UDP pour les relais, que Docker publierait un par un.
+  remote-town-turn:
+    image: coturn/coturn:4.7-alpine
+    container_name: remote-town-turn
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --log-file=stdout
+      - --pidfile=/tmp/turnserver.pid
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --listening-port=3478
+      # Adresse publique seulement : pas d'écoute sur les réseaux internes de Docker
+      - --listening-ip=94.130.59.245
+      - --relay-ip=94.130.59.245
+      - --min-port=49160
+      - --max-port=59160
+      - --realm=relay.brosseau.ovh
+      # Identifiants temporaires signés par le relais (route /turn), pas de compte fixe
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET:?TURN_SECRET manquant (services/remote-town-relay/.env)}
+      - --fingerprint
+      - --no-software-attribute
+      - --no-multicast-peers
+      # Jamais vers les réseaux privés : le serveur ne doit pas servir de rebond vers les
+      # autres conteneurs ni vers l'hôte (la boucle locale est déjà refusée par défaut)
+      - --denied-peer-ip=0.0.0.0-0.255.255.255
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=100.64.0.0-100.127.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      # Plafonds : relais ouverts par identifiant (une page en prépare une quarantaine en
+      # arrivant) et au total, débit par relais (un partage d'écran passe)
+      - --user-quota=120
+      - --total-quota=6000
+      - --max-bps=400000
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/lib/coturn
+    # Le binaire de l'image porte la capacité NET_BIND_SERVICE : sans elle, il ne se lance pas
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
     pids_limit: 64
     logging:
       driver: "json-file"

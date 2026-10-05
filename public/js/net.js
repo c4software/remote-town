@@ -52,20 +52,29 @@ export function netUrl() {
   if (debugMode() && q.get('net')) return q.get('net').replace(/\/$/, '');
   return NET_HOSTS.includes(location.hostname) ? NET_URL.replace(/\/$/, '') : '';
 }
-const relayUrls = () => (netUrl() ? [`${netUrl().replace(/^http/, 'ws')}/relay`, ...RELAYS] : RELAYS);
+// Relais de mise en relation : le nôtre seul tant qu'il répond. Les relais publics ne
+// servent qu'en secours, s'il est injoignable (netDown) : les utiliser tous à la fois
+// multipliait les offres pour une même personne (une par relais). En secours, le nôtre reste
+// dans la liste, pour retrouver ceux qui y sont encore dès qu'il revient.
+let netDown = false;
+export const onBackupRelays = () => netDown; // pour le diagnostic
+const ownRelay = () => `${netUrl().replace(/^http/, 'ws')}/relay`;
+const relayUrls = () => (!netUrl() ? RELAYS : netDown ? [ownRelay(), ...RELAYS] : [ownRelay()]);
 
 let ice = null; // { servers, until }
 let iceLoading = null; // demande en cours (une seule à la fois)
 const validIce = (s) => s && (typeof s.urls === 'string' || Array.isArray(s.urls));
+// La même demande dit si notre relais répond (netDown), avant de choisir les relais
 export function prepareIce() {
-  if (!netUrl() || (ice && Date.now() < ice.until)) return Promise.resolve();
+  if (!netUrl() || (!netDown && ice && Date.now() < ice.until)) return Promise.resolve();
   iceLoading ||= (async () => {
     try {
       const res = await fetch(`${netUrl()}/turn`, { signal: AbortSignal.timeout(4000) });
       const d = await res.json();
       const servers = (Array.isArray(d.iceServers) ? d.iceServers : [d.iceServers]).filter(validIce);
       if (servers.length) ice = { servers, until: Date.now() + (Number(d.ttl) || 3600) * 1000 * 0.8 };
-    } catch {}
+      netDown = relayLost; // il répond : nôtre seul, sauf s'il a déjà lâché pendant la session
+    } catch { netDown = true; }
     iceLoading = null;
   })();
   return iceLoading;
@@ -123,6 +132,10 @@ let aloneSince = 0; // 0 = pas seul
 const helloAsked = new Map(); // id du pair -> dernière présentation envoyée
 let connected = true;
 let relaysDownSince = 0;
+// Notre relais a lâché en cours de session : on reste sur les relais de secours jusqu'au
+// rechargement de la page (sinon, aller-retour sans fin s'il répond en HTTP mais pas en WebSocket)
+let relayLost = false;
+const RELAY_LOST_MS = 20000; // plus long qu'un redéploiement du relais (quelques secondes)
 
 const relaysUp = () => {
   try { return Object.values(S.tr.getRelaySockets()).some((s) => s.readyState === 1); } catch { return true; }
@@ -240,6 +253,11 @@ function watchConnection() {
     if (relaysUp()) relaysDownSince = 0;
     else if (!relaysDownSince) relaysDownSince = performance.now();
     connected = navigator.onLine && (!relaysDownSince || performance.now() - relaysDownSince < 8000);
+    // Notre relais, seul utilisé, ne revient pas : on rejoint la salle par les relais de secours
+    if (netUrl() && !netDown && navigator.onLine && relaysDownSince && performance.now() - relaysDownSince > RELAY_LOST_MS) {
+      relayLost = netDown = true;
+      rejoin();
+    }
     if (ice && Date.now() > ice.until) prepareIce(); // pour les prochaines connexions
     if (++ticks % 5 === 0) checkLinks();
     updatePresence();

@@ -7,6 +7,7 @@
 // Trystero n'utilise que REQ / EVENT / CLOSE avec des annonces éphémères : rien n'est
 // stocké, chaque événement est transmis aux abonnés dont le filtre correspond.
 // Lancer : node server.mjs (PORT=8080 par défaut). Voir README.md.
+import { createHmac, randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 
@@ -29,6 +30,14 @@ const MAX_TOPICS = 32;      // sujets (« #x ») par filtre
 // journal, bornés en taille et en fréquence par adresse pour ne pas l'inonder
 const DIAG_MAX = 8 * 1024;
 const DIAG_EVERY_MS = 60000;
+// Serveur TURN (coturn, service remote-town-turn) : il relaie le son et l'image des paires
+// qui n'arrivent pas à se joindre directement. TURN_SECRET est le secret partagé avec lui
+// (static-auth-secret) ; sans lui ou sans TURN_HOST, /turn répond une liste vide.
+const TURN_HOST = process.env.TURN_HOST || '';
+const TURN_SECRET = process.env.TURN_SECRET || '';
+// Durée des identifiants : la page les garde pour toute la session (Trystero les reçoit une
+// fois, en rejoignant la salle), donc une journée de cours entière
+const TURN_TTL = 24 * 3600;
 
 const allowed = (origin) => ALLOWED.some((re) => re.test(origin || ''));
 // Adresse réelle du client : transmise par Nginx Proxy Manager (seul à joindre le conteneur)
@@ -43,14 +52,25 @@ const diagAt = new Map(); // ip -> heure du dernier diagnostic reçu
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   if (req.url === '/diag') return onDiag(req, res);
-  // L'application demande aussi des serveurs TURN au même service : aucun ici (liste vide)
   if (req.url === '/turn' && allowed(req.headers.origin)) {
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': req.headers.origin, Vary: 'Origin' });
-    return res.end(JSON.stringify({ iceServers: [] }));
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': req.headers.origin, Vary: 'Origin', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify(turnServers()));
   }
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('Introuvable');
 });
+
+// Identifiants TURN temporaires (« TURN REST API » de coturn, use-auth-secret) : le nom
+// porte la date d'expiration, le mot de passe est sa signature avec le secret partagé.
+// Une partie aléatoire dans le nom : le quota de coturn se compte par nom, donc par page.
+function turnServers() {
+  if (!TURN_HOST || !TURN_SECRET) return { iceServers: [] };
+  const username = `${Math.floor(Date.now() / 1000) + TURN_TTL}:${randomBytes(6).toString('hex')}`;
+  const credential = createHmac('sha1', TURN_SECRET).update(username).digest('base64');
+  // UDP d'abord ; TCP pour les réseaux qui bloquent l'UDP
+  const urls = [`turn:${TURN_HOST}:3478?transport=udp`, `turn:${TURN_HOST}:3478?transport=tcp`];
+  return { iceServers: [{ urls, username, credential }], ttl: TURN_TTL };
+}
 
 // Diagnostic envoyé par l'application : un bloc délimité dans le journal, lisible avec
 // docker logs. L'adresse du client ne sert qu'au compteur, elle n'est pas écrite.

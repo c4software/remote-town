@@ -2,13 +2,23 @@
 
 Relais Nostr minimal utilisé par Trystero pour la signalisation WebRTC (qui se connecte à qui). Il ne transporte ni le son ni l'image, seulement de petits messages de mise en relation, et ne stocke rien.
 
-**Pourquoi** : les relais Nostr publics limitent par adresse IP. Une salle pleine derrière le même réseau (école, entreprise) dépassait leurs quotas : des participants ne se trouvaient jamais, ou au compte-gouttes. Ce relais n'a pas de quota par IP. Les relais publics restent en secours (`RELAYS` dans `public/js/config.js`).
+**Pourquoi** : les relais Nostr publics limitent par adresse IP. Une salle pleine derrière le même réseau (école, entreprise) dépassait leurs quotas : des participants ne se trouvaient jamais, ou au compte-gouttes. Ce relais n'a pas de quota par IP. L'application n'utilise que lui tant qu'il répond ; les relais publics (`RELAYS` dans `public/js/constantes.js`) ne servent qu'en secours, s'il est injoignable à l'arrivée ou fermé plus de 20 s en cours de session.
 
 ## Fonctionnement
 
-- `server.mjs` : serveur HTTP + WebSocket (`ws`). Seul `/relay` accepte les WebSocket, et seulement depuis les pages listées dans la variable d'environnement `ALLOWED_ORIGINS` (origines séparées par des virgules, `:*` = n'importe quel port ; défaut : `https://distance.brosseau.ovh,https://c4software.github.io`). `/health` répond `ok`, et `/turn` une liste vide de serveurs TURN (l'application en demande au même service ; aucun TURN n'est hébergé ici). `POST /diag` reçoit le rapport du bouton « 🩺 Diagnostic » de l'application (texte brut) et l'écrit dans le journal, entre `===== DIAGNOSTIC <date> =====` et `===== FIN =====`.
+- `server.mjs` : serveur HTTP + WebSocket (`ws`). Seul `/relay` accepte les WebSocket, et seulement depuis les pages listées dans la variable d'environnement `ALLOWED_ORIGINS` (origines séparées par des virgules, `:*` = n'importe quel port ; défaut : `https://distance.brosseau.ovh,https://c4software.github.io`). `/health` répond `ok`, et `/turn` donne à l'application les serveurs TURN à utiliser (voir « Serveur TURN » ; liste vide s'il n'est pas activé). `POST /diag` reçoit le rapport du bouton « 🩺 Diagnostic » de l'application (texte brut) et l'écrit dans le journal, entre `===== DIAGNOSTIC <date> =====` et `===== FIN =====`.
 - Messages Nostr gérés : `REQ`, `EVENT`, `CLOSE` (ceux qu'utilise Trystero). Chaque événement est transmis aux abonnés dont le filtre correspond. Les dates `since` / `until` des filtres sont **ignorées** : rien n'est stocké, et Trystero y met l'heure de l'ordinateur local ; une horloge en avance (53 s constatées) faisait filtrer toutes les réponses des autres, et la personne restait seule sans erreur.
 - Garde-fous : messages de 64 Ko au plus, 32 abonnements et 200 messages par seconde par connexion, connexions mortes fermées par ping toutes les 25 s.
+
+## Serveur TURN
+
+Certaines paires de participants n'arrivent pas à se joindre directement (NAT strict d'un côté ou de l'autre) : la liaison reste en « connecting » une quinzaine de secondes puis échoue, et la personne est invisible, sans erreur. Un serveur TURN relaie alors le son et l'image de ces paires-là.
+
+- Service `remote-town-turn` de `docker-compose.yml` : coturn, sur le réseau de l'hôte, port **3478 en UDP et en TCP**, relais sur les ports **UDP 49160 à 59160**. Ces ports doivent être ouverts dans le pare-feu du serveur ; vérifier de l'extérieur (`nc -vz 94.130.59.245 3478`).
+- Identifiants temporaires : `/turn` signe un nom (date d'expiration + partie aléatoire) avec `TURN_SECRET`, le secret partagé avec coturn (`use-auth-secret`). Valables 24 h, parce que la page les garde pour toute la session.
+- Fichier `.env` du dossier, **sur le serveur seulement** (ignoré par git) : `TURN_SECRET=…` (`openssl rand -hex 32`, obligatoire) et `TURN_HOST=relay.brosseau.ovh`. Sans `TURN_HOST`, coturn tourne mais `/turn` répond une liste vide : c'est l'interrupteur.
+- Garde-fous de coturn : aucun relais vers les réseaux privés (conteneurs, hôte), 120 relais par identifiant et 6000 au total, 400 Ko/s par relais, conteneur en lecture seule avec la seule capacité `NET_BIND_SERVICE` (exigée par le binaire de l'image).
+- Vérifier : `?relay` dans l'adresse de l'application force le passage par le TURN ; le badge « relais » de la liste des participants signale les liaisons qui y passent ; `docker logs remote-town-turn`.
 
 ## Sécurité
 
@@ -41,6 +51,8 @@ rsync -a --exclude node_modules -e "ssh -p 1036" relay/ vbrosseau@94.130.59.245:
 ssh -p 1036 vbrosseau@94.130.59.245 'cd ~/server && docker compose up -d --build remote-town-relay'
 ```
 
+Le service TURN se relance de la même façon, lui seul : `docker compose up -d remote-town-turn`.
+
 Dans Nginx Proxy Manager, un « Proxy Host » : `relay.brosseau.ovh` → `http://remote-town-relay:8080`, **Websockets Support** activé, certificat Let's Encrypt avec « Force SSL ».
 
 Vérifier : `curl https://relay.brosseau.ovh/health` répond `ok`, `docker logs remote-town-relay`, et l'ouverture WebSocket selon l'origine (101 pour une page autorisée, 403 sinon) :
@@ -60,4 +72,4 @@ NET=http://localhost:8090 npm run test:e2e -- connexion
 # (relais lancé avec … node server.mjs > /tmp/relay.log) : DIAG_LOG=/tmp/relay.log NET=http://localhost:8090 npm run test:e2e -- diagnostic
 ```
 
-Pour tester le relais **seul**, vider temporairement `RELAYS` dans `config.js` (sans le commiter). Pour vérifier le secours sur les relais publics, pointer vers un relais injoignable : `NET=http://localhost:1 npm run test:e2e -- connexion`.
+Avec `NET=…`, le relais local est le seul utilisé. Pour vérifier le secours sur les relais publics, pointer vers un relais injoignable : `NET=http://localhost:1 npm run test:e2e -- connexion`.

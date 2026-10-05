@@ -43,7 +43,7 @@ export const RELAYS = [
   'wss://relay.snort.social',
 ];
 // Notre relais de mise en relation (dossier relay/, auto-hébergé) : sans quota par adresse
-// IP, placé avant les relais publics, qui restent en secours. S'il fournit aussi /turn
+// IP, seul utilisé tant qu'il répond ; les relais publics ne servent qu'en secours (net.js). S'il fournit aussi /turn
 // (identifiants TURN temporaires), le son et l'image passent par un relais TURN quand la
 // connexion directe est impossible ; sinon on s'en passe. Utilisé seulement depuis les
 // pages de NET_HOSTS (le relais refuse les autres) ; ailleurs, relais publics seuls.

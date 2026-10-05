@@ -3,7 +3,7 @@
 // Le bouton « 🩺 Diagnostic » le copie dans le presse-papiers et l'envoie à notre relais
 // (POST /diag, journalisé côté serveur) quand l'application l'utilise.
 import { $, toast } from './dom.js';
-import { iceServers, linkTypes, netUrl } from './net.js';
+import { iceServers, linkTypes, netUrl, onBackupRelays } from './net.js';
 import { S, users } from './state.js';
 import { MAP } from './world.js';
 
@@ -94,7 +94,7 @@ export async function diagnostic() {
   add('Nom', S.me?.name || '(pas encore connecté·e)');
   add('Connecté·e depuis', S.joinedAt ? duration(performance.now() - S.joinedAt) : '—');
   add('Zone', MAP.zoneById[S.me?.zone]?.name || S.me?.zone || '—');
-  add('Notre relais', netUrl() ? 'utilisé' : 'non utilisé (relais publics seuls)');
+  add('Notre relais', !netUrl() ? 'non utilisé (relais publics seuls)' : onBackupRelays() ? 'injoignable : relais publics en secours' : 'utilisé seul');
 
   lines.push('Relais de mise en relation :');
   let sockets = {};
