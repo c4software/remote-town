@@ -17,7 +17,7 @@ Certaines paires de participants n'arrivent pas à se joindre directement (NAT s
 - Service `remote-town-turn` de `docker-compose.yml` : coturn, sur le réseau de l'hôte, port **3478 en UDP et en TCP**, relais sur les ports **UDP 49160 à 59160**. Ces ports doivent être ouverts dans le pare-feu du serveur ; vérifier de l'extérieur (`nc -vz 94.130.59.245 3478`).
 - Identifiants temporaires : `/turn` signe un nom (date d'expiration + partie aléatoire) avec `TURN_SECRET`, le secret partagé avec coturn (`use-auth-secret`). Valables 24 h, parce que la page les garde pour toute la session.
 - Fichier `.env` du dossier, **sur le serveur seulement** (ignoré par git) : `TURN_SECRET=…` (`openssl rand -hex 32`, obligatoire) et `TURN_HOST=relay.brosseau.ovh`. Sans `TURN_HOST`, coturn tourne mais `/turn` répond une liste vide : c'est l'interrupteur.
-- Garde-fous de coturn : aucun relais vers les réseaux privés (conteneurs, hôte), 120 relais par identifiant et 6000 au total, 400 Ko/s par relais, conteneur en lecture seule avec la seule capacité `NET_BIND_SERVICE` (exigée par le binaire de l'image).
+- Garde-fous de coturn : relais UDP seulement (`no-tcp-relay`), aucun relais vers les réseaux privés (conteneurs, hôte), 120 relais par identifiant et 6000 au total, 400 Ko/s par relais, conteneur en lecture seule avec la seule capacité `NET_BIND_SERVICE` (exigée par le binaire de l'image).
 - Vérifier : `?relay` dans l'adresse de l'application force le passage par le TURN ; le badge « relais » de la liste des participants signale les liaisons qui y passent ; `docker logs remote-town-turn`.
 
 ## Sécurité

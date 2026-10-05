@@ -54,6 +54,9 @@ services:
       - --fingerprint
       - --no-software-attribute
       - --no-multicast-peers
+      # Relais UDP seulement (WebRTC n'a besoin que de lui) : pas de connexions TCP ouvertes
+      # depuis le serveur vers Internet pour le compte d'un client
+      - --no-tcp-relay
       # Jamais vers les réseaux privés : le serveur ne doit pas servir de rebond vers les
       # autres conteneurs ni vers l'hôte (la boucle locale est déjà refusée par défaut)
       - --denied-peer-ip=0.0.0.0-0.255.255.255
