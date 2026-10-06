@@ -23,7 +23,7 @@ const MAX_SUBS = 32;        // abonnements par connexion
 // Messages par seconde et par connexion, au-delà : ignorés. Large : dans une salle de 50, une
 // arrivée ou un rechargement envoie d'un coup une offre par personne et par annonce ; à 200,
 // des offres étaient perdues et certaines personnes ne se voyaient pas
-const MAX_RATE = 1000;
+const MAX_RATE = 4000;
 const PING_MS = 25000;      // garde la connexion ouverte derrière le reverse proxy
 // Plafonds de connexions : une salle entière derrière la même IP (école, entreprise) doit
 // passer, avec une marge pour les onglets en double et les reconnexions
