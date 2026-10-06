@@ -18,7 +18,9 @@ import { phoneQuietIn } from './world.js';
 // l'autre), 'in' (on m'appelle), 'on' (en ligne), 'away' (pas de réponse : laisser un
 // message ?), 'rec' (enregistrement du message).
 export let call = null;
-let lastCallAt = -Infinity;  // mon dernier appel (pas d'appels à la suite)
+// Mon dernier appel vers chaque personne (id -> moment) : pas d'appels à la suite à la même
+// personne ; en appeler une autre aussitôt reste possible
+const calledAt = new Map();
 const rangAt = new Map();    // id du pair -> son dernier appel reçu
 const missed = new Map();    // id du pair -> appel manqué : un message vocal est accepté
 export const vmails = [];    // messages vocaux reçus : { id, name, url, at }
@@ -66,7 +68,7 @@ function prepare(u) {
 export function endCall() {
   if (!call) return;
   if (call.phase === CALL_PHASE.ON) link(call.peer, false);
-  if (call.mine) lastCallAt = performance.now();
+  if (call.mine) calledAt.set(call.peer, performance.now());
   if (call.rec?.state === 'recording') call.rec.stop(); // message abandonné (keep est faux)
   setCall(null);
 }
@@ -78,11 +80,11 @@ function missedCall(u) {
 
 export async function startCall(u) {
   if (call) return toast('📞 Un appel est déjà en cours.');
-  const wait = Math.ceil((CALL.gapMs - (performance.now() - lastCallAt)) / 1000);
-  if (wait > 0) return toast(`📞 Pas d'appels à la suite : réessayez dans ${wait} s.`);
+  const wait = Math.ceil((CALL.gapMs - (performance.now() - (calledAt.get(u.id) ?? -Infinity))) / 1000);
+  if (wait > 0) return toast(`📞 Pas d'appels à la suite à la même personne : rappelez ${u.name} dans ${wait} s.`);
   if (!S.micTrack && !(await initMic())) return;
   if (call || !users.has(u.id)) return;
-  lastCallAt = performance.now();
+  calledAt.set(u.id, performance.now());
   setCall({ peer: u.id, name: u.name, phase: CALL_PHASE.OUT, mine: true }, CALL.ringMs, () => { tell(u.id, CALL_MSG.CANCEL); away('Ne répond pas'); });
   tell(u.id, CALL_MSG.RING);
   ringHere('out');
@@ -91,7 +93,7 @@ export async function startCall(u) {
 
 // Pas de réponse, refus ou personne occupée : on propose de laisser un message
 function away(why) {
-  lastCallAt = performance.now();
+  calledAt.set(call.peer, performance.now());
   setCall({ peer: call.peer, name: call.name, phase: CALL_PHASE.AWAY, why, mine: true }, CALL.awayMs, endCall);
 }
 
@@ -153,7 +155,7 @@ export function phonePeerState(id) {
 
 // La personne en ligne (ou appelée) a quitté l'espace
 export function phonePeerLeft(id) {
-  rangAt.delete(id); missed.delete(id);
+  rangAt.delete(id); missed.delete(id); calledAt.delete(id);
   forgetRing(id);
   if (call?.peer === id) endCall();
 }

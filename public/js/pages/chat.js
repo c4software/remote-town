@@ -32,10 +32,16 @@ function convEl() {
   return conv;
 }
 export function chatPage(key) {
-  if (chat.open !== key) convEl().querySelector('#chatInput').value = '';
+  const page = convEl(), box = page.querySelector('#messages');
+  // Conversation qu'on ouvre (ou téléphone rouvert dessus) : on arrive sur les derniers messages
+  const opening = chat.open !== key || !page.isConnected;
+  const top = box.scrollTop;
+  if (chat.open !== key) page.querySelector('#chatInput').value = '';
   chat.open = key;
-  const page = convEl();
   renderMessages();
+  // La page est détachée pendant que le téléphone se redessine, ce qui remet son défilement
+  // à zéro : on le règle une fois qu'elle y est revenue (en bas à l'ouverture, inchangé sinon)
+  queueMicrotask(() => { box.scrollTop = opening ? box.scrollHeight : top; });
   return page;
 }
 export const focusChat = () => conv?.querySelector('#chatInput').focus();

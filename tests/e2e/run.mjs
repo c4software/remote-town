@@ -195,7 +195,7 @@ const scenarios = {
     t.check(!(await gets(b)), 'après avoir raccroché : plus rien n\'est envoyé');
     await call(a, 'Bob');
     await wait(500);
-    t.check(await a.$eval('#phone', (e) => e.hidden) && await b.$eval('#phone', (e) => e.hidden), 'pas d\'appels à la suite : le rappel immédiat est refusé');
+    t.check(await a.$eval('#phone', (e) => e.hidden) && await b.$eval('#phone', (e) => e.hidden), 'pas d\'appels à la suite à la même personne : le rappel immédiat est refusé');
     // Bob appelle Alice, qui refuse : il laisse un message vocal
     await call(b, 'Alice');
     await wait(1000);
@@ -229,15 +229,14 @@ const scenarios = {
     // Dans une salle de classe : le téléphone marche, mais sans haut-parleur pour les autres
     // (Bob, en classe, appelle Chloé dans le couloir ; Alice est sa voisine de classe)
     await place(b, 65, 10); await place(a, 66, 10);
-    await wait(31000); // pas d'appels à la suite
-    await call(b, 'Chloé');
+    await call(b, 'Chloé'); // Bob vient d'appeler Alice : appeler quelqu'un d'autre aussitôt est permis
     await wait(1500);
-    t.check(await has(b, '.ph-out') && await has(c, '.ph-in'), 'depuis la salle de classe : l\'appel part et sonne');
+    t.check(await has(b, '.ph-out') && await has(c, '.ph-in'), 'depuis la salle de classe, juste après un appel à une autre personne : l\'appel part et sonne');
     t.check(await b.evaluate(() => !rt.ringing) && await has(b, '.ph-silent'), 'en classe : silencieux, pas de tonalité');
     t.check(await c.evaluate(() => rt.ringing) && !(await has(c, '.ph-silent')), 'dans le couloir : la sonnerie s\'entend');
     await c.click('#phone .ph-accept');
     await wait(2500);
-    t.check(await hears(c, 'Bob') && await hears(b, 'Chloé'), 'appel avec la salle de classe : on s\'entend');
+    t.check(await gets(c) && await gets(b), 'appel avec la salle de classe : on s\'entend');
     t.check(await b.$eval('#phone .ph-spk', (e) => e.disabled) && await c.$eval('#phone .ph-spk', (e) => !e.disabled), 'haut-parleur indisponible en classe, disponible dans le couloir');
     t.check(!(await hears(a, 'Bob')) && !(await hears(a, 'Chloé')), 'la voisine de classe n\'entend pas l\'appel');
     await b.click('#phone .ph-end');
@@ -622,6 +621,19 @@ const scenarios = {
     await c.keyboard.press('Enter');
     await wait(1200);
     t.check(!(await a.evaluate(() => { rt.openChat('global'); return document.querySelector('#messages').innerText; })).includes('entre nous'), 'message d\'un bureau : pas vu du couloir');
+    // Une longue conversation s'ouvre sur ses derniers messages, pas sur les premiers
+    await b.evaluate(() => rt.openChat('global')); await wait(500);
+    for (let i = 1; i <= 25; i++) { await b.type('#chatInput', `message ${i}`); await b.keyboard.press('Enter'); }
+    await wait(1500);
+    const atBottom = (p) => p.$eval('#messages', (e) => e.scrollHeight > e.clientHeight + 100 && e.scrollHeight - e.scrollTop - e.clientHeight < 5);
+    await a.click('#phone .ph-close').catch(() => {}); await wait(400);
+    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-chats'); await a.click('#phone .ph-conv[data-conv=global]');
+    await wait(400);
+    t.check(await atBottom(a), 'conversation ouverte depuis la liste : affichée sur les derniers messages');
+    await a.click('#phone .ph-close'); await wait(400);
+    await a.keyboard.press('Enter'); await wait(600);
+    t.check(await atBottom(a), 'téléphone rouvert sur la conversation : toujours en bas');
+    await a.keyboard.press('Escape');
     // Discussion de la salle ouverte, on sort dans le couloir : elle devient « Tout le monde »
     await c.keyboard.press('Escape');
     await place(c, 30, 11); await wait(600);
