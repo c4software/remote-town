@@ -113,3 +113,12 @@ export async function until(probe, ms = 5000) {
     await wait(100);
   }
 }
+
+// Quitte l'onglet de `page` (un autre passe devant, la page devient cachée) ; renvoie la fonction
+// qui y revient
+export async function leaveTab(page) {
+  const other = await page.browserContext().newPage();
+  await other.bringToFront();
+  await page.waitForFunction(() => document.hidden, { timeout: 5000 });
+  return async () => { await page.bringToFront(); await other.close(); };
+}

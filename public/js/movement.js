@@ -184,8 +184,7 @@ export function toggleSit() {
 // Quelqu'un d'autre sur ma case (en sortant de la porte des espaces) : un pas de côté
 export function stepAsideIfTaken() {
   if (!someoneAt(S.me.x, S.me.y, () => true)) return;
-  const spot = nearestFree(S.me.x, S.me.y);
-  if (spot) { S.me.x = spot[0]; S.me.y = spot[1]; onMyMove(); }
+  if (moveAside()) onMyMove();
 }
 
 // Deux personnes assises sur la même chaise au même moment : la première arrivée
@@ -196,11 +195,17 @@ export function resolveOverlap(u) {
   if (!iLose) return;
   S.me.seated = false;
   S.path = null;
-  const spot = nearestFree(S.me.x, S.me.y);
-  if (spot) { S.me.x = spot[0]; S.me.y = spot[1]; }
+  moveAside();
   sendMove();
   onMyMove();
   toast(`${u.name} s'est assis·e ici juste avant vous`);
+}
+
+// Un pas de côté, vers la case libre la plus proche : faux s'il n'y en a pas
+function moveAside() {
+  const spot = nearestFree(S.me.x, S.me.y);
+  if (spot) { S.me.x = spot[0]; S.me.y = spot[1]; }
+  return !!spot;
 }
 
 // Case libre la plus proche (de préférence pas une chaise)

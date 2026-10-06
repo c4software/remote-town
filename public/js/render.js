@@ -18,21 +18,24 @@ export const ctx = canvas.getContext('2d');
 
 // Talkie levé près de la tête, avec des ondes radio qui s'échappent de l'antenne
 // Téléphone : qui sonne (appareil brandi qui vibre, ondes des deux côtés) ou à l'oreille (en ligne)
+// Rectangle plein aux coordonnées arrondies (pixel-art net), et bras levé qui tient un appareil
+const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+const raisedArm = (u, cx, by, side) => rect(side > 0 ? cx + 6 : cx - 9, by - 20, 3, 5, shade(u.look.shirt, -35));
+
 function drawPhone(u, cx, by, dir, now) {
   const side = dir === 'left' ? -1 : 1;
-  const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
-  r(side > 0 ? cx + 6 : cx - 9, by - 20, 3, 5, shade(u.look.shirt, -35)); // bras levé
+  raisedArm(u, cx, by, side);
   if (u.phone === 'call') {
     const dx = side > 0 ? cx + 6 : cx - 9;
-    r(dx, by - 29, 3, 8, '#2b2d42');
-    r(dx + 1, by - 27, 1, 1, '#06d6a0');
-    r(dx, by - 21, 3, 2, u.look.skin);
+    rect(dx, by - 29, 3, 8, '#2b2d42');
+    rect(dx + 1, by - 27, 1, 1, '#06d6a0');
+    rect(dx, by - 21, 3, 2, u.look.skin);
     return;
   }
   const dx = cx + side * 9 - (side < 0 ? 4 : 0) + Math.round(Math.sin(now / 35)), dy = by - 31;
-  r(dx, dy + 9, 4, 2, u.look.skin);
-  r(dx, dy, 4, 9, '#2b2d42');
-  r(dx + 1, dy + 1, 2, 5, '#ffd166');
+  rect(dx, dy + 9, 4, 2, u.look.skin);
+  rect(dx, dy, 4, 9, '#2b2d42');
+  rect(dx + 1, dy + 1, 2, 5, '#ffd166');
   ctx.lineWidth = 1.5;
   for (let i = 0; i < 2; i++) {
     const phase = (now / 600 + i / 2) % 1;
@@ -45,19 +48,17 @@ function drawPhone(u, cx, by, dir, now) {
 
 function drawWalkie(u, cx, by, dir, now) {
   const side = dir === 'left' ? -1 : 1;
-  const dark = shade(u.look.shirt, -35);
-  const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
   const dx = cx + side * 9 - (side < 0 ? 4 : 0); // bord gauche de l'appareil
   const dy = by - 30;
   // bras levé + main
-  r(side > 0 ? cx + 6 : cx - 9, by - 20, 3, 5, dark);
-  r(dx, dy + 9, 4, 2, u.look.skin);
+  raisedArm(u, cx, by, side);
+  rect(dx, dy + 9, 4, 2, u.look.skin);
   // appareil
-  r(dx, dy, 4, 9, '#2b2d42');
-  r(dx + 1, dy + 2, 2, 2, '#7fd1ff');
-  r(dx + 1, dy + 6, 2, 1, '#06d6a0');
+  rect(dx, dy, 4, 9, '#2b2d42');
+  rect(dx + 1, dy + 2, 2, 2, '#7fd1ff');
+  rect(dx + 1, dy + 6, 2, 1, '#06d6a0');
   const ax = side > 0 ? dx + 3 : dx;
-  r(ax, dy - 5, 1, 5, '#2b2d42');
+  rect(ax, dy - 5, 1, 5, '#2b2d42');
   // ondes
   ctx.lineWidth = 1.5;
   for (let i = 0; i < 3; i++) {

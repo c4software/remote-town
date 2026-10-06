@@ -242,19 +242,20 @@ export function initProfile() {
   roomInput.addEventListener('input', () => { showRoomLink(); savePrefs(); });
   $('#copyLinkJoin').onclick = () => shareLink(cleanRoom(roomInput.value));
   showRoomLink();
+  // Clic sur un choix (couleur ou puce) : appliqué, marqué, aperçu rejoué (`move`) ou redessiné
+  const pick = (box, b, part, value, move) => () => {
+    look[part] = value;
+    box.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
+    if (move) playPreview(move); else drawPreview();
+    savePrefs();
+  };
   document.querySelectorAll('.swatches').forEach((box) => {
     const part = box.dataset.part;
     for (const col of PALETTE[part]) {
       const b = document.createElement('button');
       b.type = 'button'; b.style.background = col; b.title = col;
       if (col === look[part]) b.classList.add('sel');
-      b.onclick = () => {
-        look[part] = col;
-        box.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
-        if (part === 'shirt') playPreview('turn');
-        else drawPreview();
-        savePrefs();
-      };
+      b.onclick = pick(box, b, part, col, part === 'shirt' && 'turn');
       box.append(b);
     }
   });
@@ -265,12 +266,7 @@ export function initProfile() {
       const b = Object.assign(document.createElement('button'), { type: 'button', textContent: o.label });
       b.dataset.v = o.id ?? '';
       b.classList.toggle('sel', o.id === look[part]);
-      b.onclick = () => {
-        look[part] = o.id;
-        box.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
-        if (move) playPreview(move); else drawPreview();
-        savePrefs();
-      };
+      b.onclick = pick(box, b, part, o.id, move);
       box.append(b);
     }
   };

@@ -41,13 +41,17 @@ const bcanvas = $('#boardCanvas');
 const bctx = bcanvas.getContext('2d');
 const clampN = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
 
+// Identifiant et épaisseur d'un élément reçu, bornés
+const itemId = (d) => String(d?.id || '').slice(0, 80);
+const itemWidth = (d) => Math.max(1, Math.min(60, Number(d.w) || 4));
+
 function addSeg(b, d) {
-  const id = String(d?.id || '').slice(0, 80);
+  const id = itemId(d);
   if (!b || !id) return;
   let st = b.strokes.get(id);
   if (!st) {
     const c = BOARD_COLORS.includes(d.c) || d.c === BOARD_ERASER.c ? d.c : BOARD_COLORS[0];
-    st = { c, w: Math.max(1, Math.min(60, Number(d.w) || 4)), pts: [] };
+    st = { c, w: itemWidth(d), pts: [] };
     b.strokes.set(id, st);
   }
   const p = Array.isArray(d.p) ? d.p : [];
@@ -58,14 +62,14 @@ function addSeg(b, d) {
 const cleanText = (s) => String(s ?? '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').slice(0, BOARD_TEXT_MAX)
   .split('\n').slice(0, BOARD_TEXT_LINES).join('\n');
 function setText(b, d) {
-  const id = String(d?.id || '').slice(0, 80);
+  const id = itemId(d);
   if (!b || !id) return;
   const text = cleanText(d.s);
   if (!text.trim()) return void b.strokes.delete(id);
   const p = Array.isArray(d.p) ? d.p : [];
   const st = b.strokes.get(id) || {};
   b.strokes.set(id, Object.assign(st, {
-    c: BOARD_COLORS.includes(d.c) ? d.c : BOARD_COLORS[0], w: Math.max(1, Math.min(60, Number(d.w) || 4)),
+    c: BOARD_COLORS.includes(d.c) ? d.c : BOARD_COLORS[0], w: itemWidth(d),
     pts: [clampN(p[0], BOARD_W), clampN(p[1], BOARD_H)], text,
   }));
 }

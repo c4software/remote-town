@@ -2,7 +2,7 @@
 // Lancer : npm run test:e2e            (tous les scénarios)
 //          npm run test:e2e -- pupitre (seulement les scénarios dont le nom contient « pupitre »)
 // Nécessite Chrome et un accès Internet (les relais Nostr publics servent à la mise en relation).
-import { hears, join, launchBrowser, me, openPerson, openPhone, openProfile, pathDone, peer, place, seen, startServer, tile, until, voiceVolume, wait, waitPeers } from './helpers.mjs';
+import { hears, join, launchBrowser, leaveTab, me, openPerson, openPhone, openProfile, pathDone, peer, place, seen, startServer, tile, until, voiceVolume, wait, waitPeers } from './helpers.mjs';
 
 const scenarios = {
   async 'connexion, déplacements et fatigue'(t) {
@@ -101,15 +101,12 @@ const scenarios = {
     // Absence : onglet quitté sans action depuis plus de 10 minutes, « Travail » d'office
     await a.evaluate(() => rt.checkAway(11 * 60000)); await wait(600);
     t.check(await aliceEmote() === null, 'onglet visible : pas d\'émote d\'absence');
-    const other = await a.browserContext().newPage();
-    await other.bringToFront();
-    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
+    const backToTab = await leaveTab(a);
     await a.evaluate(() => rt.checkAway(9 * 60000)); await wait(600);
     t.check(await aliceEmote() === null, 'onglet quitté depuis moins de 10 minutes : rien');
     await a.evaluate(() => rt.checkAway(11 * 60000));
     t.check(await until(async () => await aliceEmote() === 'work'), 'onglet quitté, 10 minutes sans action : émote « Travail » vue par Bob');
-    await a.bringToFront();
-    await other.close();
+    await backToTab();
     t.check(await until(async () => await aliceEmote() === null), 'retour sur l\'onglet : l\'émote d\'absence est retirée');
     // Main levée : une bulle chez les autres, d'où l'on rejoint la personne
     await place(a, 30, 10); await place(b, 66, 10);
@@ -825,15 +822,12 @@ const scenarios = {
     t.check(shot.length > 5000, 'P ouvre la vue en incrustation, dessinée');
     if (process.env.SHOT) (await import('node:fs')).writeFileSync(process.env.SHOT, Buffer.from(shot.split(',')[1], 'base64'));
     // Onglet caché : la boucle de la page s'arrête, la vue doit continuer à suivre Bob
-    const other = await a.browserContext().newPage();
-    await other.bringToFront();
-    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
+    const backToTab = await leaveTab(a);
     await place(b, 25, 11);
     await a.waitForFunction(() => [...rt.users.values()].some((u) => u.name === 'Bob' && u.rx === 25 && u.ry === 11), { timeout: 10000 });
     const shot2 = await a.evaluate(() => documentPictureInPicture.window.document.querySelector('canvas').toDataURL());
     t.check(shot2 !== shot, 'onglet caché : la vue continue de suivre les déplacements');
-    await a.bringToFront();
-    await other.close();
+    await backToTab();
     await a.keyboard.press('KeyP');
     await wait(300);
     t.check(await a.evaluate(() => !documentPictureInPicture.window), 'P la referme');
@@ -857,14 +851,11 @@ const scenarios = {
       return { video: v.style.display !== 'none' && v.videoWidth > 0, map: d.querySelector('canvas').style.display !== 'none', label: d.querySelector('div').textContent };
     });
     t.check((await pipView()).map, 'partage en grand, onglet visible : la vue garde la carte');
-    const away = await a.browserContext().newPage();
-    await away.bringToFront();
-    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
+    const backAgain = await leaveTab(a);
     await wait(2500);
     const pv = await pipView();
     t.check(pv.video && !pv.map && pv.label.includes('Bob'), 'onglet quitté : la vue montre le partage suivi en grand');
-    await a.bringToFront();
-    await away.close();
+    await backAgain();
     await wait(500);
     t.check((await pipView()).map, 'retour sur l\'onglet : la carte revient dans la vue');
   },
