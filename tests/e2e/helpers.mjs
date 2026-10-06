@@ -18,6 +18,23 @@ export async function startServer(port) {
   return { url: `http://localhost:${port}/`, stop: () => proc.kill() };
 }
 
+// Relais local (relay/server.mjs, après « npm install » dans relay/) pour un scénario qui a besoin
+// du nôtre ; `env` complète sa configuration
+export async function startRelay(port, env = {}) {
+  const proc = spawn(process.execPath, ['relay/server.mjs'], { env: { ...process.env, PORT: String(port), ALLOWED_ORIGINS: 'http://localhost:*', ...env }, stdio: 'ignore' });
+  await wait(600);
+  return { url: `http://localhost:${port}`, stop: () => proc.kill() };
+}
+
+// Clé d'administration jetable : la partie publique (à donner à tous avec rt.setAdminTestKey) et
+// le jeton, la clé privée (à charger chez l'administrateur avec rt.loadAdminToken)
+export async function adminKeys() {
+  const { publicKey, privateKey } = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const pub = await crypto.subtle.exportKey('jwk', publicKey);
+  const priv = await crypto.subtle.exportKey('jwk', privateKey);
+  return { pub: { x: pub.x, y: pub.y }, token: Buffer.from(JSON.stringify({ x: priv.x, y: priv.y, d: priv.d })).toString('base64url') };
+}
+
 export async function launchBrowser() {
   const executablePath = CHROMES.find((p) => existsSync(p));
   if (!executablePath) throw new Error('Chrome introuvable : définissez CHROME_PATH');
@@ -38,7 +55,9 @@ export async function join(ctx, name, { viewport = { width: 1300, height: 820 },
   await page.setViewport(viewport);
   page.on('pageerror', (e) => ctx.errors.push(`${name} : ${e.message}`));
   // NET=http://localhost:8090 : passer par un relais (relay/, PORT=8090 node server.mjs) lancé à part
-  const net = process.env.NET ? `&net=${encodeURIComponent(process.env.NET)}` : '';
+  // (ou ctx.net : relais lancé par le scénario lui-même, voir startRelay)
+  const base = ctx.net || process.env.NET;
+  const net = base ? `&net=${encodeURIComponent(base)}` : '';
   await page.goto(`${ctx.url}?debug&room=${ctx.room}${net}`);
   await page.type('#nameInput', name);
   if (setup) await setup(page);

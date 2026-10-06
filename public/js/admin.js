@@ -70,6 +70,14 @@ async function checkAdmin() {
 }
 export const isAdmin = () => S.isAdmin;
 
+// Texte signé avec le jeton, pour les demandes à notre relais réservées aux administrateurs
+// (annuaire des espaces, directory.js) ; null sans jeton vérifié
+export async function signAdmin(text) {
+  const key = await signKey();
+  if (!S.isAdmin || !key) return null;
+  return b64u.enc(await crypto.subtle.sign(SIGN, key, new TextEncoder().encode(text)));
+}
+
 // Mémorise un jeton (lien #admin=…, ou tests en ?debug) et le charge
 export function loadToken(token) {
   try { localStorage.setItem('rt-admin', token); } catch {}

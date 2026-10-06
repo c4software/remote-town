@@ -2,7 +2,7 @@
 // Lancer : npm run test:e2e            (tous les scénarios)
 //          npm run test:e2e -- pupitre (seulement les scénarios dont le nom contient « pupitre »)
 // Nécessite Chrome et un accès Internet (les relais Nostr publics servent à la mise en relation).
-import { hears, join, launchBrowser, leaveTab, me, openPerson, openPhone, openProfile, pathDone, peer, place, seen, startServer, tile, until, voiceVolume, wait, waitPeers } from './helpers.mjs';
+import { adminKeys, hears, join, launchBrowser, leaveTab, me, openPerson, openPhone, openProfile, pathDone, peer, place, seen, startRelay, startServer, tile, until, voiceVolume, wait, waitPeers } from './helpers.mjs';
 
 const scenarios = {
   async 'connexion, déplacements et fatigue'(t) {
@@ -337,13 +337,10 @@ const scenarios = {
 
   async 'expulsion'(t) {
     // Clé jetable pour le test : publique chez tous, jeton (privée) chez Alice seulement
-    const { publicKey, privateKey } = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
-    const pub = await crypto.subtle.exportKey('jwk', publicKey);
-    const priv = await crypto.subtle.exportKey('jwk', privateKey);
-    const token = Buffer.from(JSON.stringify({ x: priv.x, y: priv.y, d: priv.d })).toString('base64url');
+    const { pub, token } = await adminKeys();
     const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
     await waitPeers([a, b, c]);
-    for (const p of [a, b, c]) await p.evaluate((k) => rt.setAdminTestKey(k), { x: pub.x, y: pub.y });
+    for (const p of [a, b, c]) await p.evaluate((k) => rt.setAdminTestKey(k), pub);
     await a.evaluate((tk) => rt.loadAdminToken(tk), token);
     // Sans jeton, le clic droit dans la liste ne propose rien
     await openPerson(c, 'Bob');
@@ -360,6 +357,52 @@ const scenarios = {
     t.check(!(await seen(c, 'Bob')), 'Chloé ne voit plus Bob');
     t.check(!(await seen(a, 'Bob')), 'Alice ne voit plus Bob');
     t.check(!!(await seen(c, 'Alice')), 'Chloé voit toujours Alice');
+  },
+
+  // Annuaire des espaces : il n'existe que sur notre relais, lancé ici en local pour le scénario
+  async 'annuaire des espaces'(t) {
+    const { pub, token } = await adminKeys();
+    const relay = await startRelay(4800 + Math.floor(Math.random() * 100), { ADMIN_KEY: `${pub.x}.${pub.y}` });
+    try {
+      const here = { ...t, net: relay.url }, other = `${t.room}-b`;
+      const [a, b] = [await join(here, 'Alice'), await join(here, 'Bob')];
+      const c = await join({ ...here, room: other }, 'Chloé');
+      await waitPeers([a, b]);
+      for (const p of [a, b]) await p.evaluate((k) => rt.setAdminTestKey(k), pub);
+      await a.evaluate((tk) => rt.loadAdminToken(tk), token);
+      // Chacun s'est annoncé en arrivant, seul ; Alice annonce maintenant les deux personnes
+      t.check(await a.evaluate(() => rt.reportRoom()), 'espace annoncé au relais');
+      const origin = { Origin: new URL(t.url).origin };
+      t.check((await fetch(`${relay.url}/rooms`, { headers: origin })).status === 403, 'liste demandée sans signature : refusée');
+      t.check((await fetch(`${relay.url}/rooms`, { headers: { ...origin, Authorization: `RemoteTown ${Date.now()}.${'A'.repeat(86)}` } })).status === 403, 'fausse signature : refusée');
+      const bad = await fetch(`${relay.url}/room`, { method: 'POST', headers: origin, body: JSON.stringify({ room: 'Pas Un Identifiant', count: 3 }) });
+      t.check(bad.status === 400, 'annonce invalide : refusée');
+      // Porte des espaces : la section « Espaces actifs » n'existe que pour l'administratrice
+      const active = (p) => p.$$eval('#spacesActive:not([hidden]) li', (o) => o.map((li) => li.innerText.replace(/\s+/g, ' ').trim()));
+      const atDoor = async (p) => { await place(p, 24, 9); await wait(500); await p.keyboard.press('KeyE'); };
+      await place(b, 30, 10);
+      // Horloge d'Alice en avance d'une heure : le relais refuse, donne son heure, la demande est refaite
+      await a.evaluate(() => { const now = Date.now.bind(Date); Date.now = () => now() + 3600000; });
+      await atDoor(a);
+      t.check(await until(async () => (await active(a)).length === 2), 'administratrice (horloge décalée comprise) : les espaces actifs sont listés dans la porte');
+      const rows = await active(a);
+      t.check(rows[0] === `${t.room} 2 personnes · vous êtes ici` && rows[1] === `${other} 1 personne`, `nombre de personnes par espace, du plus peuplé au moins peuplé (${rows.join(' | ')})`);
+      t.check(await a.$eval('#spacesActiveLabel', (e) => !e.hidden && e.textContent === 'Espaces actifs (2) · 3 personnes'), 'total des espaces et des personnes');
+      if (process.env.SHOT) {
+        await a.screenshot({ path: process.env.SHOT });
+        await a.setViewport({ width: 390, height: 780 }); await wait(400);
+        await a.screenshot({ path: process.env.SHOT.replace(/(\.\w+)$/, '-mobile$1') });
+        await a.setViewport({ width: 1300, height: 820 }); await wait(400);
+      }
+      // Un clic y conduit, comme pour un espace enregistré
+      await a.click('#spacesActive li:nth-child(2) .sp-go');
+      await waitPeers([a, c], 2);
+      t.check(!!(await seen(c, 'Alice')), 'clic sur un espace actif : on y va');
+      // Sans jeton : la porte s'ouvre comme d'habitude, sans la section
+      await atDoor(b);
+      await wait(1200);
+      t.check(await b.$eval('#spaces', (e) => !e.hidden) && (await active(b)).length === 0 && await b.$eval('#spacesActiveLabel', (e) => e.hidden), 'sans jeton : pas d\'espaces actifs dans la porte');
+    } finally { relay.stop(); }
   },
 
   async 'pseudos en double'(t) {

@@ -66,7 +66,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 
 ## Comment ça marche
 
-- La mise en relation WebRTC passe par un relais [Nostr](https://nostr.com) grâce à [Trystero](https://github.com/dmotz/trystero) (embarqué dans `public/vendor/`) : le nôtre (dossier `relay/`, sans quota par adresse IP, pour les salles pleines derrière un même réseau), seul utilisé tant qu'il répond, et des relais publics en secours s'il est injoignable. Les relais ne voient que les messages de mise en relation (chiffrés), jamais l'audio, la vidéo ou le chat.
+- La mise en relation WebRTC passe par un relais [Nostr](https://nostr.com) grâce à [Trystero](https://github.com/dmotz/trystero) (embarqué dans `public/vendor/`) : le nôtre (dossier `relay/`, sans quota par adresse IP, pour les salles pleines derrière un même réseau), seul utilisé tant qu'il répond, et des relais publics en secours s'il est injoignable. Les relais ne voient que les messages de mise en relation (chiffrés), jamais l'audio, la vidéo ou le chat. Pour des statistiques d'usage, l'app indique aussi à notre relais (et à lui seul) le nom de l'espace et le nombre de personnes présentes : il ne garde ce compte qu'en mémoire, sans nom de personne.
 - Chaque participant est connecté à tous les autres (maillage). Ça tient pour quelques dizaines de personnes.
 - Pour chaque pair, on envoie une copie de son micro et de son écran, activée ou coupée selon les règles de zone (`public/js/world.js`). Il n'y a pas de renégociation, donc `N` répond tout de suite.
 - Les règles sont appliquées par le navigateur de chacun : c'est fait pour une équipe de confiance, pas pour un espace public.
@@ -98,6 +98,7 @@ public/
     state.js       état partagé (S, users, keys, myIds)
     constantes.js  constantes et énumérations (réglages, palettes, listes de choix, réseau)
     diag.js        rapport sur la connexion, copié et envoyé au relais (/diag dans le chat)
+    directory.js   annuaire des espaces : annonce de son espace au relais (statistiques)
     world.js       carte, zones, règles « qui entend / voit qui » (module pur)
     dom.js         utilitaires d'interface ($, toast…)
     avatar.js      dessin des personnages et accessoires

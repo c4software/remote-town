@@ -7,6 +7,7 @@ import { fetchHistory, onChat, publicHistory } from './chat.js';
 import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, PHONE, REACTIONS, RELAYS, RING_STYLES, SEEN_EVERY_S, SEEN_FRESH_MS, STUN_SERVERS } from './constantes.js';
 import { isBanned, onKick } from './admin.js';
 import { onDeskNames, syncDeskNamesTo } from './desks.js';
+import { reportRoom } from './directory.js';
 import { $, cleanName, debugMode, sameName, toast } from './dom.js';
 import { cleanEmote } from './emotes.js';
 import { startApp } from './hud.js';
@@ -36,6 +37,7 @@ export function connect(name) {
   users.set(S.myId, S.me);
   S.joinedAt = performance.now();
   joinNet(); // identifiants TURN déjà demandés au clic (prepareIce dans profile.js)
+  reportRoom(); // annuaire des espaces : annoncé à l'arrivée, puis périodiquement (directory.js)
   addEventListener('pagehide', () => S.room?.leave());
   watchConnection();
   startApp();
@@ -205,6 +207,7 @@ export async function switchRoom(id) {
   aloneSince = 0;
   await prepareIce();
   joinNet();
+  reportRoom();
   rejoining = false;
   updatePresence();
 }

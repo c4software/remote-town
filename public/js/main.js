@@ -7,6 +7,7 @@ import { initChat } from './chat.js';
 import { initDebug } from './debug.js';
 import { initDesks } from './desks.js';
 import { initDiag } from './diag.js';
+import { initDirectory } from './directory.js';
 import { initEmotes } from './emotes.js';
 import { initHud } from './hud.js';
 import { initInput } from './input.js';
@@ -32,5 +33,6 @@ initPip();
 initPhone();
 initTeacher();
 initDiag();
+initDirectory();
 initAdmin();
 initDebug(); // en local ; sur le site publié, après vérification du jeton (admin.js)

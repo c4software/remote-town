@@ -7,7 +7,7 @@
 // Trystero n'utilise que REQ / EVENT / CLOSE avec des annonces éphémères : rien n'est
 // stocké, chaque événement est transmis aux abonnés dont le filtre correspond.
 // Lancer : node server.mjs (PORT=8080 par défaut). Voir README.md.
-import { createHmac, randomBytes } from 'node:crypto';
+import { createHmac, randomBytes, webcrypto } from 'node:crypto';
 import { createServer } from 'node:http';
 import { isIP } from 'node:net';
 import { WebSocketServer } from 'ws';
@@ -47,6 +47,21 @@ const TURN_TTL = 24 * 3600;
 // arrive dans la même minute (une demande par page). Au-delà : liste vide, pas d'erreur, pour
 // que la page ne prenne pas le relais pour injoignable.
 const TURN_PER_MIN = Number(process.env.TURN_PER_MIN) || 400;
+// Annuaire des espaces (statistiques) : chaque page annonce son espace et le nombre de personnes
+// qu'elle y voit (POST /room) ; gardé en mémoire seulement, jamais écrit. La liste (GET /rooms)
+// n'est donnée qu'aux administrateurs : le nom d'un espace suffit à y entrer.
+const ROOM_MAX = 512;            // taille d'une annonce
+const ROOM_FRESH_MS = 5 * 60000; // durée de vie d'une annonce (les pages annoncent toutes les 2 min)
+const ROOM_REPORTS_MAX = 500;    // annonces gardées par espace
+const ROOMS_MAX = 2000;          // espaces suivis à la fois
+const ROOM_PEOPLE_MAX = 500;
+// Annonces et demandes de liste par minute et par adresse (une classe entière derrière la même)
+const ROOM_PER_MIN = Number(process.env.ROOM_PER_MIN) || 600;
+const ROOMS_AUTH_MS = 2 * 60000; // validité d'une demande de liste signée
+// Clé publique d'administration, « x.y » : la même que ADMIN_KEY dans public/js/constantes.js
+// (tools/admin-key.mjs écrit les deux). Sans elle, /rooms refuse tout le monde.
+const [adminX, adminY] = (process.env.ADMIN_KEY || '').split('.');
+const ADMIN_KEY = adminX && adminY ? { x: adminX, y: adminY } : null;
 
 const allowed = (origin) => ALLOWED.some((re) => re.test(origin || ''));
 // Adresse réelle du client : transmise par Nginx Proxy Manager (seul à joindre le conteneur)
@@ -78,10 +93,13 @@ const refuse = (why) => { stats.refused[why] = (stats.refused[why] || 0) + 1; };
 const perIp = new Map(); // ip -> connexions ouvertes
 const diagAt = new Map(); // ip -> heure du dernier diagnostic reçu
 const turnAsked = new Map(); // ip -> { at, n } : identifiants TURN donnés dans la minute
+const roomAsked = new Map(); // ip -> { at, n } : annonces et demandes de l'annuaire dans la minute
 
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
-  if (req.url === '/diag') return onDiag(req, res);
+  if (req.url === '/diag') return onDiag(req, res).catch(() => {});
+  if (req.url === '/room') return onRoom(req, res).catch(() => {});
+  if (req.url === '/rooms') return onRooms(req, res).catch(() => {});
   if (req.url === '/turn' && allowed(req.headers.origin)) {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': req.headers.origin, Vary: 'Origin', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify(turnAllowed(clientIp(req)) ? turnServers() : { iceServers: [] }));
@@ -94,14 +112,17 @@ const http = createServer((req, res) => {
 // porte la date d'expiration, le mot de passe est sa signature avec le secret partagé.
 // Une partie aléatoire dans le nom : le quota de coturn se compte par nom, donc par page.
 function turnAllowed(ip) {
-  if (!TURN_HOST || !TURN_SECRET) return true;
-  const now = Date.now();
-  for (const [k, v] of turnAsked) if (now - v.at > 60000) turnAsked.delete(k);
-  const mine = turnAsked.get(ip) || { at: now, n: 0 };
-  turnAsked.set(ip, mine);
-  if (++mine.n <= TURN_PER_MIN) return true;
+  if (!TURN_HOST || !TURN_SECRET || underQuota(turnAsked, ip, TURN_PER_MIN)) return true;
   refuse('turn');
   return false;
+}
+// Compteur par adresse, remis à zéro chaque minute : vrai tant que `max` n'est pas dépassé
+function underQuota(counts, ip, max) {
+  const now = Date.now();
+  for (const [k, v] of counts) if (now - v.at > 60000) counts.delete(k);
+  const mine = counts.get(ip) || { at: now, n: 0 };
+  counts.set(ip, mine);
+  return ++mine.n <= max;
 }
 function turnServers() {
   if (!TURN_HOST || !TURN_SECRET) return { iceServers: [] };
@@ -112,38 +133,122 @@ function turnServers() {
   return { iceServers: [{ urls, username, credential }], ttl: TURN_TTL };
 }
 
+// Route appelée par l'application : origine vérifiée, en-têtes CORS, méthode attendue. Renvoie
+// la fonction de réponse, ou null si la demande est déjà traitée (refus, OPTIONS)
+function api(req, res, method, type = 'text/plain; charset=utf-8') {
+  const origin = req.headers.origin;
+  if (!allowed(origin)) { refuse('origine'); res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Origine refusée'); return null; }
+  const headers = {
+    'Content-Type': type, 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Cache-Control': 'no-store',
+    'Access-Control-Allow-Methods': `${method}, OPTIONS`, 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '600',
+  };
+  const reply = (code, text) => { if (res.writableEnded) return; res.writeHead(code, headers); res.end(text); };
+  if (req.method === 'OPTIONS') { reply(204, ''); return null; }
+  if (req.method !== method) { reply(405, 'Méthode non autorisée'); return null; }
+  return reply;
+}
+// Corps d'une demande, borné : null s'il dépasse `max` (la connexion est alors coupée, une fois
+// la réponse partie)
+function readBody(req, max) {
+  return new Promise((done) => {
+    if (Number(req.headers['content-length']) > max) { req.resume(); return done(null); }
+    const chunks = []; let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size <= max) return chunks.push(c);
+      done(null);
+      setTimeout(() => req.destroy(), 100);
+    });
+    req.on('end', () => done(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', () => done(null));
+  });
+}
+
 // Diagnostic envoyé par l'application : un bloc délimité dans le journal, lisible avec
 // docker logs. L'adresse du client ne sert qu'au compteur, elle n'est pas écrite.
-function onDiag(req, res) {
-  const origin = req.headers.origin;
-  if (!allowed(origin)) { refuse('origine'); res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Origine refusée'); }
-  const headers = {
-    'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': origin, Vary: 'Origin',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600',
-  };
-  const reply = (code, text) => { res.writeHead(code, headers); res.end(text); };
-  if (req.method === 'OPTIONS') return reply(204, '');
-  if (req.method !== 'POST') return reply(405, 'Méthode non autorisée');
+async function onDiag(req, res) {
+  const reply = api(req, res, 'POST');
+  if (!reply) return;
   const ip = clientIp(req);
   const now = Date.now();
   for (const [k, at] of diagAt) if (now - at > DIAG_EVERY_MS) diagAt.delete(k);
   if (diagAt.has(ip)) { refuse('diagnostic'); return reply(429, 'Un diagnostic par minute'); }
-  if (Number(req.headers['content-length']) > DIAG_MAX) { req.resume(); return reply(413, 'Diagnostic trop long'); }
-  const chunks = []; let size = 0;
-  req.on('data', (c) => {
-    size += c.length;
-    if (size > DIAG_MAX) { if (!res.writableEnded) reply(413, 'Diagnostic trop long'); req.destroy(); return; }
-    chunks.push(c);
-  });
-  req.on('end', () => {
-    if (res.writableEnded) return;
-    diagAt.set(ip, now);
-    // Texte brut seulement : caractères de contrôle retirés (sauf retours à la ligne et
-    // tabulations), et les délimiteurs du bloc ne peuvent pas être imités
-    const text = Buffer.concat(chunks).toString('utf8').replace(/[^\P{C}\n\t]/gu, '').replace(/={5,}/g, '-----').trim();
-    console.log(`===== DIAGNOSTIC ${new Date(now).toISOString()} =====\n${text}\n===== FIN =====`);
-    reply(200, 'merci');
-  });
+  const raw = await readBody(req, DIAG_MAX);
+  if (raw === null) return reply(413, 'Diagnostic trop long');
+  diagAt.set(ip, now);
+  // Texte brut seulement : caractères de contrôle retirés (sauf retours à la ligne et
+  // tabulations), et les délimiteurs du bloc ne peuvent pas être imités
+  const text = raw.replace(/[^\P{C}\n\t]/gu, '').replace(/={5,}/g, '-----').trim();
+  console.log(`===== DIAGNOSTIC ${new Date(now).toISOString()} =====\n${text}\n===== FIN =====`);
+  reply(200, 'merci');
+}
+
+// Annuaire des espaces. Une annonce compte ROOM_FRESH_MS : le nombre de personnes d'un espace
+// est le plus grand annoncé pendant ce temps (chacun annonce ce qu'il voit, soi compris), et
+// un espace sans annonce fraîche est oublié.
+const rooms = new Map(); // espace -> { first, last, peak, reports: [[heure, personnes], …] }
+const roomId = (v) => (typeof v === 'string' && /^[a-z0-9_-]{1,40}$/.test(v) ? v : ''); // comme cleanRoom() de l'application
+function pruneRooms(now) {
+  for (const [id, r] of rooms) {
+    r.reports = r.reports.filter(([at]) => now - at <= ROOM_FRESH_MS);
+    if (!r.reports.length) rooms.delete(id);
+  }
+}
+function roomReport(id, n, now) {
+  pruneRooms(now);
+  let r = rooms.get(id);
+  if (!r) {
+    if (rooms.size >= ROOMS_MAX) return false;
+    rooms.set(id, r = { first: now, last: now, peak: 0, reports: [] });
+  }
+  r.last = now;
+  r.peak = Math.max(r.peak, n);
+  r.reports.push([now, n]);
+  if (r.reports.length > ROOM_REPORTS_MAX) r.reports.shift();
+  return true;
+}
+function roomList(now) {
+  pruneRooms(now);
+  return [...rooms].map(([room, r]) => ({ room, count: Math.max(...r.reports.map(([, n]) => n)), peak: r.peak, since: r.first, seen: r.last }))
+    .sort((a, b) => b.count - a.count || a.room.localeCompare(b.room));
+}
+
+// POST /room : « { room, count } », l'espace d'une page et le nombre de personnes qu'elle y voit
+async function onRoom(req, res) {
+  const reply = api(req, res, 'POST');
+  if (!reply) return;
+  if (!underQuota(roomAsked, clientIp(req), ROOM_PER_MIN)) { refuse('annuaire'); return reply(429, 'Trop d\'annonces'); }
+  let d = null;
+  try { d = JSON.parse(await readBody(req, ROOM_MAX)); } catch {}
+  const id = roomId(d?.room), n = Math.round(Number(d?.count));
+  if (!id || !(n >= 1 && n <= ROOM_PEOPLE_MAX)) return reply(400, 'Annonce invalide');
+  if (!roomReport(id, n, Date.now())) { refuse('annuaire'); return reply(503, 'Annuaire plein'); }
+  reply(200, 'ok');
+}
+
+// GET /rooms : la liste, pour les administrateurs seulement. En-tête « Authorization:
+// RemoteTown <heure>.<signature> » : signature (ECDSA P-256, faite avec le jeton, comme un ordre
+// d'expulsion) de « remote-town-rooms|<heure> », vérifiée avec ADMIN_KEY et valable
+// ROOMS_AUTH_MS. Un refus donne l'heure du relais, pour qu'une page dont l'horloge est décalée
+// puisse refaire sa demande.
+let adminKey = null;
+async function adminSigned(header) {
+  const m = /^RemoteTown (\d{1,16})\.([\w-]{1,200})$/.exec(header || '');
+  if (!m || !ADMIN_KEY || Math.abs(Date.now() - Number(m[1])) > ROOMS_AUTH_MS) return false;
+  try {
+    adminKey ||= webcrypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', ...ADMIN_KEY, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    return await webcrypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, await adminKey, Buffer.from(m[2], 'base64url'), Buffer.from(`remote-town-rooms|${m[1]}`));
+  } catch { return false; }
+}
+async function onRooms(req, res) {
+  const reply = api(req, res, 'GET', 'application/json');
+  if (!reply) return;
+  const now = Date.now();
+  if (!underQuota(roomAsked, clientIp(req), ROOM_PER_MIN) || !(await adminSigned(req.headers.authorization))) {
+    refuse('annuaire');
+    return reply(403, JSON.stringify({ error: 'réservé aux administrateurs', now }));
+  }
+  reply(200, JSON.stringify({ now, rooms: roomList(now) }));
 }
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE });

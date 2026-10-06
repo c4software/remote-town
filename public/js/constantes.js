@@ -190,3 +190,7 @@ export const WB_MSG = Object.freeze({ OPEN: 'open', SEG: 'seg', TEXT: 'txt', CLE
 // 2 min (ou rejoué) est ignoré
 export const KICK = { banMs: 15 * 60000, maxAgeMs: 2 * 60000 };
 export const SPACES_MAX = 15;
+// Annuaire des espaces (directory.js) : annonce de son espace à notre relais toutes les
+// reportMs (le relais garde une annonce 5 min : ROOM_FRESH_MS dans relay/server.mjs) ; bornes
+// de la liste reçue par les administrateurs
+export const ROOMS = { reportMs: 2 * 60000, listMax: 200, peopleMax: 500 };

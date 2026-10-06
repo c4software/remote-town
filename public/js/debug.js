@@ -6,6 +6,7 @@ import { nearRingInfo, ringing } from './audio.js';
 import { boards } from './board.js';
 import { zoneName } from './desks.js';
 import { diagnostic, lastDiag } from './diag.js';
+import { reportRoom } from './directory.js';
 import { checkAway } from './emotes.js';
 import { debugMode } from './dom.js';
 import { links } from './media.js';
@@ -45,6 +46,7 @@ export function initDebug() {
     openPerson: (id) => openPerson(id),   // téléphone : fiche d'une personne
     setAdminTestKey: setTestKey, // tests de l'expulsion avec une clé jetable
     loadAdminToken: loadToken,
+    reportRoom: () => reportRoom(), // annuaire des espaces : annonce immédiate (tests)
     get lastDiag() { return lastDiag(); },
   };
 }

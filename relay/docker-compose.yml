@@ -11,6 +11,9 @@ services:
     restart: unless-stopped
     environment:
       - ALLOWED_ORIGINS=https://distance.brosseau.ovh,https://c4software.github.io
+      # Clé publique d'administration (« x.y »), la même que dans public/js/constantes.js : écrite par
+      # tools/admin-key.mjs. Elle réserve l'annuaire des espaces (/rooms) aux administrateurs.
+      - ADMIN_KEY=lZbylMSDtRGce6_Yu0RqVAVva1ufiEddXlJqZB0p4gg.sbZGNsB5kD9aoIPpZO-TV6eUuWL2p3myH0A1Q2XTRJQ
       # Vide = /turn ne propose pas le serveur TURN (à activer dans .env une fois ses ports ouverts)
       - TURN_HOST=${TURN_HOST:-}
       - TURN_SECRET=${TURN_SECRET:?TURN_SECRET manquant (services/remote-town-relay/.env)}
