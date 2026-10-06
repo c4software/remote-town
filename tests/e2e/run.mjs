@@ -386,13 +386,14 @@ const scenarios = {
       const rows = await listed(a);
       t.check(rows[0] === `${t.room} 2 personnes · vous êtes ici` && rows[1] === `${other} 1 personne`, `nombre de personnes par espace, du plus peuplé au moins peuplé (${rows.join(' | ')})`);
       t.check(await a.$eval('#phone .ph-note', (e) => e.textContent === '2 espaces · 3 personnes'), 'total des espaces et des personnes');
-      if (process.env.SHOT) await a.screenshot({ path: process.env.SHOT });
       await openPhone(b);
       t.check(await b.$('#phone .ph-nav-contacts') !== null && await b.$('#phone .ph-nav-spaces') === null, 'sans jeton : pas d\'entrée « Espaces actifs » dans le téléphone');
-      // Un clic y conduit, par la porte
-      await a.click('#phone .ph-space:nth-of-type(2) .ph-info');
+      // Le bouton de la ligne y conduit, par la porte ; pas de bouton pour l'espace où l'on est
+      t.check((await a.$$('#phone .ph-space .ph-go')).length === 1 && await a.$('#phone .ph-space.here .ph-go') === null, 'un bouton « s\'y rendre » par espace, sauf le sien');
+      if (process.env.SHOT) await a.screenshot({ path: process.env.SHOT });
+      await a.click('#phone .ph-space:not(.here) .ph-go');
       await waitPeers([a, c], 2);
-      t.check(!!(await seen(c, 'Alice')) && await a.$eval('#phone', (e) => e.hidden), 'clic sur un espace actif : on y va, téléphone replié');
+      t.check(!!(await seen(c, 'Alice')) && await a.$eval('#phone', (e) => e.hidden), 'bouton « s\'y rendre » : on y va, téléphone replié');
     } finally { relay.stop(); }
   },
 

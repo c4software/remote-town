@@ -382,7 +382,7 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .ph-kick:hover { background: var(--red); }
 .ph-warn { color: var(--yellow) !important; }
 .ph-spk.sel svg { background: var(--green-dark) !important; }
-.ph-contact .ph-info, .ph-space:not(.here) .ph-info { cursor: pointer; }
+.ph-contact .ph-info { cursor: pointer; }
 .ph-space.here b { color: var(--green); }
 .ph-conv { width: 100%; text-align: left; border-radius: 12px; padding: 6px 8px; color: #fff; }
 .ph-conv:hover { background: var(--panel-2); }
