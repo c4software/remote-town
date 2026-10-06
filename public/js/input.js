@@ -79,12 +79,16 @@ export function initInput() {
   });
   addEventListener('blur', () => { keys.clear(); digitsHeld.clear(); S.sprinting = false; if (S.me) { setPtt(false); setSixSeven(false); setDab(false); } });
 
+  // Le type de pointeur se lit à l'appui, pas au clic : sur iPhone, Safari annonce « mouse »
+  // pour le clic qui suit un toucher, et le déplacement au doigt était alors ignoré
+  let pointer = null;
+  canvas.addEventListener('pointerdown', (e) => { pointer = e.pointerType; });
   canvas.addEventListener('click', (e) => {
     if (!S.me) return;
     document.activeElement?.blur();
     // Sur ordinateur, on se déplace au clavier uniquement (E pour les chaises, le pupitre,
     // la porte) ; le clic sur la carte ne déplace que sur écran tactile, faute de clavier
-    if (e.pointerType === 'mouse') return;
+    if ((pointer ?? e.pointerType) === 'mouse') return;
     const tx = Math.floor((e.clientX / S.cam.zoom + S.cam.x) / TILE);
     const ty = Math.floor((e.clientY / S.cam.zoom + S.cam.y) / TILE);
     S.airTarget = false; S.portalTarget = false;
