@@ -23,7 +23,8 @@ const MAX_SUBS = 32;        // abonnements par connexion
 // Messages par seconde et par connexion, au-delà : ignorés. Large : dans une salle de 50, une
 // arrivée ou un rechargement envoie d'un coup une offre par personne et par annonce ; à 200,
 // des offres étaient perdues et certaines personnes ne se voyaient pas
-const MAX_RATE = 4000;
+const MAX_RATE = Number(process.env.MAX_RATE) || 4000;
+const RATE_NOTICE_MS = 10000; // au plus un avertissement « débit dépassé » par connexion sur cette durée
 const PING_MS = 25000;      // garde la connexion ouverte derrière le reverse proxy
 // Plafonds de connexions : une salle entière derrière la même IP (école, entreprise) doit
 // passer, avec une marge pour les onglets en double et les reconnexions
@@ -72,6 +73,7 @@ export function ipKey(raw) {
 
 // Compteurs, écrits dans le journal une fois par minute (docker logs remote-town-relay)
 const stats = { msgIn: 0, msgOut: 0, refused: {} };
+const RATE_NOTICE = 'débit dépassé : messages ignorés par le relais';
 const refuse = (why) => { stats.refused[why] = (stats.refused[why] || 0) + 1; };
 const perIp = new Map(); // ip -> connexions ouvertes
 const diagAt = new Map(); // ip -> heure du dernier diagnostic reçu
@@ -185,7 +187,13 @@ wss.on('connection', (ws) => {
 function onMessage(ws, raw) {
   const now = Date.now();
   if (now - ws.rate.at > 1000) ws.rate = { at: now, n: 0 };
-  if (++ws.rate.n > MAX_RATE) return refuse('débit');
+  if (++ws.rate.n > MAX_RATE) {
+    refuse('débit');
+    // La personne est prévenue : Trystero l'écrit dans sa console, reprise par le diagnostic
+    // de l'application (un refus silencieux a déjà rendu des personnes invisibles)
+    if (now - (ws.noticeAt || 0) > RATE_NOTICE_MS) { ws.noticeAt = now; send(ws, ['NOTICE', RATE_NOTICE]); }
+    return;
+  }
   stats.msgIn++;
   let msg;
   try { msg = JSON.parse(raw); } catch { return send(ws, ['NOTICE', 'JSON invalide']); }

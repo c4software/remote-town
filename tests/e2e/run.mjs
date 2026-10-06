@@ -672,7 +672,7 @@ const scenarios = {
     const toasts = await a.evaluate(() => document.querySelector('#toasts').innerText);
     // Presse-papiers refusé (Chrome sans interface) : la fenêtre de secours montre le texte
     const shown = await a.evaluate(() => !document.querySelector('#diagBox').hidden && document.querySelector('#diagText').value === rt.lastDiag);
-    for (const h of ['Page modifiée le', 'Navigateur', 'Salle : ', 'Nom : Alice', 'Relais de mise en relation', 'Personnes vues : 0', 'Liaisons WebRTC', 'Test ICE', 'Micro : ', 'Console Trystero']) {
+    for (const h of ['Page modifiée le', 'Navigateur', 'Salle : ', 'Nom : Alice', 'Relais de mise en relation', 'Messages ignorés par le relais : aucun', 'Personnes vues : 0', 'Liaisons WebRTC', 'Test ICE', 'Micro : ', 'Console Trystero']) {
       t.check(text.includes(h), `diagnostic : rubrique « ${h.trim()} »`);
     }
     // Pas d'adresse IP (un numéro de version « Chrome/141.0.0.0 » n'en est pas une)

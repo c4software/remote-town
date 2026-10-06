@@ -10,6 +10,9 @@ import { MAP } from './world.js';
 const MAX_LOGS = 30;
 const logs = []; // derniers messages de console mentionnant Trystero, depuis le démarrage
 let lastText = ''; // dernier diagnostic produit (tests)
+// Avertissements de notre relais quand il ignore nos messages (débit dépassé, voir
+// relay/server.mjs) : des offres perdues, donc des personnes qu'on ne voit pas
+const dropped = { n: 0, last: '' };
 
 export function initDiag() {
   // Trystero signale ses soucis (relais injoignable, pair en erreur) par console.warn /
@@ -19,6 +22,7 @@ export function initDiag() {
     console[level] = (...args) => {
       const text = args.map(fmt).join(' ');
       if (/trystero/i.test(text)) {
+        if (/débit dépassé/.test(text)) { dropped.n++; dropped.last = clock(); }
         logs.push(`${clock()} [${level}] ${text.slice(0, 300)}`);
         if (logs.length > MAX_LOGS) logs.shift();
       }
@@ -102,6 +106,8 @@ export async function diagnostic() {
   const ours = netUrl() ? `${netUrl().replace(/^http/, 'ws')}/relay` : '';
   for (const [url, ws] of Object.entries(sockets)) lines.push(`  - ${url} : ${WS_STATE[ws?.readyState] || 'inconnu'}${url === ours ? ' (le nôtre)' : ''}`);
   if (!Object.keys(sockets).length) lines.push('  - aucun');
+
+  add('Messages ignorés par le relais', dropped.n ? `${dropped.n} avertissement${dropped.n > 1 ? 's' : ''} (débit dépassé), le dernier à ${dropped.last}` : 'aucun');
 
   const others = [...users.values()].filter((u) => !u.isMe);
   add('Personnes vues', `${others.length}${others.length ? ` (${others.map((u) => u.name).join(', ')})` : ''}`);
