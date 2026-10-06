@@ -17,6 +17,11 @@ export const WALKIE_BEEP_GAP = 3000; // N répété avant ce délai : pas de nou
 // Téléphone (phone.js) : durée de la sonnerie, délai entre deux appels, temps laissé pour
 // choisir de laisser un message, durée et taille maximales du message, messages gardés
 export const CALL = { ringFileGapMs: 10000, ringMs: 20000, gapMs: 30000, awayMs: 20000, vmailMs: 20000, vmailBytes: 400000, vmailKeep: 5 };
+// Partage d'écran (media.js) : chaque spectateur reçoit son propre flux, encodé et envoyé par
+// la personne qui partage. Le débit montant total est donc réparti entre les spectateurs
+// (totalKbps, borné par flux), les images par seconde baissent avec leur nombre (fps :
+// [spectateurs au plus, images/s]) et un écran très défini est réduit à maxHeight lignes.
+export const SHARE = { totalKbps: 8000, maxKbps: 2000, minKbps: 200, maxHeight: 1080, fps: [[6, 15], [15, 10], [Infinity, 5]] };
 
 export const WORLD_W = MAP_W * TILE;
 export const WORLD_H = MAP_H * TILE;

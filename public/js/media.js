@@ -2,6 +2,7 @@
 // voix reçues (volume, effet), et actions micro / N / partage d'écran.
 import { isBanned } from './admin.js';
 import { initMic, makeAnalyser, setSpeakerFx, walkieBeep } from './audio.js';
+import { SHARE } from './constantes.js';
 import { $, toast } from './dom.js';
 import { updateUI } from './hud.js';
 import { broadcast, phoneState } from './net.js';
@@ -70,8 +71,38 @@ function applySenders(u) {
     const t = S.screenTrack.clone();
     t.contentHint = 'detail';
     L.screenOut = addOut(t, 'screen', u.id);
+    L.screenTune = null;
   }
   if (L.screenOut) L.screenOut.getTracks()[0].enabled = v;
+}
+
+// Partage d'écran vers beaucoup de monde : un flux par spectateur, tous encodés et envoyés
+// d'ici. Sans plafond, chaque flux prend plusieurs Mbit/s et la machine comme la connexion
+// saturent. On répartit donc un débit total entre les spectateurs (réglages SHARE), appliqué
+// sur chaque envoi sans renégocier, et recalculé quand leur nombre change.
+let tuneTimer = null;
+function tuneShare() {
+  const out = [...links].filter(([, L]) => L.screenOut?.getTracks()[0].enabled);
+  if (!out.length || !S.screenTrack) return;
+  const n = out.length;
+  const kbps = Math.round(Math.max(SHARE.minKbps, Math.min(SHARE.maxKbps, SHARE.totalKbps / n)));
+  const fps = SHARE.fps.find(([max]) => n <= max)[1];
+  const scale = Math.max(1, (S.screenTrack.getSettings().height || 0) / SHARE.maxHeight);
+  const key = `${kbps}|${fps}|${scale}`;
+  const peers = S.room?.getPeers?.() || {};
+  let missing = false;
+  for (const [id, L] of out) {
+    if (L.screenTune === key) continue;
+    const track = L.screenOut.getTracks()[0];
+    const sender = peers[id]?.getSenders().find((s) => s.track === track);
+    const p = sender?.getParameters();
+    // Envoi pas encore créé ou pas encore négocié : on y revient dans un instant
+    if (!p?.encodings?.length) { missing = true; continue; }
+    Object.assign(p.encodings[0], { maxBitrate: kbps * 1000, maxFramerate: fps, scaleResolutionDownBy: scale });
+    L.screenTune = key;
+    sender.setParameters(p).catch(() => { L.screenTune = null; });
+  }
+  if (missing && !tuneTimer) tuneTimer = setTimeout(() => { tuneTimer = null; tuneShare(); }, 1000);
 }
 
 // Côte à côte avec le micro coupé : notification à chaque rencontre
@@ -127,6 +158,7 @@ export function updateRouting() {
   notifyBeside();
   nearbyRing();
   for (const u of users.values()) if (!u.isMe) applySenders(u);
+  tuneShare();
   for (const [id, L] of links) {
     const u = users.get(id);
     setSpeakerFx(L, isOnAir(u));

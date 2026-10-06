@@ -492,6 +492,10 @@ const scenarios = {
     const sb = await state(b), sc = await state(c);
     t.check(sb.pip && !sb.focus, 'écran diffusé : en PiP dans le couloir');
     t.check(sc.pip && !sc.focus, 'écran diffusé : en PiP aussi dans le bureau principal (pas d\'ouverture automatique)');
+    // Débit du partage plafonné et réparti entre les spectateurs (2 ici : 2 Mbit/s chacun au plus)
+    const caps = await a.evaluate(() => Object.values(rt.room.getPeers()).flatMap((pc) => pc.getSenders())
+      .filter((s) => s.track?.kind === 'video').map((s) => s.getParameters().encodings[0]?.maxBitrate));
+    t.check(caps.length === 2 && caps.every((c) => c === 2000000), 'partage d\'écran : débit plafonné pour chaque spectateur');
     await b.click('#airPip .air-card');
     await wait(300);
     const big = await state(b);
