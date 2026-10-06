@@ -86,8 +86,8 @@ function tuneShare() {
   if (!out.length || !S.screenTrack) return;
   const n = out.length;
   const kbps = Math.round(Math.max(SHARE.minKbps, Math.min(SHARE.maxKbps, SHARE.totalKbps / n)));
-  const fps = SHARE.fps.find(([max]) => n <= max)[1];
-  const scale = Math.max(1, (S.screenTrack.getSettings().height || 0) / SHARE.maxHeight);
+  const [, fps, height] = SHARE.tiers.find(([max]) => n <= max);
+  const scale = Math.max(1, (S.screenTrack.getSettings().height || 0) / height);
   const key = `${kbps}|${fps}|${scale}`;
   const peers = S.room?.getPeers?.() || {};
   let missing = false;

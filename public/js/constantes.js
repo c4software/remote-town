@@ -19,9 +19,10 @@ export const WALKIE_BEEP_GAP = 3000; // N répété avant ce délai : pas de nou
 export const CALL = { ringFileGapMs: 10000, ringMs: 20000, gapMs: 30000, awayMs: 20000, vmailMs: 20000, vmailBytes: 400000, vmailKeep: 5 };
 // Partage d'écran (media.js) : chaque spectateur reçoit son propre flux, encodé et envoyé par
 // la personne qui partage. Le débit montant total est donc réparti entre les spectateurs
-// (totalKbps, borné par flux), les images par seconde baissent avec leur nombre (fps :
-// [spectateurs au plus, images/s]) et un écran très défini est réduit à maxHeight lignes.
-export const SHARE = { totalKbps: 8000, maxKbps: 2000, minKbps: 200, maxHeight: 1080, fps: [[6, 15], [15, 10], [Infinity, 5]] };
+// (totalKbps, borné par flux) ; les images par seconde et la hauteur de l'image baissent avec
+// leur nombre (tiers : [spectateurs au plus, images/s, lignes]). À 45 spectateurs sans ces
+// paliers, la machine qui partage saturait : son personnage se figeait ou disparaissait.
+export const SHARE = { totalKbps: 5000, maxKbps: 2000, minKbps: 100, tiers: [[6, 15, 1080], [15, 8, 1080], [30, 5, 720], [Infinity, 3, 720]] };
 
 export const WORLD_W = MAP_W * TILE;
 export const WORLD_H = MAP_H * TILE;
