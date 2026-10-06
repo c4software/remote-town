@@ -2,82 +2,126 @@
 // Lancer : npm run test:e2e            (tous les scénarios)
 //          npm run test:e2e -- pupitre (seulement les scénarios dont le nom contient « pupitre »)
 // Nécessite Chrome et un accès Internet (les relais Nostr publics servent à la mise en relation).
-import { hears, join, launchBrowser, me, pathDone, place, seen, startServer, wait, waitPeers } from './helpers.mjs';
+import { hears, join, launchBrowser, me, openPerson, openPhone, openProfile, pathDone, peer, place, seen, startServer, tile, until, voiceVolume, wait, waitPeers } from './helpers.mjs';
 
 const scenarios = {
-  async 'connexion, déplacements et chat'(t) {
+  async 'connexion, déplacements et fatigue'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
     await place(a, 30, 10);
-    await wait(800);
-    t.check((await seen(b, 'Alice')).x === 30, 'Bob voit Alice se déplacer');
+    t.check(await until(async () => (await seen(b, 'Alice')).x === 30), 'Bob voit Alice se déplacer');
     // Sur ordinateur, un clic de souris sur la carte ne déplace pas (clavier uniquement)
-    const tile = (x, y) => a.evaluate(([x, y]) => ({ x: (x * 32 + 16 - rt.cam.x) * rt.cam.zoom, y: (y * 32 + 16 - rt.cam.y) * rt.cam.zoom }), [x, y]);
-    const far = await tile(34, 10);
+    const far = await tile(a, 34, 10);
     await a.mouse.click(far.x, far.y);
     await wait(1500);
     t.check((await me(a)).x === 30, 'clic de souris sur la carte : pas de déplacement');
     await a.keyboard.press('KeyV');
-    await wait(500);
-    t.check(await b.evaluate(() => [...rt.users.values()].some((u) => u.name === 'Alice' && u.jumpAt > 0)), 'V : Bob voit Alice sauter');
-    // Discussions du téléphone : groupe « Tout le monde », puis message direct
-    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-chats'); await a.click('#phone .ph-conv[data-conv=global]');
-    await a.type('#chatInput', 'bonjour à tous');
-    await a.keyboard.press('Enter');
-    await wait(1200);
-    t.check(await b.$eval('#phoneBtn .badge', (e) => !e.hidden && e.textContent === '1'), 'message non lu : pastille sur le bouton du téléphone');
-    t.check(await b.$eval('#notifs .notif', (e) => e.textContent.includes('Alice') && e.textContent.includes('bonjour à tous') && !!e.querySelector('canvas')), 'notification du message : portrait, nom et texte');
-    await b.click('#notifs .notif');
-    await wait(500);
-    t.check(await b.evaluate(() => document.querySelector('#messages').innerText.includes('bonjour à tous')), 'clic sur la notification : la conversation s\'ouvre (chat global reçu)');
-    t.check(await b.$('#notifs .notif') === null, 'notification retirée');
-    t.check(await b.$eval('#phoneBtn .badge', (e) => e.hidden), 'conversation ouverte : plus de pastille');
-    const c = await join(t, 'Chloé');
-    await waitPeers([a, b, c]);
-    await b.click('#phone .ph-back'); await b.click('#phone .ph-back'); await b.click('#phone .ph-nav-contacts');
-    await b.evaluate(() => [...document.querySelectorAll('#phone .ph-contact')].find((r) => r.textContent.includes('Alice')).querySelector('.ph-info').click());
-    await b.click('#phone .ph-act-msg');
-    await b.type('#chatInput', 'juste pour toi');
-    await b.keyboard.press('Enter');
-    await wait(1200);
-    const dms = (page) => page.evaluate(() => { rt.openChat('dm:bob'); return document.querySelector('#messages').innerText; });
-    t.check((await dms(a)).includes('juste pour toi'), 'message direct reçu par Alice');
-    t.check(!(await c.evaluate(() => { rt.openChat('dm:bob'); const t = document.querySelector('#messages').innerText; rt.openChat('global'); return t + document.querySelector('#messages').innerText; })).includes('juste pour toi'), 'message direct : pas vu par Chloé');
-    await c.close();
-    await waitPeers([a, b]);
+    t.check(await until(async () => await peer(b, 'Alice', 'jumpAt') > 0), 'V : Bob voit Alice sauter');
+    // Fiche d'une personne, depuis les contacts : on peut la rejoindre (le trajet est vérifié dans « gestes »)
     await place(b, 45, 11);
     await wait(600);
-    await a.click('#phone .ph-back'); await a.click('#phone .ph-back'); await a.click('#phone .ph-nav-contacts');
+    await openPhone(a, 'contacts');
     await a.click('#phone .ph-contact .ph-info');
-    await a.click('#phone .ph-act-join');
-    await pathDone(a);
-    const pa = await me(a);
-    t.check(Math.abs(pa.x - 45) + Math.abs(pa.y - 11) === 1, 'clic sur un participant : on le rejoint');
+    t.check(await a.$('#phone .ph-act-join') !== null, 'fiche d\'un contact : bouton « Rejoindre »');
+    await a.click('#phone .ph-close'); await wait(400);
+    // Endurance : la course est limitée
+    await place(a, 17, 10);
+    await wait(300);
+    const st = () => a.evaluate(() => rt.stamina);
+    // Course d'un bout à l'autre du couloir, puis retour : l'endurance s'épuise
+    await a.keyboard.down('Shift');
+    await a.keyboard.down('ArrowRight'); await wait(3200); await a.keyboard.up('ArrowRight');
+    const half = await st();
+    t.check(half.value < 60 && !half.exhausted, `courir vide l'endurance (${Math.round(half.value)} après un aller)`);
+    // Retour : on guette l'essoufflement pendant la course
+    await a.keyboard.down('ArrowLeft');
+    const out = await a.evaluate(() => new Promise((res) => {
+      const t0 = performance.now();
+      const tick = () => (rt.stamina.exhausted ? res(true) : performance.now() - t0 > 3500 ? res(false) : setTimeout(tick, 50));
+      tick();
+    }));
+    t.check(out, 'aller-retour en courant : essoufflé·e');
+    // Essoufflé·e : Maj ne fait plus courir (un pas de marche dure 140 ms au lieu de 65)
+    const x0 = (await me(a)).x;
+    await wait(1000);
+    const moved = x0 - (await me(a)).x;
+    await a.keyboard.up('ArrowLeft');
+    t.check(moved > 0 && moved <= 8, `essoufflé·e : on marche au lieu de courir (${moved} cases en 1 s)`);
+    await a.keyboard.up('Shift');
+    await wait(3000);
+    const rest = await st();
+    t.check(!rest.exhausted && rest.value >= 40, `au repos : souffle repris (${Math.round(rest.value)})`);
   },
 
-  async '67'(t) {
+  async 'gestes : 67, dab, émotes et mains levées'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
-    const alice67 = () => b.evaluate(() => !![...rt.users.values()].find((u) => u.name === 'Alice').sixSeven);
+    const alice67 = () => peer(b, 'Alice', 'sixSeven');
     await a.keyboard.down('Digit6'); await a.keyboard.down('Digit7');
     await wait(1500);
     t.check(await alice67(), '6 + 7 maintenus : Bob voit le « 67 » d\'Alice');
     t.check(await a.evaluate(() => !rt.me.reacts?.length), '6 + 7 : pas de réaction 😮');
     await a.keyboard.up('Digit7');
-    await wait(600);
-    t.check(!(await alice67()), 'touche relâchée : le « 67 » s\'arrête');
+    t.check(await until(async () => !(await alice67())), 'touche relâchée : le « 67 » s\'arrête');
     // Dab : B maintenu
-    const aliceDab = () => b.evaluate(() => !![...rt.users.values()].find((u) => u.name === 'Alice').dab);
+    const aliceDab = () => peer(b, 'Alice', 'dab');
     await a.keyboard.down('KeyB');
-    await wait(1200);
-    t.check(await aliceDab(), 'B maintenu : Bob voit le dab d\'Alice');
+    t.check(await until(async () => await aliceDab()), 'B maintenu : Bob voit le dab d\'Alice');
     await a.keyboard.up('KeyB');
-    await wait(800);
-    t.check(!(await aliceDab()), 'B relâché : le dab s\'arrête');
+    t.check(await until(async () => !(await aliceDab())), 'B relâché : le dab s\'arrête');
     await a.keyboard.up('Digit6');
     await a.keyboard.press('Digit6');
+    t.check(await until(async () => (await peer(b, 'Alice', 'reacts'))?.some((r) => r.e === '😮')), '6 seul : réaction 😮');
+    // Émotes : roue du clic droit, machine à eau, absence
+    await place(a, 30, 10);
     await wait(600);
-    t.check(await b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').reacts?.some((r) => r.e === '😮')), '6 seul : réaction 😮');
+    const aliceEmote = () => peer(b, 'Alice', 'emote');
+    // Clic droit maintenu, on glisse vers le haut (Travail) et on relâche
+    await a.mouse.move(500, 400);
+    await a.mouse.down({ button: 'right' });
+    t.check(await a.evaluate(() => !document.querySelector('#emoteWheel').hidden), 'clic droit maintenu : la roue s\'ouvre');
+    await a.mouse.move(500, 330, { steps: 4 });
+    await a.mouse.up({ button: 'right' });
+    t.check(await until(async () => await aliceEmote() === 'work'), 'glisser vers une émote et relâcher : Bob la voit');
+    // Clic droit bref : la roue reste ouverte, on clique sur Café
+    await a.mouse.click(500, 400, { button: 'right' });
+    await wait(200);
+    await a.click('#emoteWheel [data-emote=coffee]');
+    t.check(await until(async () => await aliceEmote() === 'coffee'), 'clic droit bref puis clic : émote changée');
+    await a.keyboard.down('ArrowDown'); await wait(250); await a.keyboard.up('ArrowDown');
+    t.check(await until(async () => await aliceEmote() === null), 'se déplacer retire l\'émote');
+    // Machine à eau du couloir (41, 12) : E à côté d'elle = pause café
+    await place(a, 41, 11);
+    await wait(400);
+    await a.keyboard.press('KeyE');
+    t.check(await until(async () => await aliceEmote() === 'coffee' && (await seen(b, 'Alice')).x === 41), 'E à côté de la machine à eau : pause café, vue par Bob');
+    t.check((await me(a)).dir === 'down' && !(await me(a)).seated, 'tournée vers la machine, sans s\'asseoir');
+    await a.keyboard.press('KeyE');
+    t.check(await until(async () => await aliceEmote() === null), 'E à nouveau : fin de la pause café');
+    // Absence : onglet quitté sans action depuis plus de 10 minutes, « Travail » d'office
+    await a.evaluate(() => rt.checkAway(11 * 60000)); await wait(600);
+    t.check(await aliceEmote() === null, 'onglet visible : pas d\'émote d\'absence');
+    const other = await a.browserContext().newPage();
+    await other.bringToFront();
+    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
+    await a.evaluate(() => rt.checkAway(9 * 60000)); await wait(600);
+    t.check(await aliceEmote() === null, 'onglet quitté depuis moins de 10 minutes : rien');
+    await a.evaluate(() => rt.checkAway(11 * 60000));
+    t.check(await until(async () => await aliceEmote() === 'work'), 'onglet quitté, 10 minutes sans action : émote « Travail » vue par Bob');
+    await a.bringToFront();
+    await other.close();
+    t.check(await until(async () => await aliceEmote() === null), 'retour sur l\'onglet : l\'émote d\'absence est retirée');
+    // Main levée : une bulle chez les autres, d'où l'on rejoint la personne
+    await place(a, 30, 10); await place(b, 66, 10);
+    await wait(600);
+    await b.keyboard.press('KeyH');
+    t.check(await until(async () => (await a.$$('#hands .hand-bubble')).length === 1), 'bulle de main levée');
+    await a.click('#hands .hand-bubble');
+    t.check(await a.$eval('#personMenu', (e) => !e.hidden && !!e.querySelector('.pm-join') && !!e.querySelector('.pm-call')), 'clic sur la bulle : rejoindre ou appeler');
+    await a.click('#personMenu .pm-join');
+    await pathDone(a);
+    const pa = await me(a);
+    t.check(Math.abs(pa.x - 66) + Math.abs(pa.y - 10) === 1, 'clic sur la bulle : on rejoint la personne');
   },
 
   async 'audio selon les zones'(t) {
@@ -90,7 +134,7 @@ const scenarios = {
     t.check(await hears(b, 'Alice'), 'micro de bureau : entendu dans le bureau');
     t.check(!(await hears(c, 'Alice')), 'micro de bureau : pas entendu ailleurs');
     // Changement de micro en pleine conversation : on reste entendu
-    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
+    await openProfile(a);
     const mics = await a.$$eval('#micSelect option', (o) => o.map((x) => x.value).filter(Boolean));
     if (mics.length) await a.select('#micSelect', mics.at(-1));
     await wait(1200);
@@ -99,9 +143,8 @@ const scenarios = {
     t.check(await hears(b, 'Alice'), 'changement de micro : toujours entendu dans le bureau');
     // Volume personnel : Bob coupe Alice depuis le menu du clic droit, puis rétablit
     const aliceId = await a.evaluate(() => rt.me.id);
-    const aliceVolume = () => b.evaluate((id) => rt.links.get(id)?.audioEl?.volume, aliceId);
-    await b.evaluate((id) => rt.openPerson(id), aliceId);
-    await wait(500);
+    const aliceVolume = () => voiceVolume(b, 'Alice');
+    await openPerson(b, 'Alice');
     t.check(await b.$eval('#phone .ph-person', (e) => e.textContent.includes('Volume d\'Alice')), 'fiche d\'Alice dans le téléphone : « Volume d\'Alice »');
     await b.click('#phone .ph-vol button');
     await wait(300);
@@ -127,7 +170,7 @@ const scenarios = {
     const vols = [];
     for (const x of [31, 33]) {
       await place(b, x, 10); await wait(600);
-      vols.push(await b.evaluate(() => { const u = [...rt.users.values()].find((x) => x.name === 'Alice'); return rt.links.get(u.id)?.audioEl?.volume; }));
+      vols.push(await voiceVolume(b, 'Alice'));
     }
     await a.keyboard.up('KeyN');
     t.check(vols[0] === 1 && vols[1] < 1, `N : volume progressif (${vols.map((v) => v?.toFixed(2)).join(' → ')})`);
@@ -140,11 +183,7 @@ const scenarios = {
     await place(a, 30, 10); await place(b, 20, 5);
     await wait(500);
     // Appel depuis la fiche de la personne, dans les contacts du téléphone
-    const call = async (page, name) => {
-      await page.evaluate((name) => rt.openPerson([...rt.users.values()].find((u) => u.name === name).id), name);
-      await wait(500); // le téléphone monte du bas de l'écran
-      await page.click('#phone .ph-act-call');
-    };
+    const call = async (page, name) => { await openPerson(page, name); await page.click('#phone .ph-act-call'); };
     // Son réellement reçu, mesuré sur la liaison (énergie audio décodée pendant 2 s) : en
     // conversation à deux sens, l'indicateur de niveau lu par hears() reste parfois muet
     const energy = (page) => page.evaluate(async () => {
@@ -156,26 +195,18 @@ const scenarios = {
     const has = (page, sel) => page.$eval('#phone', (e, sel) => !e.hidden && !!e.querySelector(sel), sel);
     // Téléphone replié : un bouton ; déplié : contacts, messagerie, réglages
     t.check(await a.$eval('#phone', (e) => e.hidden) && await a.$eval('#bar #phoneBtn', (e) => !e.hidden), 'hors appel : téléphone replié, bouton dans la barre');
-    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-settings');
+    await openPhone(a, 'settings');
     t.check(await a.$$eval('#phone .ph-ring', (o) => o.map((x) => x.dataset.ring).join()) === 'ip,bell,beeps,chime,file', 'réglages : choix de la sonnerie');
     await a.click('#phone .ph-ring[data-ring="bell"]');
     t.check(await a.evaluate(() => JSON.parse(localStorage.getItem('rt-prefs')).ring) === 'bell', 'sonnerie choisie mémorisée');
     await a.click('#phone .ph-back'); await a.click('#phone .ph-nav-contacts');
     t.check(await a.$$eval('#phone .ph-contact', (o) => o.map((x) => x.querySelector('b').textContent).join()) === 'Bob', 'contacts : Bob');
-    await a.click('#phone .ph-back'); await a.click('#phone .ph-nav-profile');
-    await a.click('#phone .ph-chips[data-part="shirt"] .ph-sw:nth-child(3)');
-    await a.select('#phone .ph-select[data-part="head"]', 'cap');
-    await wait(600);
-    t.check(await a.evaluate(() => rt.me.look.shirt === '#ef476f' && rt.me.look.head === 'cap'), '« Mon personnage » dans le téléphone : couleur et accessoire appliqués');
-    const lb = await seen(b, 'Alice');
-    t.check(lb.look.shirt === '#ef476f' && lb.look.head === 'cap', 'Bob voit le nouveau personnage d\'Alice');
-    t.check(await a.$eval('#phone .ph-look', (e) => !e.querySelector('input') && e.querySelector('.ph-name').textContent === 'Alice'), 'le nom est affiché, pas modifiable dans le téléphone');
     await a.click('#phone .ph-close');
     await call(a, 'Bob');
     await wait(1000);
     t.check(await has(a, '.ph-out'), 'Alice : appel en cours vers Bob');
     t.check(await has(b, '.ph-in .ph-accept'), 'Bob : ça sonne, il peut décrocher');
-    const shown = (page, who) => page.evaluate((who) => [...rt.users.values()].find((x) => x.name === who).phone ?? null, who);
+    const shown = (page, who) => peer(page, who, 'phone');
     t.check(await shown(a, 'Bob') === 'ring' && await shown(b, 'Alice') === 'call', 'vu des autres : le téléphone de Bob sonne, Alice est au téléphone');
     await b.click('#phone .ph-accept');
     await wait(2500);
@@ -185,7 +216,7 @@ const scenarios = {
     // Haut-parleur : annoncé aux autres, et signalé à la personne en ligne
     await a.click('#phone .ph-spk');
     await wait(800);
-    t.check(await a.evaluate(() => rt.me.speaker === true) && await b.evaluate(() => [...rt.users.values()].find((x) => x.name === 'Alice').speaker === true), 'haut-parleur activé par Alice, vu de Bob');
+    t.check(await a.evaluate(() => rt.me.speaker === true) && await peer(b, 'Alice', 'speaker') === true, 'haut-parleur activé par Alice, vu de Bob');
     t.check(await has(b, '.ph-warn'), 'Bob est prévenu que le haut-parleur est activé chez Alice');
     await a.click('#phone .ph-end');
     await wait(1000);
@@ -207,7 +238,7 @@ const scenarios = {
     await b.click('#phone .ph-send');
     await wait(1500);
     t.check(await a.$eval('#phoneBtn .badge', (e) => !e.hidden && e.textContent === '1'), 'pastille « 1 message » sur le bouton du téléphone');
-    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-vmail');
+    await openPhone(a, 'vmail');
     const dur = await a.evaluate(() => new Promise((res) => {
       const au = document.querySelector('#phone .ph-vmail audio');
       if (!au) return res(-1);
@@ -221,7 +252,7 @@ const scenarios = {
     const c = await join(t, 'Chloé');
     await waitPeers([a, b, c]);
     await place(c, 34, 10); await wait(500);
-    await c.click('#phoneBtn'); await wait(500); await c.click('#phone .ph-nav-contacts');
+    await openPhone(c, 'contacts');
     await c.click('#phone .ph-contact:first-child .ph-dial');
     await wait(1200);
     t.check(await has(c, '.ph-away .ph-record') && await a.$eval('#phone', (e) => e.hidden), 'ne pas déranger : appel depuis les contacts renvoyé vers la messagerie, sans sonner');
@@ -257,14 +288,13 @@ const scenarios = {
     await waitPeers([a, b, c]);
     await place(a, 45, 10); await place(b, 30, 10); await place(c, 32, 10);
     await wait(500);
-    await b.click('#phoneBtn'); await wait(500); await b.click('#phone .ph-nav-settings');
+    await openPhone(b, 'settings');
     const [chooser] = await Promise.all([b.waitForFileChooser(), b.click('#phone .ph-ring[data-ring=file]')]);
     await chooser.accept([file]);
     await wait(800);
     t.check(await b.evaluate(() => JSON.parse(localStorage.getItem('rt-prefs')).ring === 'file' && localStorage.getItem('rt-ring-file').startsWith('data:audio')), 'Bob choisit un fichier audio comme sonnerie');
     await b.click('#phone .ph-close');
-    await a.evaluate(() => rt.openPerson([...rt.users.values()].find((u) => u.name === 'Bob').id));
-    await wait(500);
+    await openPerson(a, 'Bob');
     await a.click('#phone .ph-act-call');
     await wait(2500);
     const near = await c.evaluate(() => rt.nearRing);
@@ -274,62 +304,13 @@ const scenarios = {
     const far = await c.evaluate(() => rt.nearRing);
     t.check(far?.volume > 0 && far.volume < near.volume, `plus loin : moins fort (${far?.volume?.toFixed(2)})`);
     // Réglage « Sonneries personnelles des autres » coupé : retour au motif par défaut
-    await c.click('#phoneBtn'); await wait(500); await c.click('#phone .ph-nav-settings'); await c.click('#phone .ph-others');
+    await openPhone(c, 'settings'); await c.click('#phone .ph-others');
     await wait(500);
     const plain = await c.evaluate(() => rt.nearRing);
     t.check(plain?.custom === false && plain.key === 'ip', 'réglage coupé : Chloé entend la sonnerie par défaut');
     await a.click('#phone .ph-end');
     await wait(800);
     t.check(await c.evaluate(() => rt.nearRing) === null, 'appel annulé : la sonnerie s\'arrête chez Chloé');
-  },
-
-  async 'émotes'(t) {
-    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
-    await waitPeers([a, b]);
-    await place(a, 30, 10);
-    await wait(600);
-    const aliceEmote = () => b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').emote || null);
-    // Clic droit maintenu, on glisse vers le haut (Travail) et on relâche
-    await a.mouse.move(500, 400);
-    await a.mouse.down({ button: 'right' });
-    t.check(await a.evaluate(() => !document.querySelector('#emoteWheel').hidden), 'clic droit maintenu : la roue s\'ouvre');
-    await a.mouse.move(500, 330, { steps: 4 });
-    await a.mouse.up({ button: 'right' });
-    await wait(800);
-    t.check(await aliceEmote() === 'work', 'glisser vers une émote et relâcher : Bob la voit');
-    // Clic droit bref : la roue reste ouverte, on clique sur Café
-    await a.mouse.click(500, 400, { button: 'right' });
-    await wait(200);
-    await a.click('#emoteWheel [data-emote=coffee]');
-    await wait(800);
-    t.check(await aliceEmote() === 'coffee', 'clic droit bref puis clic : émote changée');
-    await a.keyboard.down('ArrowDown'); await wait(250); await a.keyboard.up('ArrowDown');
-    await wait(800);
-    t.check(await aliceEmote() === null, 'se déplacer retire l\'émote');
-    // Machine à eau du couloir (41, 12) : E à côté d'elle = pause café
-    await place(a, 41, 11);
-    await wait(400);
-    await a.keyboard.press('KeyE');
-    await wait(800);
-    t.check(await aliceEmote() === 'coffee' && (await seen(b, 'Alice')).x === 41, 'E à côté de la machine à eau : pause café, vue par Bob');
-    t.check((await me(a)).dir === 'down' && !(await me(a)).seated, 'tournée vers la machine, sans s\'asseoir');
-    await a.keyboard.press('KeyE');
-    await wait(800);
-    t.check(await aliceEmote() === null, 'E à nouveau : fin de la pause café');
-    // Absence : onglet quitté sans action depuis plus de 10 minutes, « Travail » d'office
-    await a.evaluate(() => rt.checkAway(11 * 60000)); await wait(600);
-    t.check(await aliceEmote() === null, 'onglet visible : pas d\'émote d\'absence');
-    const other = await a.browserContext().newPage();
-    await other.bringToFront();
-    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
-    await a.evaluate(() => rt.checkAway(9 * 60000)); await wait(600);
-    t.check(await aliceEmote() === null, 'onglet quitté depuis moins de 10 minutes : rien');
-    await a.evaluate(() => rt.checkAway(11 * 60000)); await wait(800);
-    t.check(await aliceEmote() === 'work', 'onglet quitté, 10 minutes sans action : émote « Travail » vue par Bob');
-    await a.bringToFront();
-    await other.close();
-    await wait(800);
-    t.check(await aliceEmote() === null, 'retour sur l\'onglet : l\'émote d\'absence est retirée');
   },
 
   async 'porte des espaces'(t) {
@@ -368,14 +349,11 @@ const scenarios = {
     for (const p of [a, b, c]) await p.evaluate((k) => rt.setAdminTestKey(k), { x: pub.x, y: pub.y });
     await a.evaluate((tk) => rt.loadAdminToken(tk), token);
     // Sans jeton, le clic droit dans la liste ne propose rien
-    const bobId = await b.evaluate(() => rt.me.id);
-    await c.evaluate((id) => rt.openPerson(id), bobId);
-    await wait(500);
+    await openPerson(c, 'Bob');
     t.check(await c.$eval('#phone', (e) => !e.hidden && !e.querySelector('.ph-kick')), 'sans jeton : fiche sans expulsion');
     // Alice expulse Bob : sa fiche dans le téléphone, puis confirmation
     a.once('dialog', (d) => d.accept());
-    await a.evaluate((id) => rt.openPerson(id), bobId);
-    await wait(500);
+    await openPerson(a, 'Bob');
     t.check(await a.$eval('#phone .ph-kick', (e) => e.textContent.includes('Bob')), 'avec jeton : « Expulser Bob » dans sa fiche');
     await a.click('#phone .ph-kick');
     await wait(1500);
@@ -422,49 +400,19 @@ const scenarios = {
     t.check(!!(await seen(a, 'Alice 2')), 'Alice voit « Alice 2 »');
   },
 
-  async 'fatigue'(t) {
-    const a = await join(t, 'Alice');
-    await place(a, 17, 10);
-    await wait(300);
-    const st = () => a.evaluate(() => rt.stamina);
-    // Course d'un bout à l'autre du couloir, puis retour : l'endurance s'épuise
-    await a.keyboard.down('Shift');
-    await a.keyboard.down('ArrowRight'); await wait(3200); await a.keyboard.up('ArrowRight');
-    const half = await st();
-    t.check(half.value < 60 && !half.exhausted, `courir vide l'endurance (${Math.round(half.value)} après un aller)`);
-    // Retour : on guette l'essoufflement pendant la course
-    await a.keyboard.down('ArrowLeft');
-    const out = await a.evaluate(() => new Promise((res) => {
-      const t0 = performance.now();
-      const tick = () => (rt.stamina.exhausted ? res(true) : performance.now() - t0 > 3500 ? res(false) : setTimeout(tick, 50));
-      tick();
-    }));
-    t.check(out, 'aller-retour en courant : essoufflé·e');
-    // Essoufflé·e : Maj ne fait plus courir (un pas de marche dure 140 ms au lieu de 65)
-    const x0 = (await me(a)).x;
-    await wait(1000);
-    const moved = x0 - (await me(a)).x;
-    await a.keyboard.up('ArrowLeft');
-    t.check(moved > 0 && moved <= 8, `essoufflé·e : on marche au lieu de courir (${moved} cases en 1 s)`);
-    await a.keyboard.up('Shift');
-    await wait(3000);
-    const rest = await st();
-    t.check(!rest.exhausted && rest.value >= 40, `au repos : souffle repris (${Math.round(rest.value)})`);
-  },
-
   async 'toucher sur mobile'(t) {
     // Sur écran tactile, toucher la carte déplace toujours le personnage (pas de clavier)
     const m = await join(t, 'Mobile', { viewport: { width: 390, height: 780, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } });
     await place(m, 30, 10);
     await wait(500);
-    const p = await m.evaluate(() => ({ x: (32 * 32 + 16 - rt.cam.x) * rt.cam.zoom, y: (10 * 32 + 16 - rt.cam.y) * rt.cam.zoom }));
+    const p = await tile(m, 32, 10);
     await m.touchscreen.tap(p.x, p.y);
     await pathDone(m);
     t.check((await me(m)).x === 32, 'toucher la carte : on s\'y rend');
     // Toucher la machine à eau (41, 12) : on va à côté d'elle, puis pause café
     await place(m, 38, 11);
     await wait(500);
-    const c = await m.evaluate(() => ({ x: (41 * 32 + 16 - rt.cam.x) * rt.cam.zoom, y: (12 * 32 + 16 - rt.cam.y) * rt.cam.zoom }));
+    const c = await tile(m, 41, 12);
     await m.touchscreen.tap(c.x, c.y);
     await pathDone(m);
     await wait(400);
@@ -473,9 +421,9 @@ const scenarios = {
   },
 
   async 'pupitre'(t) {
-    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
-    await waitPeers([a, b]);
-    await place(a, 6, 3); await place(b, 40, 11);
+    const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
+    await waitPeers([a, b, c]);
+    await place(a, 6, 3); await place(b, 40, 11); await place(c, 10, 8);
     await wait(600);
     await a.keyboard.press('KeyE');
     await wait(1500);
@@ -491,7 +439,7 @@ const scenarios = {
     t.check(fxB.fx && fxB.muted, 'voix du pupitre : effet haut-parleur sous Chrome');
     t.check(!fxF.fx && !fxF.muted && await hears(f, 'Alice'), 'voix du pupitre sous Firefox : sans effet, entendue');
     await f.close();
-    await waitPeers([a, b]);
+    await waitPeers([a, b, c]);
     // Compte les carillons réellement lus (fichier WAV joué par un élément <audio>)
     const spyChime = (p) => p.evaluate(() => {
       window.chimesPlayed = 0;
@@ -507,26 +455,11 @@ const scenarios = {
     await wait(800);
     t.check(await a.evaluate(() => window.chimesPlayed === 1), 'J au pupitre : Alice entend son propre jingle');
     t.check(await b.evaluate(() => window.chimesPlayed === 1), 'J au pupitre : Bob entend le jingle');
-    const jingleAt = () => b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').jingleAt || 0);
+    const jingleAt = () => peer(b, 'Alice', 'jingleAt');
     const firstJingle = await jingleAt();
     t.check(firstJingle > 0, 'J au pupitre : Bob reçoit le jingle');
     t.check(await hears(b, 'Alice'), 'après le jingle, la voix passe toujours');
-    await a.keyboard.down('ArrowLeft'); await wait(200); await a.keyboard.up('ArrowLeft');
-    await wait(1000);
-    t.check(!(await seen(b, 'Alice')).onAir, 's\'éloigner rend la parole');
-    await wait(2500); // passe le délai entre deux jingles
-    await a.keyboard.press('KeyJ');
-    await wait(800);
-    t.check(await jingleAt() === firstJingle, 'J loin du pupitre : pas de jingle');
-  },
-
-  async 'écran du pupitre'(t) {
-    const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
-    await waitPeers([a, b, c]);
-    await place(a, 6, 3); await place(b, 40, 11); await place(c, 10, 8);
-    await wait(600);
-    await a.keyboard.press('KeyE');
-    await wait(800);
+    // Écran partagé depuis le pupitre : diffusé à tout le monde, en vignette
     await a.click('#shareBtn');
     await wait(3500);
     const state = (p) => p.evaluate(() => ({ pip: !document.querySelector('#airPip').hidden && !!document.querySelector('#airPip .air-card'), focus: !document.querySelector('#focus').hidden }));
@@ -545,6 +478,12 @@ const scenarios = {
     await wait(300);
     const back = await state(b);
     t.check(back.pip && !back.focus, 'fermer le grand format : retour en PiP');
+    await a.keyboard.down('ArrowLeft'); await wait(200); await a.keyboard.up('ArrowLeft');
+    t.check(await until(async () => !(await seen(b, 'Alice')).onAir), 's\'éloigner rend la parole');
+    await wait(2500); // passe le délai entre deux jingles
+    await a.keyboard.press('KeyJ');
+    await wait(800);
+    t.check(await jingleAt() === firstJingle, 'J loin du pupitre : pas de jingle');
   },
 
   async 'chaises'(t) {
@@ -553,8 +492,7 @@ const scenarios = {
     await place(a, 17, 3);
     await a.keyboard.press('ArrowRight'); await wait(100);
     await a.keyboard.press('KeyE');
-    await wait(800);
-    t.check((await seen(b, 'Alice')).seated, 'E : assis, et vu assis par les autres');
+    t.check(await until(async () => (await seen(b, 'Alice')).seated), 'E : assis, et vu assis par les autres');
     await place(b, 17, 4); await b.keyboard.press('ArrowRight'); await wait(100);
     await b.evaluate(() => rt.toggleSit()); await wait(400);
     const sb = await me(b);
@@ -569,33 +507,21 @@ const scenarios = {
     const sofa = await seen(b, 'Alice');
     t.check(sofa.seated && sofa.x === 6 && sofa.y === 15, 'E près d\'un canapé : assis sur le canapé');
     // Canapés et banc du couloir : places de repos, la sieste s'affiche toute seule
-    const aliceEmote = () => b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').emote || null);
+    const aliceEmote = () => peer(b, 'Alice', 'emote');
     t.check(await aliceEmote() === 'sleep', 'assise sur un canapé : sieste affichée, vue par Bob');
-    await a.keyboard.press('KeyE'); await wait(800);
-    t.check(await aliceEmote() === null && !(await seen(b, 'Alice')).seated, 'se lever : fin de la sieste');
+    await a.keyboard.press('KeyE');
+    t.check(await until(async () => await aliceEmote() === null && !(await seen(b, 'Alice')).seated), 'se lever : fin de la sieste');
     await place(a, 24, 11); await a.keyboard.press('ArrowDown'); await wait(100);
     await a.keyboard.press('KeyE'); await wait(800);
     const bench = await seen(b, 'Alice');
     t.check(bench.seated && bench.x === 24 && bench.y === 12 && await aliceEmote() === 'sleep', 'banc du couloir : on s\'y assoit, sieste affichée');
-    await a.keyboard.down('ArrowUp'); await wait(400); await a.keyboard.up('ArrowUp'); await wait(800);
-    t.check(await aliceEmote() === null, 's\'éloigner du banc : fin de la sieste');
+    await a.keyboard.down('ArrowUp'); await wait(400); await a.keyboard.up('ArrowUp');
+    t.check(await until(async () => await aliceEmote() === null), 's\'éloigner du banc : fin de la sieste');
     await a.evaluate(() => rt.sitOn(21, 3)); await wait(800);
     t.check(await aliceEmote() === null, 'une chaise ordinaire : pas de sieste');
   },
 
-  async 'maillage incomplet'(t) {
-    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
-    await waitPeers([a, b]);
-    await wait(11000); // au moins une annonce de présences échangée
-    t.check((await a.evaluate(() => rt.diag())).includes('Vus par les autres, pas par moi : personne'), 'tout le monde relié : personne ne manque');
-    // Bob annonce quelqu'un qu'Alice ne voit pas (et des entrées invalides, ignorées)
-    await b.evaluate(() => import('/js/net.js').then((n) => n.broadcast('seen', [['pair-absent', '  Fantôme  '], [42, 'x'], 'n\'importe quoi', [rt.me.id, 'Bob']])));
-    await wait(800);
-    const text = await a.evaluate(() => rt.diag());
-    t.check(/Vus par les autres, pas par moi : Fantôme \(par 1, depuis \d+ s\)/.test(text), 'personne vue par un autre et pas par moi : signalée dans le diagnostic');
-  },
-
-  async 'chat du couloir'(t) {
+  async 'discussions'(t) {
     const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
     await waitPeers([a, b, c]);
     const convs = (p) => p.$$eval('#phone .ph-conv', (o) => o.map((x) => x.dataset.conv).join());
@@ -608,6 +534,14 @@ const scenarios = {
     await a.type('#chatInput', 'bonjour du couloir');
     await a.keyboard.press('Enter');
     await wait(1200);
+    // Reçu hors de la conversation : pastille et notification, qui ouvre la conversation
+    t.check(await b.$eval('#phoneBtn .badge', (e) => !e.hidden && e.textContent === '1'), 'message non lu : pastille sur le bouton du téléphone');
+    t.check(await b.$eval('#notifs .notif', (e) => e.textContent.includes('Alice') && e.textContent.includes('bonjour du couloir') && !!e.querySelector('canvas')), 'notification du message : portrait, nom et texte');
+    await b.click('#notifs .notif');
+    await wait(500);
+    t.check(await b.evaluate(() => document.querySelector('#messages').innerText.includes('bonjour du couloir')), 'clic sur la notification : la conversation s\'ouvre (chat global reçu)');
+    t.check(await b.$('#notifs .notif') === null, 'notification retirée');
+    t.check(await b.$eval('#phoneBtn .badge', (e) => e.hidden), 'conversation ouverte : plus de pastille');
     t.check(await c.evaluate(() => { rt.openChat('global'); return document.querySelector('#messages').innerText.includes('bonjour du couloir'); }), 'écrit dans le couloir : reçu partout, même dans un bureau');
     await a.click('#phone .ph-back'); await wait(200);
     t.check(await convs(a) === 'global', 'couloir : pas de discussion de salle dans la liste');
@@ -627,7 +561,7 @@ const scenarios = {
     await wait(1500);
     const atBottom = (p) => p.$eval('#messages', (e) => e.scrollHeight > e.clientHeight + 100 && e.scrollHeight - e.scrollTop - e.clientHeight < 5);
     await a.click('#phone .ph-close').catch(() => {}); await wait(400);
-    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-chats'); await a.click('#phone .ph-conv[data-conv=global]');
+    await openPhone(a, 'chats'); await a.click('#phone .ph-conv[data-conv=global]');
     await wait(400);
     t.check(await atBottom(a), 'conversation ouverte depuis la liste : affichée sur les derniers messages');
     await a.click('#phone .ph-close'); await wait(400);
@@ -638,6 +572,15 @@ const scenarios = {
     await c.keyboard.press('Escape');
     await place(c, 30, 11); await wait(600);
     t.check((await title(c)).includes('Tout le monde') && await c.evaluate(() => document.activeElement?.id !== 'chatInput'), 'en sortant dans le couloir : la conversation ouverte passe à « Tout le monde », sans prendre le clavier');
+    // Message direct : écrit depuis la fiche d'Alice, vu d'elle seule
+    await openPerson(b, 'Alice');
+    await b.click('#phone .ph-act-msg');
+    await b.type('#chatInput', 'juste pour toi');
+    await b.keyboard.press('Enter');
+    await wait(1200);
+    const dms = (page) => page.evaluate(() => { rt.openChat('dm:bob'); return document.querySelector('#messages').innerText; });
+    t.check((await dms(a)).includes('juste pour toi'), 'message direct reçu par Alice');
+    t.check(!(await c.evaluate(() => { rt.openChat('dm:bob'); const t = document.querySelector('#messages').innerText; rt.openChat('global'); return t + document.querySelector('#messages').innerText; })).includes('juste pour toi'), 'message direct : pas vu par Chloé');
   },
 
   async 'nom des bureaux'(t) {
@@ -780,41 +723,34 @@ const scenarios = {
     t.check(await items(a) === 'texte,trait' && await items(b) === 'texte,trait', 'prof reconnecté : le tableau gardé par les autres est retrouvé');
   },
 
-  async 'mains levées'(t) {
-    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
-    await waitPeers([a, b]);
-    await place(a, 30, 10); await place(b, 66, 10);
-    await wait(600);
-    await b.keyboard.press('KeyH'); await wait(800);
-    t.check((await a.$$('#hands .hand-bubble')).length === 1, 'bulle de main levée');
-    await a.click('#hands .hand-bubble');
-    t.check(await a.$eval('#personMenu', (e) => !e.hidden && !!e.querySelector('.pm-join') && !!e.querySelector('.pm-call')), 'clic sur la bulle : rejoindre ou appeler');
-    await a.click('#personMenu .pm-join');
-    await pathDone(a);
-    const pa = await me(a);
-    t.check(Math.abs(pa.x - 66) + Math.abs(pa.y - 10) === 1, 'clic sur la bulle : on rejoint la personne');
-  },
-
-  async 'profil'(t) {
+  async 'personnage'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
     // Son personnage, dans la barre du bas : le téléphone s'ouvre sur la page « Personnage »
     await a.click('#mePill'); await wait(500);
     t.check(await a.$eval('#phone', (e) => !e.hidden && !!e.querySelector('.ph-look')) && await a.$eval('#join', (e) => e.hidden), 'bouton du personnage : téléphone ouvert sur « Personnage »');
+    // Sur cette page : couleur et accessoire appliqués tout de suite, le nom seulement affiché
+    await a.click('#phone .ph-chips[data-part="shirt"] .ph-sw:nth-child(3)');
+    await a.select('#phone .ph-select[data-part="head"]', 'cap');
+    await wait(600);
+    t.check(await a.evaluate(() => rt.me.look.shirt === '#ef476f' && rt.me.look.head === 'cap'), '« Mon personnage » dans le téléphone : couleur et accessoire appliqués');
+    const lb = await seen(b, 'Alice');
+    t.check(lb.look.shirt === '#ef476f' && lb.look.head === 'cap', 'Bob voit le nouveau personnage d\'Alice');
+    t.check(await a.$eval('#phone .ph-look', (e) => !e.querySelector('input') && e.querySelector('.ph-name').textContent === 'Alice'), 'le nom est affiché, pas modifiable dans le téléphone');
     await a.click('#phone .ph-close'); await wait(400);
-    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
+    await openProfile(a);
     await a.click('#headChips [data-v=crown]'); await a.click('#bodyChips [data-v=cape]');
     await a.click('#joinSubmit'); await wait(1000);
     const look = (await seen(b, 'Alice')).look;
     t.check(look.head === 'crown' && look.body === 'cape', 'modification du personnage vue par les autres');
     // Pas de changement de pseudo une fois dans l'espace : champ verrouillé, et ignoré même forcé
-    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
+    await openProfile(a);
     t.check(await a.$eval('#nameInput', (e) => e.readOnly && e.value === 'Alice'), 'écran du personnage en session : pseudo verrouillé');
     await a.$eval('#nameInput', (e) => { e.readOnly = false; e.value = 'Zoé'; });
     await a.click('#joinSubmit'); await wait(1000);
     t.check(await a.evaluate(() => rt.me.name) === 'Alice' && !!(await seen(b, 'Alice')), 'pseudo inchangé même en contournant le verrou');
     // Aide réaffichée depuis l'écran du personnage, puis fermée avec la croix
-    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
+    await openProfile(a);
     await a.click('#profileHelp'); await wait(200);
     t.check(await a.$eval('#help', (e) => !e.hidden), 'aide réaffichée depuis l\'écran du personnage');
     await a.click('#help .help-close'); await wait(200);
@@ -823,7 +759,7 @@ const scenarios = {
 
   // Avec NET=http://localhost:8090 et DIAG_LOG=<sortie du relais local>, vérifie aussi
   // que le relais a journalisé le diagnostic (sinon, seulement le texte produit)
-  async 'diagnostic'(t) {
+  async 'diagnostic, maillage et reconnexion'(t) {
     const a = await join(t, 'Alice');
     await a.browserContext().overridePermissions(t.url, ['clipboard-read', 'clipboard-write']);
     await a.waitForFunction(() => !document.querySelector('#waiting').hidden, { timeout: 15000 }); // seule depuis 3 s
@@ -840,9 +776,9 @@ const scenarios = {
     const toasts = await a.evaluate(() => document.querySelector('#toasts').innerText);
     // Presse-papiers refusé (Chrome sans interface) : la fenêtre de secours montre le texte
     const shown = await a.evaluate(() => !document.querySelector('#diagBox').hidden && document.querySelector('#diagText').value === rt.lastDiag);
-    for (const h of ['Page modifiée le', 'Navigateur', 'Salle : ', 'Nom : Alice', 'Relais de mise en relation', 'Messages ignorés par le relais : aucun', 'Personnes vues : 0', 'Vus par les autres, pas par moi : personne', 'Liaisons WebRTC', 'Test ICE', 'Micro : ', 'Console Trystero']) {
-      t.check(text.includes(h), `diagnostic : rubrique « ${h.trim()} »`);
-    }
+    const missing = ['Page modifiée le', 'Navigateur', 'Salle : ', 'Nom : Alice', 'Relais de mise en relation', 'Messages ignorés par le relais : aucun', 'Personnes vues : 0', 'Vus par les autres, pas par moi : personne', 'Liaisons WebRTC', 'Test ICE', 'Micro : ', 'Console Trystero']
+      .filter((h) => !text.includes(h));
+    t.check(!missing.length, `diagnostic : toutes les rubriques${missing.length ? ` (manque : ${missing.join(', ')})` : ''}`);
     // Pas d'adresse IP (un numéro de version « Chrome/141.0.0.0 » n'en est pas une)
     t.check(!/(?<![a-z]\/)\b(?:\d{1,3}\.){3}\d{1,3}\b/i.test(text), 'diagnostic : aucune adresse IPv4');
     t.check(!/\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b|::[0-9a-f]/i.test(text), 'diagnostic : aucune adresse IPv6');
@@ -856,8 +792,25 @@ const scenarios = {
       t.check(block.includes('Nom : Alice') && block.includes('===== FIN ====='), 'diagnostic journalisé par le relais');
     }
     t.check(await a.$eval('#messages', (e) => !e.innerText.includes('/diag')), '/diag n\'est pas envoyé comme message');
-    await a.click('#mePill'); await wait(500); await a.click('#phone .ph-full'); await wait(300);
+    await openProfile(a);
     t.check(await a.$eval('#waitDiag', (e) => e.offsetParent === null) && await a.$eval('#profileDiag', (e) => e.offsetParent === null), 'boutons Diagnostic masqués');
+    await a.click('#profileCancel'); await wait(500);
+    // Maillage : une personne arrive, les présences annoncées par chacun sont comparées
+    const b = await join(t, 'Bob');
+    await waitPeers([a, b]);
+    await wait(11000); // au moins une annonce de présences échangée
+    t.check((await a.evaluate(() => rt.diag())).includes('Vus par les autres, pas par moi : personne'), 'tout le monde relié : personne ne manque');
+    // Bob annonce quelqu'un qu'Alice ne voit pas (et des entrées invalides, ignorées)
+    await b.evaluate(() => import('/js/net.js').then((n) => n.broadcast('seen', [['pair-absent', '  Fantôme  '], [42, 'x'], 'n\'importe quoi', [rt.me.id, 'Bob']])));
+    await wait(800);
+    const report = await a.evaluate(() => rt.diag());
+    t.check(/Vus par les autres, pas par moi : Fantôme \(par 1, depuis \d+ s\)/.test(report), 'personne vue par un autre et pas par moi : signalée dans le diagnostic');
+    // Reconnexion
+    await place(a, 33, 11);
+    await a.evaluate(() => rt.relaunch());
+    await waitPeers([a, b]);
+    await b.waitForFunction(() => [...rt.users.values()].some((u) => u.name === 'Alice' && u.x === 33), { timeout: 30000 });
+    t.check(true, '« Relancer la connexion » : on se retrouve, à la même place');
   },
 
   async 'incrustation'(t) {
@@ -884,7 +837,7 @@ const scenarios = {
     await a.keyboard.press('KeyP');
     await wait(300);
     t.check(await a.evaluate(() => !documentPictureInPicture.window), 'P la referme');
-    await a.click('#phoneBtn'); await wait(500); await a.click('#phone .ph-nav-settings');
+    await openPhone(a, 'settings');
     await a.click('#phone .ph-pip');
     t.check(await a.evaluate(() => rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === true), 'activable dans les réglages du téléphone, mémorisé');
     await a.click('#phone .ph-pip');
@@ -914,16 +867,6 @@ const scenarios = {
     await away.close();
     await wait(500);
     t.check((await pipView()).map, 'retour sur l\'onglet : la carte revient dans la vue');
-  },
-
-  async 'reconnexion'(t) {
-    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
-    await waitPeers([a, b]);
-    await place(a, 33, 11);
-    await a.evaluate(() => rt.relaunch());
-    await waitPeers([a, b]);
-    await b.waitForFunction(() => [...rt.users.values()].some((u) => u.name === 'Alice' && u.x === 33), { timeout: 30000 });
-    t.check(true, '« Relancer la connexion » : on se retrouve, à la même place');
   },
 };
 

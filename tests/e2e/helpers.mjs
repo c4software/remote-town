@@ -69,3 +69,47 @@ export const seen = (page, name) => page.evaluate((name) => {
 }, name);
 export const place = (page, x, y) => page.evaluate(([x, y]) => rt.place(x, y), [x, y]);
 export const pathDone = (page) => page.waitForFunction(() => !rt.path?.length, { timeout: 30000 });
+
+// Ce que `page` sait de la personne `name` : un de ses champs (null si vide, ou personne inconnue)
+export const peer = (page, name, field) => page.evaluate(([name, field]) => [...rt.users.values()].find((u) => u.name === name)?.[field] || null, [name, field]);
+
+// Volume auquel `page` entend la voix de `name` (élément <audio> de la liaison)
+export const voiceVolume = (page, name) => page.evaluate((name) => rt.links.get([...rt.users.values()].find((u) => u.name === name)?.id)?.audioEl?.volume, name);
+
+// Position à l'écran (pixels) du centre de la case (x, y), pour cliquer ou toucher la carte
+export const tile = (page, x, y) => page.evaluate(([x, y]) => ({ x: (x * 32 + 16 - rt.cam.x) * rt.cam.zoom, y: (y * 32 + 16 - rt.cam.y) * rt.cam.zoom }), [x, y]);
+
+// Le téléphone monte du bas de l'écran en ~0,4 s : on attend avant de cliquer dedans
+const PHONE_UP_MS = 500;
+
+// Ouvre le téléphone, sur une page de l'accueil si `nav` est donné (contacts, chats, settings, vmail…)
+export async function openPhone(page, nav) {
+  await page.click('#phoneBtn');
+  await wait(PHONE_UP_MS);
+  if (nav) await page.click(`#phone .ph-nav-${nav}`);
+}
+
+// Ouvre la fiche de `name` dans le téléphone
+export async function openPerson(page, name) {
+  await page.evaluate((name) => rt.openPerson([...rt.users.values()].find((u) => u.name === name).id), name);
+  await wait(PHONE_UP_MS);
+}
+
+// Ouvre l'écran complet du personnage : bouton de la barre, puis « Écran complet » dans le téléphone
+export async function openProfile(page) {
+  await page.click('#mePill');
+  await wait(PHONE_UP_MS);
+  await page.click('#phone .ph-full');
+  await wait(300);
+}
+
+// Réessaie `probe` jusqu'à ce qu'elle soit vraie (5 s au plus), pour vérifier un effet attendu sans
+// attente fixe : t.check(await until(…), 'libellé'). Réservé aux effets : « rien ne se passe » se
+// vérifie après un wait(), sinon la vérification passerait avant que l'effet ait pu arriver.
+export async function until(probe, ms = 5000) {
+  for (const end = Date.now() + ms; ;) {
+    if (await Promise.resolve().then(probe).catch(() => false)) return true;
+    if (Date.now() > end) return false;
+    await wait(100);
+  }
+}

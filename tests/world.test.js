@@ -52,12 +52,20 @@ test('porte des espaces : dans le mur du couloir, la case devant est libre', () 
   assert.ok(!nearPortal(PORTAL_SPOT[0], PORTAL_SPOT[1] + 1));
 });
 
-test('canapés : chaque case est une place assise, orientée', () => {
+test('canapés et banc du couloir : places assises orientées, de repos ; pas les chaises', () => {
   for (let x = 5; x <= 8; x++) {
     assert.equal(chairAt(x, 15)?.dir, 'down', `canapé du haut, case ${x}`);
     assert.equal(chairAt(x, 19)?.dir, 'up', `canapé du bas, case ${x}`);
     assert.equal(isBlocked(x, 15), false);
+    assert.ok(restSeat(x, 15) && restSeat(x, 19), `canapés, case ${x}`);
   }
+  for (let x = 23; x <= 25; x++) {
+    assert.equal(chairAt(x, 12)?.dir, 'down', `banc, case ${x}`);
+    assert.ok(restSeat(x, 12) && !isBlocked(x, 12) && zoneAt(x, 12) === 'hall');
+  }
+  const chair = [...MAP.chairs.values()].find((c) => c.kind === 'chair');
+  assert.ok(chair && !restSeat(chair.x, chair.y), 'une chaise n\'est pas une place de repos');
+  assert.ok(!restSeat(30, 10), 'une case vide non plus');
 });
 
 test('nom des bureaux : deux cases à l\'entrée de chaque bureau, praticables, sans chaise voisine', () => {
@@ -74,17 +82,6 @@ test('nom des bureaux : deux cases à l\'entrée de chaque bureau, praticables, 
   }
   assert.equal(deskLabelAt(30, 10), null, 'couloir');
   assert.equal(deskLabelAt(7, 5), null, 'bureau principal');
-});
-
-test('places de repos : canapés et banc du couloir, pas les chaises', () => {
-  for (let x = 5; x <= 8; x++) assert.ok(restSeat(x, 15) && restSeat(x, 19), `canapés, case ${x}`);
-  for (let x = 23; x <= 25; x++) {
-    assert.equal(chairAt(x, 12)?.dir, 'down', `banc, case ${x}`);
-    assert.ok(restSeat(x, 12) && !isBlocked(x, 12) && zoneAt(x, 12) === 'hall');
-  }
-  const chair = [...MAP.chairs.values()].find((c) => c.kind === 'chair');
-  assert.ok(chair && !restSeat(chair.x, chair.y), 'une chaise n\'est pas une place de repos');
-  assert.ok(!restSeat(30, 10), 'une case vide non plus');
 });
 
 test('micro (M) : entendu seulement dans la même pièce', () => {
