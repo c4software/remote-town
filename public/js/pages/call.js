@@ -29,6 +29,7 @@ export function callScreen() {
   const peer = users.get(call.peer);
   if (peer?.look) screen.append(miniAvatar(peer.look, 'ph-avatar'));
   screen.append(el('div', 'ph-name', call.name), el('div', 'ph-status', statusText()));
+  if ([CALL_PHASE.IN, CALL_PHASE.OUT].includes(call.phase) && phoneQuietIn(S.me.zone)) screen.append(el('small', 'ph-silent', '🔕 En silencieux dans cette salle'));
   if (call.phase === CALL_PHASE.ON) {
     const quiet = phoneQuietIn(S.me.zone);
     screen.append(el('small', '', S.me.speaker ? 'Haut-parleur : les personnes proches entendent l\'appel'

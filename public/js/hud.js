@@ -49,6 +49,7 @@ export function startApp() {
 let lastZoneToast = null;
 export function onZoneChange(initial = false) {
   const z = MAP.zoneById[S.me.zone];
+  S.zoneAt = performance.now();
   chat.zoneId = S.me.zone;
   delete chat.unread.zone;
   if (!initial) fetchHistory(S.me.zone, [...users.values()].filter((u) => !u.isMe && u.zone === S.me.zone).map((u) => u.id));

@@ -8,7 +8,7 @@
 //   chat.js         discussions (messages, envoi, réception, notifications)
 import { stopRing } from './audio.js';
 import { call, startCall, vmails } from './call.js';
-import { chat, convTitle, unreadTotal } from './chat.js';
+import { chat, convTitle, unreadTotal, zoneChat } from './chat.js';
 import { CHAT_KEY, PHONE_VIEW } from './constantes.js';
 import { $ } from './dom.js';
 import { callScreen } from './pages/call.js';
@@ -76,11 +76,13 @@ export function phoneClose(mobileOnly = false) {
 }
 
 // Ouvre une conversation ('global', 'zone' ou 'dm:<pseudo>') et place le curseur dans la saisie
-export function openChat(key = CHAT_KEY.ZONE) {
+// Sans précision : la discussion de la salle, ou « Tout le monde » dans le couloir, qui n'en a pas
+export function openChat(key = CHAT_KEY.ZONE, focus = true) {
   if (call) return;
+  if (key === CHAT_KEY.ZONE && !zoneChat()) key = CHAT_KEY.GLOBAL;
   open = true; view = PHONE_VIEW.CHAT; convKey = key;
   renderPhone();
-  focusChat();
+  if (focus) focusChat();
 }
 // Bouton de son personnage, dans la barre du bas : le téléphone s'ouvre sur « Personnage »
 export function openLook() {

@@ -233,6 +233,8 @@ const scenarios = {
     await call(b, 'Chloé');
     await wait(1500);
     t.check(await has(b, '.ph-out') && await has(c, '.ph-in'), 'depuis la salle de classe : l\'appel part et sonne');
+    t.check(await b.evaluate(() => !rt.ringing) && await has(b, '.ph-silent'), 'en classe : silencieux, pas de tonalité');
+    t.check(await c.evaluate(() => rt.ringing) && !(await has(c, '.ph-silent')), 'dans le couloir : la sonnerie s\'entend');
     await c.click('#phone .ph-accept');
     await wait(2500);
     t.check(await hears(c, 'Bob') && await hears(b, 'Chloé'), 'appel avec la salle de classe : on s\'entend');
@@ -582,6 +584,38 @@ const scenarios = {
     t.check(await aliceEmote() === null, 'une chaise ordinaire : pas de sieste');
   },
 
+  async 'chat du couloir'(t) {
+    const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
+    await waitPeers([a, b, c]);
+    const convs = (p) => p.$$eval('#phone .ph-conv', (o) => o.map((x) => x.dataset.conv).join());
+    const title = (p) => p.$eval('#phone', (e) => e.innerText.split('\n').find((l) => l.trim()) || '');
+    // Alice et Bob dans le couloir, Chloé dans le bureau 1
+    await place(a, 30, 10); await place(b, 50, 11); await place(c, 20, 4);
+    await wait(600);
+    await a.keyboard.press('Enter'); await wait(600);
+    t.check((await title(a)).includes('Tout le monde'), 'Entrée dans le couloir : discussion « Tout le monde »');
+    await a.type('#chatInput', 'bonjour du couloir');
+    await a.keyboard.press('Enter');
+    await wait(1200);
+    t.check(await c.evaluate(() => { rt.openChat('global'); return document.querySelector('#messages').innerText.includes('bonjour du couloir'); }), 'écrit dans le couloir : reçu partout, même dans un bureau');
+    await a.click('#phone .ph-back'); await wait(200);
+    t.check(await convs(a) === 'global', 'couloir : pas de discussion de salle dans la liste');
+    await c.click('#phone .ph-back'); await wait(200);
+    t.check(await convs(c) === 'global,zone', 'bureau : la discussion de la salle existe toujours');
+    // Dans un bureau, Entrée ouvre toujours la discussion de la salle, qui reste entre ses murs
+    await c.click('#phone .ph-close'); await wait(300);
+    await c.keyboard.press('Enter'); await wait(600);
+    t.check((await title(c)).includes('Bureau 1'), 'Entrée dans un bureau : discussion de la salle');
+    await c.type('#chatInput', 'entre nous');
+    await c.keyboard.press('Enter');
+    await wait(1200);
+    t.check(!(await a.evaluate(() => { rt.openChat('global'); return document.querySelector('#messages').innerText; })).includes('entre nous'), 'message d\'un bureau : pas vu du couloir');
+    // Discussion de la salle ouverte, on sort dans le couloir : elle devient « Tout le monde »
+    await c.keyboard.press('Escape');
+    await place(c, 30, 11); await wait(600);
+    t.check((await title(c)).includes('Tout le monde') && await c.evaluate(() => document.activeElement?.id !== 'chatInput'), 'en sortant dans le couloir : la conversation ouverte passe à « Tout le monde », sans prendre le clavier');
+  },
+
   async 'nom des bureaux'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);
@@ -590,6 +624,14 @@ const scenarios = {
     await place(a, 20, 7); await place(b, 40, 11);
     await wait(500);
     t.check(await nameAt(a) === 'Bureau 1', 'nom d\'origine');
+    // Il faut être dans le bureau depuis 2 minutes
+    await a.keyboard.press('KeyE');
+    await wait(300);
+    t.check(await a.$eval('#deskName', (e) => e.hidden) && await a.$eval('#toasts', (e) => e.innerText.includes('depuis 2 minutes')), 'à peine entrée dans le bureau : renommage refusé, avec l\'explication');
+    await a.evaluate(() => rt.inZoneFor(119000));
+    await a.keyboard.press('KeyE'); await wait(300);
+    t.check(await a.$eval('#deskName', (e) => e.hidden), '1 min 59 : toujours refusé');
+    await a.evaluate(() => rt.inZoneFor(121000));
     await a.keyboard.press('KeyE');
     await wait(300);
     t.check(await a.$eval('#deskName', (e) => !e.hidden) && await a.$eval('#deskNameInput', (e) => e === document.activeElement && e.value === ''), 'E sur le nom du bureau : la fenêtre s\'ouvre');
@@ -606,6 +648,7 @@ const scenarios = {
     t.check(await nameAt(c) === 'Équipe réseau', 'une personne qui arrive reçoit le nom');
     // Bob le renomme à son tour, puis revient au nom d'origine (champ vide)
     await place(b, 19, 7); await wait(500);
+    await b.evaluate(() => rt.inZoneFor(121000));
     await b.keyboard.press('KeyE'); await wait(300);
     t.check(await b.$eval('#deskNameInput', (e) => e.value === 'Équipe réseau'), 'le nom en cours est proposé');
     await b.type('#deskNameInput', 'SLAM'); // le texte sélectionné est remplacé

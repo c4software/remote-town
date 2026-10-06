@@ -126,6 +126,7 @@ export const EMOTES = [
   { id: 'think', icon: '🤔', label: 'Réflexion' },
 ];
 export const DESK_NAME_MAX = 18;      // longueur du nom donné à un bureau (desks.js)
+export const DESK_RENAME_AFTER_MS = 2 * 60 * 1000; // présence dans le bureau exigée avant de le renommer
 export const COOLER_EMOTE = 'coffee'; // émote prise à la machine à eau (E à côté d'elle)
 export const REST_EMOTE = 'sleep';    // émote prise en s'asseyant sur un canapé ou le banc du couloir
 // Onglet quitté et aucune action depuis AWAY_MS : émote « Travail » mise d'office (emotes.js),

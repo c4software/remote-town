@@ -208,6 +208,7 @@ export function ring(kind, loop = true) {
     .catch(() => {});
 }
 export function stopRing() { ringEl?.pause(); ringEl = null; }
+export const ringing = () => !!ringEl; // ma sonnerie (ou ma tonalité) joue-t-elle ? (tests)
 // Sonnerie du téléphone d'un voisin (`style` : null pour arrêter), au volume donné (selon la
 // distance) : le motif qu'il a choisi, ou son fichier audio personnel s'il nous l'a envoyé
 // (`url`, phone.js) ; en attendant, ou si on n'en veut pas, le motif par défaut.

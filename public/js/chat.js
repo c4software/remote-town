@@ -10,7 +10,7 @@ import { renderMessages } from './pages/chat.js';
 import { el } from './pages/ui.js';
 import { openChat, phoneBadge, phoneRefresh } from './phone.js';
 import { S, myIds, users } from './state.js';
-import { MAP } from './world.js';
+import { MAP, zoneType } from './world.js';
 
 // Conversations : 'global', 'zone' (la salle courante, chat.zoneId) ou 'dm:<pseudo>'.
 // `open` : celle affichée dans le téléphone (aucune si le téléphone est replié ou ailleurs).
@@ -23,6 +23,9 @@ let msgSeq = 0;
 // Messages directs rangés par pseudo (unique dans l'espace), car l'identifiant change à chaque reconnexion
 export const dmKey = (u) => `${CHAT_KEY.DM}${u.name.toLocaleLowerCase('fr')}`;
 export const dmUser = (key) => [...users.values()].find((u) => !u.isMe && dmKey(u) === key);
+// Discussion de la salle : dans les pièces seulement. Dans le couloir (espace ouvert), il
+// n'y en a pas : on y écrit à tout le monde.
+export const zoneChat = () => zoneType(chat.zoneId) !== 'open';
 const storeKey = (key) => (key === CHAT_KEY.ZONE ? chat.zoneId : key);
 export const chatList = (key) => chatStore.get(storeKey(key)) || [];
 // Historique partagé à la demande (action `history`) : les groupes seulement, jamais les messages directs
@@ -70,6 +73,7 @@ export function sendChat(key, text) {
     S.net.chat.send({ channel: 'dm', msg }, { target: u.id }).catch(() => {});
     return received(key, msg);
   }
+  if (key === CHAT_KEY.ZONE && !zoneChat()) key = CHAT_KEY.GLOBAL;
   const channel = storeKey(key);
   if (channel === CHAT_KEY.GLOBAL) S.net.chat.send({ channel, msg }).catch(() => {});
   else {
@@ -89,6 +93,8 @@ export function onChat(channel, msg, peerId) {
     return;
   }
   if (!(channel === CHAT_KEY.GLOBAL || MAP.zoneById[channel])) return;
+  // Écrit dans le couloir par une page pas encore à jour : c'est maintenant « Tout le monde »
+  if (zoneType(channel) === 'open') channel = CHAT_KEY.GLOBAL;
   if (!storeMsgs(channel, [msg])) return;
   const key = channel === CHAT_KEY.GLOBAL ? CHAT_KEY.GLOBAL : channel === chat.zoneId ? CHAT_KEY.ZONE : null;
   if (key) notify(key, msg);
@@ -148,6 +154,8 @@ export function resetChat() {
 
 // Quelque chose a changé (message, zone, personnes) : conversation ouverte, liste et pastille
 export function renderChat() {
+  // Conversation de la salle ouverte en arrivant dans le couloir : on passe à « Tout le monde »
+  if (chat.open === CHAT_KEY.ZONE && !zoneChat()) return openChat(CHAT_KEY.GLOBAL, false);
   renderMessages();
   phoneRefresh(PHONE_VIEW.CHATS);
   phoneBadge();

@@ -24,6 +24,8 @@ const missed = new Map();    // id du pair -> appel manqué : un message vocal e
 export const vmails = [];    // messages vocaux reçus : { id, name, url, at }
 let vmailSeq = 0;
 
+// Salles de classe : téléphone en silencieux, ni sonnerie ni tonalité (l'écran suffit)
+const ringHere = (kind) => { if (!phoneQuietIn(S.me.zone)) ring(kind); };
 const tell = (id, t) => S.net?.call.send({ t }, { target: id }).catch(() => {});
 
 // Remplace l'appel en cours (ou le termine avec null) ; `ms` : délai avant `onTimeout`
@@ -83,7 +85,7 @@ export async function startCall(u) {
   lastCallAt = performance.now();
   setCall({ peer: u.id, name: u.name, phase: CALL_PHASE.OUT, mine: true }, CALL.ringMs, () => { tell(u.id, CALL_MSG.CANCEL); away('Ne répond pas'); });
   tell(u.id, CALL_MSG.RING);
-  ring('out');
+  ringHere('out');
   prepare(u);
 }
 
@@ -125,7 +127,7 @@ export function onCallMsg(d, peerId) {
     if (S.dnd) { missed.set(peerId, now); return tell(peerId, CALL_MSG.BUSY); }
     if (call) { missedCall(u); return tell(peerId, CALL_MSG.BUSY); }
     setCall({ peer: peerId, name: u.name, phase: CALL_PHASE.IN }, CALL.ringMs + 5000, () => { missedCall(u); setCall(null); });
-    ring('in');
+    ringHere('in');
     prepare(u);
     return;
   }
@@ -156,10 +158,11 @@ export function phonePeerLeft(id) {
   if (call?.peer === id) endCall();
 }
 
-// En entrant dans une salle de classe : l'appel continue, mais le haut-parleur se coupe
+// En entrant dans une salle de classe : l'appel continue, en silencieux, et le haut-parleur se coupe
 // (les autres ne doivent pas l'entendre, voir phoneQuietIn dans world.js)
 export function phoneZoneChange() {
   if (!call) return;
+  if (phoneQuietIn(S.me.zone)) stopRing(); // silencieux : la sonnerie en cours se tait
   if (S.me.speaker && phoneQuietIn(S.me.zone)) {
     S.me.speaker = false;
     toast('📞 Pas de haut-parleur dans cette salle : l\'appel continue pour vous seul·e.');

@@ -1,11 +1,11 @@
 // Page du téléphone : la liste des conversations.
-import { chat, chatList, chatStore, convTitle } from '../chat.js';
+import { chat, chatList, chatStore, convTitle, zoneChat } from '../chat.js';
 import { CHAT_KEY } from '../constantes.js';
 import { openChat } from '../phone.js';
 import { myIds } from '../state.js';
 import { el } from './ui.js';
 
-// Liste des conversations : les deux groupes, puis les messages directs (les plus récents d'abord)
+// Liste des conversations : les groupes (« Tout le monde », et la salle où l'on est), puis les messages directs (les plus récents d'abord)
 export function chatsPage() {
   const page = el('div', 'ph-list ph-chats');
   const dms = [...chatStore.keys()].filter((k) => k.startsWith(CHAT_KEY.DM) && chatList(k).length)
@@ -19,7 +19,8 @@ export function chatsPage() {
     if (chat.unread[key]) b.append(el('i', 'badge', chat.unread[key]));
     return b;
   };
-  page.append(el('div', 'ph-title', 'Groupes'), row(CHAT_KEY.GLOBAL, '🌍'), row(CHAT_KEY.ZONE, '📍'));
+  page.append(el('div', 'ph-title', 'Groupes'), row(CHAT_KEY.GLOBAL, '🌍'));
+  if (zoneChat()) page.append(row(CHAT_KEY.ZONE, '📍')); // pas de discussion propre au couloir
   page.append(el('div', 'ph-title', 'Messages directs'));
   if (dms.length) page.append(...dms.map((k) => row(k, '👤')));
   else page.append(el('small', 'ph-note', 'Pour écrire à quelqu\'un : Contacts, puis « Message ».'));

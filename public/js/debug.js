@@ -2,7 +2,7 @@
 // ouverte avec ?debug, en local, ou sur le site publié avec un jeton d'administration
 // vérifié (voir debugMode dans dom.js et admin.js).
 import { loadToken, setTestKey } from './admin.js';
-import { nearRingInfo } from './audio.js';
+import { nearRingInfo, ringing } from './audio.js';
 import { boards } from './board.js';
 import { zoneName } from './desks.js';
 import { diagnostic, lastDiag } from './diag.js';
@@ -35,8 +35,10 @@ export function initDebug() {
     toggleSit: () => toggleSit(),
     rejoin: () => rejoin(),
     relaunch: () => relaunch(),
-    get nearRing() { return nearRingInfo(); }, // sonnerie d'un voisin en cours (tests)
+    get nearRing() { return nearRingInfo(); },
+    get ringing() { return ringing(); }, // ma propre sonnerie ou tonalité d'appel (tests) // sonnerie d'un voisin en cours (tests)
     diag: () => diagnostic(),
+    inZoneFor: (ms) => { S.zoneAt = performance.now() - ms; }, // comme si j'étais dans ma zone depuis ms (tests)
     zoneName: (id) => zoneName(id), // nom affiché d'une zone (bureau renommé ou non)
     checkAway: (idleMs) => checkAway(idleMs), // absence : comme si rien n'avait été fait depuis idleMs (tests)
     openChat: (key) => openChat(key),     // téléphone : conversation 'global', 'zone' ou 'dm:<pseudo>'

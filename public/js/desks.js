@@ -1,9 +1,9 @@
 // Noms des bureaux : chacun des dix bureaux peut être renommé par les personnes qui s'y
-// trouvent (E sur son nom, à l'entrée). Comme les messages du chat, le nom ne vit que chez
+// trouvent depuis au moins 2 minutes (E sur son nom, à l'entrée). Comme les messages du chat, le nom ne vit que chez
 // les personnes connectées : il est donné à celles qui arrivent, perdu quand l'espace se
 // vide et remis à zéro en changeant d'espace.
 import { renderChat } from './chat.js';
-import { DESK_NAME_MAX } from './constantes.js';
+import { DESK_NAME_MAX, DESK_RENAME_AFTER_MS } from './constantes.js';
 import { $, cleanName, toast } from './dom.js';
 import { renderZoneTag } from './hud.js';
 import { renderMap } from './map-render.js';
@@ -79,6 +79,12 @@ export const deskNameOpen = () => !$('#deskName').hidden;
 
 export function openDeskName(z) {
   if (!S.me || S.warp || zoneType(z) !== 'desk') return;
+  // Il faut y être installé depuis un moment : pas de renommage en passant
+  const left = DESK_RENAME_AFTER_MS - (performance.now() - S.zoneAt);
+  if (S.me.zone !== z || left > 0) {
+    const s = Math.ceil(left / 1000);
+    return toast(`🏷️ Pour renommer ce bureau, il faut y être depuis 2 minutes (encore ${s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`}).`);
+  }
   editing = z;
   keys.clear();
   $('#deskNameCurrent').textContent = zoneName(z);
