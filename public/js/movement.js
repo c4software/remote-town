@@ -117,10 +117,7 @@ export function step(now) {
   // Arrivé sur la chaise cliquée : on s'assoit
   if (S.sitTarget && !S.path?.length && S.sitTarget[0] === nx && S.sitTarget[1] === ny && !chairBusy(nx, ny)) {
     S.sitTarget = null;
-    S.me.dir = chairAt(nx, ny).dir;
-    S.me.seated = true;
-    S.me.crouch = false;
-    S.me.sitAt = Date.now();
+    sitDown();
   }
   sendMove();
   onMyMove();
@@ -159,14 +156,19 @@ export function chairNearMe() {
   return null;
 }
 
+// Assis sur la place de sa case, tourné comme elle
+function sitDown() {
+  S.me.dir = chairAt(S.me.x, S.me.y).dir;
+  S.me.seated = true;
+  S.me.crouch = false;
+  S.me.sitAt = Date.now();
+}
+
 export function sitOn(x, y) {
   const moved = x !== S.me.x || y !== S.me.y;
   S.path = null;
   S.me.x = x; S.me.y = y;
-  S.me.dir = chairAt(x, y).dir;
-  S.me.seated = true;
-  S.me.crouch = false;
-  S.me.sitAt = Date.now();
+  sitDown();
   S.nextStepAt = performance.now() + STEP_MS;
   sendMove();
   if (moved) onMyMove();

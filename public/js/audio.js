@@ -110,21 +110,28 @@ export function walkieBeep(kind, volume) {
 // même chemin qu'elles, quel que soit l'état du contexte Web Audio (suspendu,
 // resté sur une ancienne sortie…), et ne touche pas au son des voix.
 const NOTE_GAP = 0.32, NOTE_LEN = 1.35;
+// Une note : oscillateur → enveloppe (dessinée par `shape`) → sortie `out`, jouée de `at` à `stop`
+function note(ac, out, type, freq, at, stop, shape) {
+  const osc = ac.createOscillator();
+  osc.type = type; osc.frequency.value = freq;
+  const env = ac.createGain();
+  env.gain.setValueAtTime(0, at);
+  shape(env.gain);
+  osc.connect(env).connect(out);
+  osc.start(at); osc.stop(stop);
+}
+// Note pincée (carillon, musique de la porte) : attaque brève, puis extinction sur `len` secondes
+const PLUCK_TAIL = 0.05;
+const pluck = (ac, out, freq, at, len, amp, type = 'sine', attack = 0.01) => note(ac, out, type, freq, at, at + len + PLUCK_TAIL, (g) => {
+  g.linearRampToValueAtTime(amp, at + attack);
+  g.exponentialRampToValueAtTime(0.0001, at + len);
+});
 const chimes = new Map();
 function scheduleChime(ac, notes, volume, t0) {
   notes.forEach((freq, i) => {
     const at = t0 + i * NOTE_GAP;
     for (const [mult, amp] of [[1, 1], [2, 0.25], [3, 0.08]]) {
-      const osc = ac.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = freq * mult;
-      const env = ac.createGain();
-      env.gain.setValueAtTime(0, at);
-      env.gain.linearRampToValueAtTime(volume * amp, at + 0.01);
-      env.gain.exponentialRampToValueAtTime(0.0001, at + NOTE_LEN - 0.05);
-      osc.connect(env).connect(ac.destination);
-      osc.start(at);
-      osc.stop(at + NOTE_LEN);
+      pluck(ac, ac.destination, freq * mult, at, NOTE_LEN - PLUCK_TAIL, volume * amp);
     }
   });
 }
@@ -184,17 +191,17 @@ export function setCustomRing(dataUrl) {
 }
 function scheduleTones(ac, { type, amp, tones }) {
   for (const [freq, at, dur] of tones) {
-    const osc = ac.createOscillator();
-    osc.type = type; osc.frequency.value = freq;
-    const env = ac.createGain();
-    env.gain.setValueAtTime(0, at);
-    env.gain.linearRampToValueAtTime(amp, at + 0.004);
-    env.gain.setValueAtTime(amp, at + dur - 0.006);
-    env.gain.linearRampToValueAtTime(0, at + dur);
-    osc.connect(env).connect(ac.destination);
-    osc.start(at); osc.stop(at + dur + 0.02);
+    note(ac, ac.destination, type, freq, at, at + dur + 0.02, (g) => {
+      g.linearRampToValueAtTime(amp, at + 0.004);
+      g.setValueAtTime(amp, at + dur - 0.006);
+      g.linearRampToValueAtTime(0, at + dur);
+    });
   }
 }
+// Motif `style` rendu en WAV (une fois), et lecture dans `el` sauf s'il a été remplacé ou arrêté
+// entre-temps (`current()` : l'élément qui doit sonner à cet instant)
+const ringUrl = (style) => rendered(`ring-${style}`, RINGS[style].seconds, (off) => scheduleTones(off, RINGS[style]));
+const playRing = (el, url, current) => url.then((src) => { if (current() !== el) return; el.src = src; return el.play(); }).catch(() => {});
 let ringEl = null;
 // kind : 'in' (sonnerie choisie par l'appelé) ou 'out' (retour d'appel)
 export function ring(kind, loop = true) {
@@ -202,10 +209,7 @@ export function ring(kind, loop = true) {
   const el = ringEl = new Audio();
   el.loop = loop;
   const style = kind === 'out' ? 'out' : RINGS[S.ring] ? S.ring : 'ip';
-  const url = kind === 'in' && S.ring === 'file' && customRing() ? Promise.resolve(customRing())
-    : rendered(`ring-${style}`, RINGS[style].seconds, (off) => scheduleTones(off, RINGS[style]));
-  url.then((src) => { if (ringEl !== el) return; el.src = src; return el.play(); })
-    .catch(() => {});
+  playRing(el, kind === 'in' && S.ring === 'file' && customRing() ? Promise.resolve(customRing()) : ringUrl(style), () => ringEl);
 }
 export function stopRing() { ringEl?.pause(); ringEl = null; }
 export const ringing = () => !!ringEl; // ma sonnerie (ou ma tonalité) joue-t-elle ? (tests)
@@ -221,9 +225,7 @@ export function neighbourRing(style, volume, url = null) {
     nearEl = null; nearKey = key;
     if (key) {
       const el = nearEl = Object.assign(new Audio(), { loop: true });
-      (url ? Promise.resolve(url) : rendered(`ring-${style}`, RINGS[style].seconds, (off) => scheduleTones(off, RINGS[style])))
-        .then((src) => { if (nearEl !== el) return; el.src = src; return el.play(); })
-        .catch(() => {});
+      playRing(el, url ? Promise.resolve(url) : ringUrl(style), () => nearEl);
     }
   }
   if (nearEl) nearEl.volume = Math.max(0, Math.min(1, volume));
@@ -239,16 +241,7 @@ function schedulePortalMusic(ac) {
   const out = ac.createGain();
   out.gain.value = 1.4; // pic ≈ 0,35 : audible sans couvrir les voix
   out.connect(ac.destination);
-  const tone = (freq, at, len, amp, type = 'sine', attack = 0.01) => {
-    const osc = ac.createOscillator();
-    osc.type = type; osc.frequency.value = freq;
-    const env = ac.createGain();
-    env.gain.setValueAtTime(0, at);
-    env.gain.linearRampToValueAtTime(amp, at + attack);
-    env.gain.exponentialRampToValueAtTime(0.0001, at + len);
-    osc.connect(env).connect(out);
-    osc.start(at); osc.stop(at + len + 0.05);
-  };
+  const tone = (freq, at, len, amp, type, attack) => pluck(ac, out, freq, at, len, amp, type, attack);
   // Souffle : bruit filtré dont la fréquence balaie vers le haut, puis vers le bas
   const whoosh = (at, len, from, to, amp) => {
     const n = Math.floor(ac.sampleRate * len), buf = ac.createBuffer(1, n, ac.sampleRate), data = buf.getChannelData(0);

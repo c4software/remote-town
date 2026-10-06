@@ -144,15 +144,22 @@ const relaysUp = () => {
   try { return Object.values(S.tr.getRelaySockets()).some((s) => s.readyState === 1); } catch { return true; }
 };
 
+// Quitte la salle : chaque pair est retiré, la liaison Trystero fermée. Renvoie la fin du départ
+// (2 s au plus), qu'attendent ceux qui rejoignent une salle aussitôt après (rejoin, switchRoom)
+function dropRoom() {
+  for (const id of [...users.keys()]) if (id !== S.myId) onPeerLeave(id, true);
+  const old = S.room;
+  S.room = null; S.net = null;
+  return Promise.race([Promise.resolve(old?.leave()).catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+}
+
 export async function relaunch() {
   if (rejoining || S.kicked) return;
   rejoining = true;
   lastRejoin = performance.now();
   const btn = $('#waitRetry');
   btn.disabled = true; btn.textContent = 'Reconnexion…';
-  for (const id of [...users.keys()]) if (id !== S.myId) onPeerLeave(id, true);
-  S.room?.leave().catch(() => {});
-  S.room = null; S.net = null;
+  dropRoom();
   try {
     S.tr = await import(`../vendor/trystero-nostr.js?instance=${Date.now()}`);
   } catch {
@@ -179,10 +186,7 @@ export async function rejoin() {
   if (rejoining || !S.room) return;
   rejoining = true;
   lastRejoin = performance.now();
-  for (const id of [...users.keys()]) if (id !== S.myId) onPeerLeave(id, true);
-  const old = S.room;
-  S.room = null; S.net = null;
-  await Promise.race([old.leave().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+  await dropRoom();
   await prepareIce();
   joinNet();
   rejoining = false;
@@ -194,10 +198,7 @@ export async function rejoin() {
 export async function switchRoom(id) {
   rejoining = true;
   lastRejoin = performance.now();
-  for (const pid of [...users.keys()]) if (pid !== S.myId) onPeerLeave(pid, true);
-  const old = S.room;
-  S.room = null; S.net = null;
-  await Promise.race([old?.leave().catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
+  await dropRoom();
   S.roomId = id;
   S.joinedAt = performance.now(); // nouvel arrivant dans cet espace (pseudos en double : checkNameClash)
   helloAsked.clear();
@@ -343,6 +344,13 @@ function setPos(u, d) {
   return true;
 }
 
+// État annoncé par un participant, reçu dans `hello` comme dans `state` : la seule liste de ses champs
+function applyState(u, d, peerId) {
+  if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
+  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab, ...remotePhone(d, peerId) });
+  receiveEmote(u, d?.emote);
+}
+
 function onHello(d, { peerId }) {
   if (isBanned(peerId)) return dropPeer(peerId);
   const known = users.get(peerId);
@@ -362,9 +370,7 @@ function onHello(d, { peerId }) {
   u.sitAt = Number(d?.sitAt) || 0;
   u.crouch = !!d?.crouch;
   if (d?.ask) S.net?.hello.send(profile(), { target: peerId }).catch(() => {});
-  if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab, ...remotePhone(d, peerId) });
-  receiveEmote(u, d?.emote);
+  applyState(u, d, peerId);
   users.set(peerId, u);
   checkNameClash(u, Number(d?.age));
   resolveOverlap(u);
@@ -420,9 +426,7 @@ function onRemoteState(d, { peerId }) {
   const wasTalking = pttReaches(u);
   if (d?.ptt && !u.ptt) u.pttAt = performance.now();
   if (d?.hand && !u.hand) { u.handAt = performance.now(); if (u.zone === S.me.zone) toast(`✋ ${u.name} lève la main`); }
-  if (d?.six && !u.sixSeven) u.sixSevenAt = performance.now();
-  Object.assign(u, { mic: !!d?.mic, ptt: !!d?.ptt, sharing: !!d?.sharing, onAir: !!d?.onAir, hand: !!d?.hand, sixSeven: !!d?.six, dab: !!d?.dab, ...remotePhone(d, peerId) });
-  receiveEmote(u, d?.emote);
+  applyState(u, d, peerId);
   const talking = pttReaches(u);
   if (talking !== wasTalking) neighbourBeep(u, talking);
   phonePeerState(peerId);
@@ -444,9 +448,7 @@ export function dropPeer(id) {
 // Expulsé·e : on quitte la salle pour de bon (pas de reconnexion automatique)
 export function leaveRoom() {
   S.kicked = true;
-  for (const id of [...users.keys()]) if (id !== S.myId) onPeerLeave(id, true);
-  S.room?.leave().catch(() => {});
-  S.room = null; S.net = null;
+  dropRoom();
 }
 
 function onPeerLeave(id, silent = false) {
