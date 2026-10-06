@@ -1,5 +1,6 @@
 // Interface autour de la carte : démarrage de l'app, changement de zone, barre du bas, aide.
 import { drawAvatar } from './avatar.js';
+import { zoneName } from './desks.js';
 import { atTeacherDesk, boardPip, boards, closeMyBoard, refreshBoard } from './board.js';
 import { chat, fetchHistory, renderChat } from './chat.js';
 import { REACTIONS } from './constantes.js';
@@ -56,6 +57,15 @@ export function onZoneChange(initial = false) {
   phoneZoneChange();
   for (const [z, b] of boards) if (b.owner === S.myId && z !== S.me.zone) closeMyBoard(z);
   refreshBoard();
+  renderZoneTag();
+  if (!initial && lastZoneToast !== S.me.zone && z.type !== 'open') toast(`Vous entrez dans ${zoneName(z.id)}`);
+  lastZoneToast = S.me.zone;
+  renderChat();
+}
+
+// Étiquette de la zone où l'on se trouve (aussi quand son bureau est renommé, desks.js)
+export function renderZoneTag() {
+  const z = MAP.zoneById[S.me.zone];
   const tag = $('#zoneTag');
   tag.className = z.type;
   const hint = z.type === 'desk' ? 'micro & écran partagés avec le bureau'
@@ -63,11 +73,8 @@ export function onZoneChange(initial = false) {
     : z.type === 'main' ? 'micro partagé avec la salle · pupitre (E) : parler à tout le monde'
     : 'micro (M) : personnes juste à côté · N maintenu : à proximité';
   tag.innerHTML = '<span class="dot"></span>';
-  tag.append(z.name, Object.assign(document.createElement('small'), { textContent: `· ${hint}` }));
-  $('#meZone').textContent = z.name;
-  if (!initial && lastZoneToast !== S.me.zone && z.type !== 'open') toast(`Vous entrez dans ${z.name}`);
-  lastZoneToast = S.me.zone;
-  renderChat();
+  tag.append(zoneName(z.id), Object.assign(document.createElement('small'), { textContent: `· ${hint}` }));
+  $('#meZone').textContent = zoneName(z.id);
 }
 
 export function updateUI() {

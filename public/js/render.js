@@ -11,7 +11,7 @@ import { isTransmitting } from './panel.js';
 import { drawHandAndReactions, sixSevenPump } from './social.js';
 import { drawPortalOpen, drawSpaceSign, drawWarpOverlay, warpPose } from './spaces.js';
 import { S, users } from './state.js';
-import { MAP, PROX_RADIUS, TILE, canTalkieIn, chairAt, isOnAir, nearCooler, nearLectern, nearPortal, sendsAudio, shade, sideBySide } from './world.js';
+import { MAP, PROX_RADIUS, TILE, canTalkieIn, chairAt, deskLabelAt, isOnAir, nearCooler, nearLectern, nearPortal, sendsAudio, shade, sideBySide } from './world.js';
 
 export const canvas = $('#world');
 export const ctx = canvas.getContext('2d');
@@ -315,7 +315,8 @@ function drawSitHint(zoom) {
     : nearLectern(S.me.x, S.me.y) ? 'Prendre la parole (tout le monde)'
     : nearPortal(S.me.x, S.me.y) ? "Changer d'espace de travail"
     : nearCooler(S.me.x, S.me.y) ? (S.me.emote === COOLER_EMOTE ? 'Finir sa pause café' : 'Pause café')
-    : chairNearMe() ? "S'asseoir" : null;
+    : chairNearMe() ? "S'asseoir"
+    : deskLabelAt(S.me.x, S.me.y) ? 'Renommer le bureau' : null;
   if (!text) return;
   const sx = (S.me.rx * TILE + TILE / 2 - S.cam.x) * zoom;
   const sy = ((S.me.ry + 1) * TILE - S.cam.y) * zoom + 6;

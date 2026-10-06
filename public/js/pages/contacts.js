@@ -1,5 +1,5 @@
 // Page du téléphone : les contacts, c'est-à-dire les autres personnes de l'espace.
-import { MAP } from '../world.js';
+import { zoneName } from '../desks.js';
 import { personalVolume } from '../media.js';
 import { isTransmitting } from '../panel.js';
 import { dial, openPerson } from '../phone.js';
@@ -12,7 +12,7 @@ function contactRow(u) {
   row.dataset.id = u.id;
   const marks = [u.hand && '✋', u.phone && '📞', isTransmitting(u) && '🎙️', u.sharing && '🖥️',
     u.link === 'relay' && 'relais', personalVolume(u) < 1 && volumeLabel(personalVolume(u))].filter(Boolean).join(' ');
-  info.append(el('b', '', u.name), el('small', '', [MAP.zoneById[u.zone]?.name, marks].filter(Boolean).join(' · ')));
+  info.append(el('b', '', u.name), el('small', '', [zoneName(u.zone), marks].filter(Boolean).join(' · ')));
   info.onclick = () => openPerson(u.id);
   const b = btn('ph-mini ph-dial', 'call', '', () => dial(u));
   b.title = noCall(u) || `Appeler ${u.name}`;

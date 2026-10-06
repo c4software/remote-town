@@ -2,6 +2,7 @@
 // accroupi, dash, rejoindre quelqu'un. Chaque changement est diffusé par sendMove().
 import { initMic } from './audio.js';
 import { atTeacherDesk, boards } from './board.js';
+import { openDeskName } from './desks.js';
 import { phoneClose } from './phone.js';
 import { COOLER_EMOTE, CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, REST_EMOTE, SPRINT_MS, STAMINA, STEP_MS } from './constantes.js';
 import { $, toast, typing } from './dom.js';
@@ -12,7 +13,7 @@ import { pushState, updateRouting } from './media.js';
 import { broadcast } from './net.js';
 import { openSpaces } from './spaces.js';
 import { S, users } from './state.js';
-import { COOLER, LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, restSeat, zoneAt } from './world.js';
+import { COOLER, LECTERN_SPOTS, MAP_H, MAP_W, chairAt, deskLabelAt, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, restSeat, zoneAt } from './world.js';
 
 // ============================================================
 // Pas à pas et trajets
@@ -268,6 +269,8 @@ export function interact() {
   if (nearLectern(S.me.x, S.me.y) && !S.me.seated) return startOnAir();
   if (nearPortal(S.me.x, S.me.y) && !S.me.seated) return openSpaces();
   if (nearCooler(S.me.x, S.me.y) && !S.me.seated) return coffeeBreak();
+  const desk = deskLabelAt(S.me.x, S.me.y);
+  if (desk && !S.me.seated && !chairNearMe()) return openDeskName(desk);
   toggleSit();
 }
 

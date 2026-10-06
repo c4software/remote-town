@@ -4,6 +4,7 @@
 // sont dans pages/chats.js et pages/chat.js.
 import { drawAvatar } from './avatar.js';
 import { CHAT_KEEP, CHAT_KEY, COLOR, NOTIF_MS, PHONE_VIEW } from './constantes.js';
+import { zoneName } from './desks.js';
 import { $, cleanName, toast } from './dom.js';
 import { renderMessages } from './pages/chat.js';
 import { el } from './pages/ui.js';
@@ -95,7 +96,7 @@ export function onChat(channel, msg, peerId) {
 function received(key, msg) {
   if (storeMsgs(key, [msg])) notify(key, msg);
 }
-export const convTitle = (key) => (key === CHAT_KEY.GLOBAL ? 'Tout le monde' : key === CHAT_KEY.ZONE ? MAP.zoneById[chat.zoneId]?.name || 'Salle'
+export const convTitle = (key) => (key === CHAT_KEY.GLOBAL ? 'Tout le monde' : key === CHAT_KEY.ZONE ? zoneName(chat.zoneId) || 'Salle'
   : dmUser(key)?.name || chatList(key).find((m) => !myIds.has(m.from))?.name || key.slice(3));
 function notify(key, msg) {
   msg = chatList(key).find((m) => m.id === msg.id) || msg;

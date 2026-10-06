@@ -575,6 +575,54 @@ const scenarios = {
     t.check(await aliceEmote() === null, 'une chaise ordinaire : pas de sieste');
   },
 
+  async 'nom des bureaux'(t) {
+    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
+    await waitPeers([a, b]);
+    const nameAt = (p, z = 'desk-1') => p.evaluate((z) => rt.zoneName(z), z);
+    // Bureau 1 : son nom est écrit en (19-20, 7), juste derrière la porte
+    await place(a, 20, 7); await place(b, 40, 11);
+    await wait(500);
+    t.check(await nameAt(a) === 'Bureau 1', 'nom d\'origine');
+    await a.keyboard.press('KeyE');
+    await wait(300);
+    t.check(await a.$eval('#deskName', (e) => !e.hidden) && await a.$eval('#deskNameInput', (e) => e === document.activeElement && e.value === ''), 'E sur le nom du bureau : la fenêtre s\'ouvre');
+    await a.type('#deskNameInput', ' Équipe   réseau ');
+    await a.keyboard.press('Enter');
+    await wait(1000);
+    t.check(await a.$eval('#deskName', (e) => e.hidden), 'Entrée : la fenêtre se ferme');
+    t.check(await nameAt(a) === 'Équipe réseau' && await nameAt(b) === 'Équipe réseau', 'nom nettoyé (espaces), reçu par Bob');
+    t.check((await me(a)).x === 20 && await a.$eval('#zoneTag', (e) => e.textContent.includes('Équipe réseau')), 'saisir le nom ne déplace pas ; étiquette de zone à jour');
+    // Une personne qui arrive reçoit le nom
+    const c = await join(t, 'Chloé');
+    await waitPeers([a, b, c]);
+    await wait(1000);
+    t.check(await nameAt(c) === 'Équipe réseau', 'une personne qui arrive reçoit le nom');
+    // Bob le renomme à son tour, puis revient au nom d'origine (champ vide)
+    await place(b, 19, 7); await wait(500);
+    await b.keyboard.press('KeyE'); await wait(300);
+    t.check(await b.$eval('#deskNameInput', (e) => e.value === 'Équipe réseau'), 'le nom en cours est proposé');
+    await b.type('#deskNameInput', 'SLAM'); // le texte sélectionné est remplacé
+    await b.keyboard.press('Enter');
+    await wait(1000);
+    t.check(await nameAt(a) === 'SLAM' && await nameAt(c) === 'SLAM', 'renommé par une autre personne : le plus récent l\'emporte');
+    await b.keyboard.press('KeyE'); await wait(300);
+    await b.keyboard.press('Backspace');
+    await b.keyboard.press('Enter');
+    await wait(1000);
+    t.check(await nameAt(a) === 'Bureau 1' && await nameAt(b) === 'Bureau 1', 'champ vide : retour au nom d\'origine');
+    // Données invalides : seuls les bureaux se renomment
+    await b.evaluate(() => rt.room && import('/js/net.js').then((n) => n.broadcast('zname', [{ z: 'main', name: 'Pirate', rev: 5 }, { z: 'desk-2', name: 'x'.repeat(200), rev: 1 }, { z: 'desk-3', name: 'Sans rev' }])));
+    await wait(1000);
+    t.check(await nameAt(a, 'main') === 'Bureau principal' && await nameAt(a, 'desk-3') === 'Bureau 3' && (await nameAt(a, 'desk-2')).length === 18, 'reçu du réseau : zone non renommable et entrée invalide ignorées, longueur bornée');
+    // Échap ferme sans renommer
+    await a.keyboard.press('KeyE'); await wait(300);
+    await a.type('#deskNameInput', 'Annulé');
+    await a.keyboard.press('Escape');
+    await wait(500);
+    t.check(await a.$eval('#deskName', (e) => e.hidden) && await nameAt(a) === 'Bureau 1', 'Échap : fermé sans renommer');
+    if (process.env.SHOT) await a.screenshot({ path: process.env.SHOT });
+  },
+
   async 'tableau blanc'(t) {
     const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
     await waitPeers([a, b]);

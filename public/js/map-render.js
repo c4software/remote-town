@@ -1,5 +1,6 @@
 // Rendu de la carte (sols, murs, mobilier), pré-calculé une fois dans un canvas hors écran.
 import { WORLD_H, WORLD_W } from './constantes.js';
+import { zoneName } from './desks.js';
 import { MAP, MAP_H, MAP_W, T, TILE, shade, tileAt, zoneAt } from './world.js';
 
 const MS = 2; // résolution du canvas de la carte
@@ -68,10 +69,11 @@ export function renderMap() {
   for (const z of MAP.zones) {
     if (z.type !== 'desk') continue;
     const tx = z.label.x * TILE, ty = z.label.y * TILE + 16;
-    const w = g.measureText(z.name).width + 12;
+    const name = zoneName(z.id);
+    const w = g.measureText(name).width + 12;
     g.fillStyle = 'rgba(32,37,64,.55)';
     g.beginPath(); g.roundRect(tx - w / 2, ty - 7, w, 14, 7); g.fill();
-    g.fillStyle = '#fff'; g.fillText(z.name, tx, ty + 0.5);
+    g.fillStyle = '#fff'; g.fillText(name, tx, ty + 0.5);
   }
   return c;
 }

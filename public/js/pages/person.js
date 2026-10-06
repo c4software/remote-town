@@ -1,18 +1,18 @@
 // Page du téléphone : la fiche d'une personne.
 import { isAdmin, kick } from '../admin.js';
 import { dmKey } from '../chat.js';
+import { zoneName } from '../desks.js';
 import { ofName } from '../dom.js';
 import { personalVolume, setPersonalVolume } from '../media.js';
 import { joinFromPanel } from '../movement.js';
 import { dial, openChat, togglePhone } from '../phone.js';
-import { MAP } from '../world.js';
 import { btn, el, miniAvatar, noCall } from './ui.js';
 
 // Fiche d'une personne : l'appeler, lui écrire, la rejoindre, régler son volume pour moi
 // seul, et l'expulser pour les administrateurs (jeton, admin.js)
 export function personPage(u) {
   const page = el('div', 'ph-list ph-person');
-  page.append(miniAvatar(u.look, 'ph-avatar'), el('div', 'ph-name', u.name), el('small', 'ph-note', MAP.zoneById[u.zone]?.name || ''));
+  page.append(miniAvatar(u.look, 'ph-avatar'), el('div', 'ph-name', u.name), el('small', 'ph-note', zoneName(u.zone)));
   const callBtn = btn('ph-row ph-act-call', 'call', noCall(u) ? `Appeler (${noCall(u).toLowerCase()})` : 'Appeler', () => dial(u));
   callBtn.disabled = !!noCall(u);
   page.append(

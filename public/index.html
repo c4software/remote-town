@@ -121,6 +121,18 @@
       </div>
     </div>
 
+    <div id="deskName" hidden>
+      <div class="spaces-card" role="dialog" aria-labelledby="deskNameTitle">
+        <button class="help-close" id="deskNameClose" aria-label="Fermer">×</button>
+        <b id="deskNameTitle">🏷️ Renommer le bureau</b>
+        <p class="spaces-sub">Il s'appelle « <span id="deskNameCurrent"></span> ». Le nom est visible de tout le monde ; laissez vide pour revenir au nom d'origine.</p>
+        <form id="deskNameForm">
+          <input id="deskNameInput" type="text" autocomplete="off">
+          <button class="btn-primary" type="submit">Renommer</button>
+        </form>
+      </div>
+    </div>
+
     <div id="help">
       <button class="help-close" aria-label="Fermer">×</button>
       <b>Commandes</b>
@@ -132,6 +144,7 @@
       <div><kbd>E</kbd> au pupitre du bureau principal : parler à tout le monde · <kbd>J</kbd> : jingle d'annonce</div>
       <div><kbd>E</kbd> devant la porte violette du couloir : changer d'espace de travail</div>
       <div><kbd>E</kbd> à côté de la machine à eau du couloir : pause café ☕</div>
+      <div><kbd>E</kbd> sur le nom d'un bureau, à son entrée : le renommer</div>
       <div>Bureau du prof (classe, pupitre) : bouton tableau pour ouvrir le tableau blanc (dessin, ou outil « Texte » pour écrire au clavier)</div>
       <div><kbd>1</kbd>…<kbd>6</kbd> : réactions · <kbd>H</kbd> : lever la main</div>
       <div>Bouton téléphone de la barre : contacts (appeler, écrire, rejoindre, volume), messages, personnage, réglages</div>

@@ -2,10 +2,10 @@
 // à demander à une personne qui se retrouve « seule » alors que la salle est pleine.
 // Le bouton « 🩺 Diagnostic » le copie dans le presse-papiers et l'envoie à notre relais
 // (POST /diag, journalisé côté serveur) quand l'application l'utilise.
+import { zoneName } from './desks.js';
 import { $, toast } from './dom.js';
 import { iceServers, linkTypes, netUrl, onBackupRelays } from './net.js';
 import { S, users } from './state.js';
-import { MAP } from './world.js';
 
 const MAX_LOGS = 30;
 const logs = []; // derniers messages de console mentionnant Trystero, depuis le démarrage
@@ -98,7 +98,7 @@ export async function diagnostic() {
   add('Salle', S.roomId);
   add('Nom', S.me?.name || '(pas encore connecté·e)');
   add('Connecté·e depuis', S.joinedAt ? duration(performance.now() - S.joinedAt) : '—');
-  add('Zone', MAP.zoneById[S.me?.zone]?.name || S.me?.zone || '—');
+  add('Zone', zoneName(S.me?.zone) || S.me?.zone || '—');
   add('Notre relais', !netUrl() ? 'non utilisé (relais publics seuls)' : onBackupRelays() ? 'injoignable : relais publics en secours' : 'utilisé seul');
 
   lines.push('Relais de mise en relation :');

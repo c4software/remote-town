@@ -1,5 +1,6 @@
 // Clavier et souris : raccourcis, directions tenues, clic sur la carte.
 import { DIRS, REACTIONS } from './constantes.js';
+import { deskNameOpen } from './desks.js';
 import { $, toast, typing } from './dom.js';
 import { setPtt, toggleMic } from './media.js';
 import { bfs, chairBusy, coffeeBreak, dash, freeLecternSpot, interact, jump, sendMove, sitOn, startOnAir, stopOnAir, toggleCrouch } from './movement.js';
@@ -41,7 +42,7 @@ export function initInput() {
     if (e.key === 'Shift') S.sprinting = true;
     if (!S.me) return;
     if (S.editingProfile) { if (e.key === 'Escape') closeProfile(); return; }
-    if (S.warp || spacesOpen()) return;
+    if (S.warp || spacesOpen() || deskNameOpen()) return;
     if (e.key === 'Escape') {
       if (S.focusKey) closeFocus();
       document.activeElement?.blur();

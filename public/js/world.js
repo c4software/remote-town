@@ -152,6 +152,12 @@ export const tileAt = (x, y) => (inside(x, y) ? MAP.tiles[y * MAP_W + x] : T.WAL
 export const isBlocked = (x, y) => !inside(x, y) || MAP.blocked[y * MAP_W + x] === 1;
 export const zoneAt = (x, y) => (inside(x, y) ? MAP.zoneGrid[y * MAP_W + x] : null);
 export const chairAt = (x, y) => (inside(x, y) ? MAP.chairs.get(y * MAP_W + x) : undefined);
+// Nom d'un bureau, écrit au sol à son entrée : sur l'une des deux cases qu'il recouvre, E
+// permet de le renommer (desks.js). Renvoie l'identifiant du bureau, sinon null.
+export function deskLabelAt(x, y) {
+  const z = MAP.zoneById[zoneAt(x, y)];
+  return z?.type === 'desk' && y === z.label.y && (x === z.label.x || x === z.label.x - 1) ? z.id : null;
+}
 // Place de repos (canapé, banc) : on y fait la sieste
 export const restSeat = (x, y) => !!chairAt(x, y)?.rest;
 export const zoneType = (id) => MAP.zoneById[id]?.type || 'open';

@@ -2,13 +2,14 @@
 import { drawAvatar } from './avatar.js';
 import { chime } from './audio.js';
 import { JINGLE_GAP, MAX_HANDS, REACTIONS, REACT_MS } from './constantes.js';
+import { zoneName } from './desks.js';
 import { $, ofName, toast } from './dom.js';
 import { pushState } from './media.js';
 import { openHandMenu } from './panel.js';
 import { broadcast } from './net.js';
 import { ctx } from './render.js';
 import { S, users } from './state.js';
-import { MAP, isOnAir } from './world.js';
+import { isOnAir } from './world.js';
 
 let lastReactAt = 0;
 
@@ -139,7 +140,7 @@ export function renderHands() {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'hand-bubble';
-    b.title = `${u.name} lève la main · ${MAP.zoneById[u.zone]?.name || ''} — cliquer pour rejoindre ou appeler`;
+    b.title = `${u.name} lève la main · ${zoneName(u.zone)} — cliquer pour rejoindre ou appeler`;
     const q = document.createElement('span'); q.className = 'hb-q'; q.textContent = '?';
     const n = document.createElement('span'); n.className = 'hb-name'; n.textContent = u.name;
     b.append(headPortrait(u), q, n);

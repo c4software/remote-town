@@ -51,6 +51,7 @@ Il n'y a pas d'hôte : chacun est relié directement à tous les autres, et le d
 | Clic droit maintenu (appui long sur mobile) | Émote animée en boucle, choisie dans une roue : 💻 travail, ⏳ AFK, 😴 sieste, ☕ café, 🤔 réflexion. Se déplacer la retire, le centre de la roue aussi |
 | `E` devant la porte violette du couloir (sur mobile : la toucher) | Changer d'espace de travail : saisir un identifiant ou choisir un espace enregistré. On passe la porte et on ressort dans l'autre espace, avec le même personnage |
 | `E` à côté de la machine à eau du couloir (sur mobile : la toucher) | Pause café : l'émote ☕ s'affiche au-dessus de son nom, jusqu'au prochain pas (ou `E` à nouveau) |
+| `E` sur le nom d'un bureau, écrit au sol à son entrée | Renommer le bureau (18 caractères au plus ; vide : retour au nom d'origine). Le nom est visible de tout le monde et dure tant qu'il reste quelqu'un dans l'espace |
 | `C` | S'accroupir / se relever (on avance à pas de loup) |
 | `V` | Sauter |
 | `B` maintenu | Dab (vu par tout le monde) |

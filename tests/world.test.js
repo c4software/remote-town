@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, COOLER, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, restSeat, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, COOLER, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, deskLabelAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, restSeat, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -58,6 +58,22 @@ test('canapés : chaque case est une place assise, orientée', () => {
     assert.equal(chairAt(x, 19)?.dir, 'up', `canapé du bas, case ${x}`);
     assert.equal(isBlocked(x, 15), false);
   }
+});
+
+test('nom des bureaux : deux cases à l\'entrée de chaque bureau, praticables, sans chaise voisine', () => {
+  const desks = MAP.zones.filter((z) => z.type === 'desk');
+  assert.equal(desks.length, 10);
+  for (const z of desks) {
+    for (const x of [z.label.x - 1, z.label.x]) {
+      assert.equal(deskLabelAt(x, z.label.y), z.id, `${z.id}, case ${x}`);
+      assert.ok(!isBlocked(x, z.label.y), `${z.id} : case du nom praticable`);
+      for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) assert.ok(!chairAt(x + dx, z.label.y + dy), `${z.id} : pas de chaise à portée de E`);
+    }
+    assert.equal(deskLabelAt(z.label.x + 1, z.label.y), null);
+    assert.equal(deskLabelAt(z.label.x - 2, z.label.y), null);
+  }
+  assert.equal(deskLabelAt(30, 10), null, 'couloir');
+  assert.equal(deskLabelAt(7, 5), null, 'bureau principal');
 });
 
 test('places de repos : canapés et banc du couloir, pas les chaises', () => {
