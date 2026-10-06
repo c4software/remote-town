@@ -226,12 +226,19 @@ const scenarios = {
     await wait(1200);
     t.check(await has(c, '.ph-away .ph-record') && await a.$eval('#phone', (e) => e.hidden), 'ne pas déranger : appel depuis les contacts renvoyé vers la messagerie, sans sonner');
     await c.click('#phone .ph-ghost');
-    // Dans une salle de classe : pas de téléphone
-    await place(b, 65, 10);
-    await wait(500);
-    await call(b, 'Alice');
-    await wait(500);
-    t.check(await b.$eval('#phone', (e) => !e.querySelector('.ph-out')), 'depuis la salle de classe : appel impossible');
+    // Dans une salle de classe : le téléphone marche, mais sans haut-parleur pour les autres
+    // (Bob, en classe, appelle Chloé dans le couloir ; Alice est sa voisine de classe)
+    await place(b, 65, 10); await place(a, 66, 10);
+    await wait(31000); // pas d'appels à la suite
+    await call(b, 'Chloé');
+    await wait(1500);
+    t.check(await has(b, '.ph-out') && await has(c, '.ph-in'), 'depuis la salle de classe : l\'appel part et sonne');
+    await c.click('#phone .ph-accept');
+    await wait(2500);
+    t.check(await hears(c, 'Bob') && await hears(b, 'Chloé'), 'appel avec la salle de classe : on s\'entend');
+    t.check(await b.$eval('#phone .ph-spk', (e) => e.disabled) && await c.$eval('#phone .ph-spk', (e) => !e.disabled), 'haut-parleur indisponible en classe, disponible dans le couloir');
+    t.check(!(await hears(a, 'Bob')) && !(await hears(a, 'Chloé')), 'la voisine de classe n\'entend pas l\'appel');
+    await b.click('#phone .ph-end');
   },
 
   async 'sonnerie personnelle'(t) {

@@ -12,7 +12,7 @@ import { statusText } from './pages/call.js';
 import { stopPreview } from './pages/settings.js';
 import { forgetRing } from './ring.js';
 import { S, users } from './state.js';
-import { canCallIn } from './world.js';
+import { phoneQuietIn } from './world.js';
 
 // Appel en cours : { peer, name, phase, mine, timer… }. Phases : 'out' (ça sonne chez
 // l'autre), 'in' (on m'appelle), 'on' (en ligne), 'away' (pas de réponse : laisser un
@@ -76,7 +76,6 @@ function missedCall(u) {
 
 export async function startCall(u) {
   if (call) return toast('📞 Un appel est déjà en cours.');
-  if (!canCallIn(S.me.zone)) return toast('📞 Pas de téléphone dans cette salle.');
   const wait = Math.ceil((CALL.gapMs - (performance.now() - lastCallAt)) / 1000);
   if (wait > 0) return toast(`📞 Pas d'appels à la suite : réessayez dans ${wait} s.`);
   if (!S.micTrack && !(await initMic())) return;
@@ -124,7 +123,7 @@ export function onCallMsg(d, peerId) {
     rangAt.set(peerId, now);
     // Ne pas déranger : droit à la messagerie, sans sonner ni notifier
     if (S.dnd) { missed.set(peerId, now); return tell(peerId, CALL_MSG.BUSY); }
-    if (call || !canCallIn(S.me.zone)) { missedCall(u); return tell(peerId, CALL_MSG.BUSY); }
+    if (call) { missedCall(u); return tell(peerId, CALL_MSG.BUSY); }
     setCall({ peer: peerId, name: u.name, phase: CALL_PHASE.IN }, CALL.ringMs + 5000, () => { missedCall(u); setCall(null); });
     ring('in');
     prepare(u);
@@ -157,11 +156,16 @@ export function phonePeerLeft(id) {
   if (call?.peer === id) endCall();
 }
 
-// En entrant dans une salle de classe : l'appel se termine
+// En entrant dans une salle de classe : l'appel continue, mais le haut-parleur se coupe
+// (les autres ne doivent pas l'entendre, voir phoneQuietIn dans world.js)
 export function phoneZoneChange() {
-  if (!call || canCallIn(S.me.zone) || ![CALL_PHASE.OUT, CALL_PHASE.IN, CALL_PHASE.ON].includes(call.phase)) return;
-  toast('📞 Pas de téléphone dans cette salle : appel terminé.');
-  hangUp();
+  if (!call) return;
+  if (S.me.speaker && phoneQuietIn(S.me.zone)) {
+    S.me.speaker = false;
+    toast('📞 Pas de haut-parleur dans cette salle : l\'appel continue pour vous seul·e.');
+    pushState();
+  }
+  renderPhone(); // le bouton du haut-parleur suit la salle
 }
 
 // ============================================================

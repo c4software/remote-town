@@ -184,7 +184,7 @@ export function sendsAudio(s, r) {
   if (!s || !r || s.id === r.id) return false;
   if (isOnAir(s)) return true; // pupitre : tout le monde entend
   // Téléphone : `call` est l'identifiant de la personne en ligne (phone.js), où qu'elle soit
-  if (s.call && s.call === r.id && canCallIn(s.zone)) return true;
+  if (s.call && s.call === r.id) return true;
   // N : parler à proximité, uniquement dans la même zone (les murs bloquent le son)
   if (s.ptt && canTalkieIn(s.zone) && s.zone === r.zone && dist(s, r) <= PROX_RADIUS) return true;
   // Côte à côte dans un espace ouvert (couloir) : on s'entend sans N, si son micro (M) est ouvert
@@ -206,13 +206,14 @@ export const canShareIn = (zoneId) => ROOM_TYPES.includes(zoneType(zoneId));
 // Pas de talkie-walkie (N) dans les deux salles de classe : la salle de classe et le bureau principal
 export const NO_TALKIE_TYPES = ['class', 'main'];
 export const canTalkieIn = (zoneId) => !NO_TALKIE_TYPES.includes(zoneType(zoneId));
-// Le téléphone (phone.js) suit la même règle : ni appel lancé, ni appel reçu dans ces salles
-export const canCallIn = canTalkieIn;
+// Le téléphone (phone.js) marche partout, mais dans ces mêmes salles il reste discret : les
+// autres n'entendent ni la sonnerie d'un voisin, ni un appel mis sur haut-parleur
+export const phoneQuietIn = (zoneId) => NO_TALKIE_TYPES.includes(zoneType(zoneId));
 // Téléphone qui sonne (`phone: 'ring'`, phone.js) : les personnes proches l'entendent aussi,
 // dans la même zone, d'autant plus bas qu'elles sont loin (0 : pas entendu)
 export const RING_RADIUS = 4;
 export function ringVolume(s, r) {
-  if (!s || !r || s.id === r.id || s.phone !== 'ring' || s.zone !== r.zone || !canCallIn(s.zone)) return 0;
+  if (!s || !r || s.id === r.id || s.phone !== 'ring' || s.zone !== r.zone || phoneQuietIn(s.zone)) return 0;
   const d = dist(s, r);
   return d > RING_RADIUS ? 0 : Math.max(0.1, Math.min(0.6, 0.6 - ((d - 1) / (RING_RADIUS - 1)) * 0.5));
 }
@@ -221,7 +222,7 @@ export const hearsRing = (s, r) => ringVolume(s, r) > 0;
 // Haut-parleur du téléphone (`speaker`) : la conversation s'entend autour de la personne qui
 // l'a activé, dans sa zone. Renvoie la personne dont le téléphone porte la voix de `s` jusqu'à
 // `r` (`s` qui parle fort, ou son correspondant `partner` qui a mis le haut-parleur), sinon null.
-const nearPhone = (holder, r) => holder.zone === r.zone && canCallIn(holder.zone) && dist(holder, r) <= PROX_RADIUS;
+const nearPhone = (holder, r) => holder.zone === r.zone && !phoneQuietIn(holder.zone) && dist(holder, r) <= PROX_RADIUS;
 export function speakerHolder(s, partner, r) {
   if (!s?.call || !r || s.id === r.id || s.call === r.id) return null;
   if (s.speaker && nearPhone(s, r)) return s;

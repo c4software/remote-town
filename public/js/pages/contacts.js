@@ -4,7 +4,7 @@ import { personalVolume } from '../media.js';
 import { isTransmitting } from '../panel.js';
 import { dial, openPerson } from '../phone.js';
 import { users } from '../state.js';
-import { btn, el, miniAvatar, noCall, volumeLabel } from './ui.js';
+import { btn, el, miniAvatar, volumeLabel } from './ui.js';
 
 // Une personne des contacts : un clic ouvre sa fiche, le combiné l'appelle
 function contactRow(u) {
@@ -15,8 +15,7 @@ function contactRow(u) {
   info.append(el('b', '', u.name), el('small', '', [zoneName(u.zone), marks].filter(Boolean).join(' · ')));
   info.onclick = () => openPerson(u.id);
   const b = btn('ph-mini ph-dial', 'call', '', () => dial(u));
-  b.title = noCall(u) || `Appeler ${u.name}`;
-  b.disabled = !!noCall(u);
+  b.title = `Appeler ${u.name}`;
   row.append(miniAvatar(u.look, 'ph-face'), info, b);
   return row;
 }

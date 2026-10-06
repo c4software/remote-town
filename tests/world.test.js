@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, COOLER, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, deskLabelAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, restSeat, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, COOLER, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canTalkieIn, chairAt, deskLabelAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, phoneQuietIn, restSeat, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -115,15 +115,34 @@ test('N : pas de talkie dans la salle de classe ni au bureau principal', () => {
   assert.equal(sendsAudio({ ...c, mic: true }, at(66, 10)), true, 'le micro (M) y marche toujours');
 });
 
-test('téléphone : on s\'entend où qu\'on soit, sauf depuis une salle de classe', () => {
+test('téléphone : on s\'entend où qu\'on soit, salles de classe comprises', () => {
   const a = at(30, 10), b = at(20, 5), c = at(31, 10);
   a.call = b.id; b.call = a.id;
   assert.equal(sendsAudio(a, b), true, 'couloir → bureau, micro coupé');
   assert.equal(sendsAudio(b, a), true, 'et dans l\'autre sens');
   assert.equal(sendsAudio(a, c), false, 'la personne d\'à côté n\'entend pas l\'appel');
-  const k = at(65, 10, { call: b.id });
-  assert.equal(canCallIn(k.zone), false);
-  assert.equal(sendsAudio(k, b), false, 'pas de téléphone depuis la salle de classe');
+  const k = at(65, 10, { call: b.id }), m = at(5, 8, { call: k.id });
+  assert.equal(sendsAudio(k, b), true, 'depuis la salle de classe');
+  assert.equal(sendsAudio(m, k), true, 'du bureau principal vers la salle de classe');
+  assert.equal(sendsAudio(k, at(66, 10)), false, 'micro coupé : la classe n\'entend pas l\'appel');
+});
+
+test('téléphone dans les salles de classe : ni sonnerie ni haut-parleur pour les autres', () => {
+  assert.ok(phoneQuietIn('class') && phoneQuietIn('main'));
+  assert.ok(!phoneQuietIn('hall') && !phoneQuietIn('desk-1'));
+  for (const [x, y] of [[65, 10], [5, 8]]) {
+    const near = at(x + 1, y);
+    assert.equal(hearsRing(at(x, y, { phone: 'ring' }), near), false, 'la sonnerie d\'un voisin ne s\'entend pas');
+    const a = at(x, y, { speaker: true }), b = at(30, 10);
+    a.call = b.id; b.call = a.id;
+    assert.equal(speakerHolder(a, b, near), null, 'haut-parleur : sa voix ne porte pas dans la salle');
+    assert.equal(speakerHolder(b, a, near), null, 'ni celle du correspondant');
+    assert.equal(sendsAudio(a, b), true, 'l\'appel lui-même passe');
+  }
+  // Le correspondant, lui, est dans le couloir : son haut-parleur y porte toujours
+  const k = at(65, 10), h = at(30, 10, { speaker: true });
+  k.call = h.id; h.call = k.id;
+  assert.equal(speakerHolder(k, h, at(31, 10)), h, 'haut-parleur du correspondant, hors de la classe');
 });
 
 test('sonnerie du téléphone : entendue à 4 cases, de plus en plus bas, dans la même zone', () => {

@@ -6,6 +6,7 @@ import { pushState } from '../media.js';
 import { renderPhone } from '../phone.js';
 import { S, users } from '../state.js';
 import { btn, el, miniAvatar } from './ui.js';
+import { phoneQuietIn } from '../world.js';
 
 const clock = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 export const statusText = () => ({
@@ -29,7 +30,9 @@ export function callScreen() {
   if (peer?.look) screen.append(miniAvatar(peer.look, 'ph-avatar'));
   screen.append(el('div', 'ph-name', call.name), el('div', 'ph-status', statusText()));
   if (call.phase === CALL_PHASE.ON) {
-    screen.append(el('small', '', S.me.speaker ? 'Haut-parleur : les personnes proches entendent l\'appel' : 'Votre micro est ouvert pour cette personne'));
+    const quiet = phoneQuietIn(S.me.zone);
+    screen.append(el('small', '', S.me.speaker ? 'Haut-parleur : les personnes proches entendent l\'appel'
+      : quiet ? 'Votre micro est ouvert pour cette personne · pas de haut-parleur dans cette salle' : 'Votre micro est ouvert pour cette personne'));
     if (peer?.speaker) screen.append(el('small', 'ph-warn', `🔊 Haut-parleur activé chez ${call.name}`));
   }
   if (call.phase === CALL_PHASE.REC) {
@@ -39,7 +42,11 @@ export function callScreen() {
   }
   if (call.phase === CALL_PHASE.IN) actions.append(btn('ph-end', 'end', 'Refuser', hangUp), btn('ph-accept', 'call', 'Décrocher', accept));
   if (call.phase === CALL_PHASE.OUT) actions.append(btn('ph-end', 'end', 'Annuler', hangUp));
-  if (call.phase === CALL_PHASE.ON) actions.append(btn(`ph-ghost ph-spk${S.me.speaker ? ' sel' : ''}`, 'speaker', 'Haut-parleur', toggleSpeaker), btn('ph-end', 'end', 'Raccrocher', hangUp));
+  if (call.phase === CALL_PHASE.ON) {
+    const spk = btn(`ph-ghost ph-spk${S.me.speaker ? ' sel' : ''}`, 'speaker', 'Haut-parleur', toggleSpeaker);
+    spk.disabled = phoneQuietIn(S.me.zone); // salle de classe : l'appel reste privé
+    actions.append(spk, btn('ph-end', 'end', 'Raccrocher', hangUp));
+  }
   if (call.phase === CALL_PHASE.AWAY) actions.append(btn('ph-ghost', 'close', 'Fermer', endCall), btn('ph-accept ph-record', 'mic', 'Message', record));
   if (call.phase === CALL_PHASE.REC) actions.append(btn('ph-ghost', 'close', 'Annuler', endCall), btn('ph-accept ph-send', 'send', 'Envoyer', sendRecording));
   body.append(screen, actions);

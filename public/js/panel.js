@@ -8,7 +8,7 @@ import { startCall } from './call.js';
 import { openChat, phoneRefresh } from './phone.js';
 import { renderHands } from './social.js';
 import { S, users } from './state.js';
-import { ROOM_TYPES, canCallIn, isOnAir, sideBySide, zoneType } from './world.js';
+import { ROOM_TYPES, isOnAir, sideBySide, zoneType } from './world.js';
 
 const besideSomeone = (u) => !!u.mic && [...users.values()].some((v) => sideBySide(u, v));
 export function isTransmitting(u) {
@@ -32,13 +32,7 @@ function menuItem(cls, text, fn) {
   b.onclick = () => { $('#personMenu').hidden = true; fn(); };
   return b;
 }
-// « Appeler » : grisé si l'un des deux est dans une salle sans téléphone
-function callItem(u) {
-  const b = menuItem('pm-call', `📞 Appeler ${u.name}`, () => startCall(u));
-  const why = !canCallIn(S.me.zone) ? 'Pas de téléphone dans cette salle' : !canCallIn(u.zone) ? 'Pas de téléphone dans sa salle' : '';
-  if (why) { b.disabled = true; b.title = why; b.textContent += ` (${why.toLowerCase()})`; }
-  return b;
-}
+const callItem = (u) => menuItem('pm-call', `📞 Appeler ${u.name}`, () => startCall(u));
 export function openHandMenu(x, y, u) {
   const menu = $('#personMenu');
   menu.replaceChildren();
