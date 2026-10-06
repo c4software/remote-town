@@ -164,7 +164,7 @@ export const CALL_PHASE = Object.freeze({ OUT: 'out', IN: 'in', ON: 'on', AWAY: 
 export const CALL_MSG = Object.freeze({ RING: 'ring', ACCEPT: 'accept', DECLINE: 'decline', BUSY: 'busy', CANCEL: 'cancel', END: 'end' });
 // Pages du téléphone
 export const PHONE_VIEW = Object.freeze({
-  HOME: 'home', CONTACTS: 'contacts', PERSON: 'person', CHATS: 'chats', CHAT: 'chat', VMAIL: 'vmail', LOOK: 'look', SETTINGS: 'settings',
+  HOME: 'home', CONTACTS: 'contacts', PERSON: 'person', CHATS: 'chats', CHAT: 'chat', VMAIL: 'vmail', LOOK: 'look', SETTINGS: 'settings', SPACES: 'spaces',
 });
 
 // --- Discussions (chat.js) ---
@@ -192,5 +192,5 @@ export const KICK = { banMs: 15 * 60000, maxAgeMs: 2 * 60000 };
 export const SPACES_MAX = 15;
 // Annuaire des espaces (directory.js) : annonce de son espace à notre relais toutes les
 // reportMs (le relais garde une annonce 5 min : ROOM_FRESH_MS dans relay/server.mjs) ; bornes
-// de la liste reçue par les administrateurs
-export const ROOMS = { reportMs: 2 * 60000, listMax: 200, peopleMax: 500 };
+// de la liste reçue par les administrateurs, gardée keepMs par la page du téléphone
+export const ROOMS = { reportMs: 2 * 60000, listMax: 200, peopleMax: 500, keepMs: 10000 };

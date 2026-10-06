@@ -2,6 +2,7 @@
 import { vmails } from '../call.js';
 import { unreadTotal } from '../chat.js';
 import { PHONE_VIEW } from '../constantes.js';
+import { canListRooms } from '../directory.js';
 import { go } from '../phone.js';
 import { S, users } from '../state.js';
 import { btn, el } from './ui.js';
@@ -21,6 +22,8 @@ export function homePage() {
     row('ph-nav-profile', 'user', 'Mon personnage', 0, PHONE_VIEW.LOOK),
     row('ph-nav-settings', 'settings', 'Réglages', 0, PHONE_VIEW.SETTINGS),
   );
+  // Administrateurs : les espaces actifs et le nombre de personnes (annuaire des espaces)
+  if (canListRooms()) page.append(row('ph-nav-spaces', 'door', 'Espaces actifs', 0, PHONE_VIEW.SPACES));
   if (S.dnd) page.append(el('small', 'ph-note', '🌙 Ne pas déranger : les appels vont à la messagerie'));
   return page;
 }

@@ -19,6 +19,7 @@ import { homePage } from './pages/home.js';
 import { lookPage } from './pages/look.js';
 import { personPage } from './pages/person.js';
 import { settingsPage } from './pages/settings.js';
+import { spacesPage } from './pages/spaces.js';
 import { btn, el } from './pages/ui.js';
 import { vmailPage } from './pages/vmail.js';
 import { S, users } from './state.js';
@@ -49,7 +50,7 @@ function pageScreen() {
   const V = PHONE_VIEW;
   const title = {
     [V.HOME]: 'Téléphone', [V.CONTACTS]: 'Contacts', [V.PERSON]: 'Contact', [V.CHATS]: 'Messages', [V.CHAT]: view === V.CHAT ? convTitle(convKey) : '',
-    [V.VMAIL]: 'Messagerie vocale', [V.SETTINGS]: 'Réglages', [V.LOOK]: 'Personnage',
+    [V.VMAIL]: 'Messagerie vocale', [V.SETTINGS]: 'Réglages', [V.LOOK]: 'Personnage', [V.SPACES]: 'Espaces actifs',
   }[view];
   const back = btn('ph-mini ph-back', 'back', '', go(PARENT[view] || PHONE_VIEW.HOME));
   back.title = 'Retour';
@@ -59,7 +60,7 @@ function pageScreen() {
   head.append(back, el('b', '', title), shut);
   const page = {
     [V.HOME]: homePage, [V.CONTACTS]: contactsPage, [V.PERSON]: () => personPage(person), [V.CHATS]: chatsPage,
-    [V.CHAT]: () => chatPage(convKey), [V.VMAIL]: vmailPage, [V.LOOK]: lookPage, [V.SETTINGS]: settingsPage,
+    [V.CHAT]: () => chatPage(convKey), [V.VMAIL]: vmailPage, [V.LOOK]: lookPage, [V.SETTINGS]: settingsPage, [V.SPACES]: spacesPage,
   }[view];
   body.append(head, page());
   return body;

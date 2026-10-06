@@ -24,6 +24,7 @@ const ICONS = {
   pip: svg('<rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1"/>'),
   speaker: svg('<path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'),
   walk: svg('<circle cx="13" cy="4" r="2"/><path d="m7 21 3-6 1-5-3 2v3M11 10l4 3 3 1M10 15l4 2 1 4"/>'),
+  door: svg('<path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M3 21h18M14.5 12.5h0"/>'),
   ban: svg('<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>'),
 };
 export const el = (tag, cls, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });

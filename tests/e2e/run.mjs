@@ -377,31 +377,22 @@ const scenarios = {
       t.check((await fetch(`${relay.url}/rooms`, { headers: { ...origin, Authorization: `RemoteTown ${Date.now()}.${'A'.repeat(86)}` } })).status === 403, 'fausse signature : refusée');
       const bad = await fetch(`${relay.url}/room`, { method: 'POST', headers: origin, body: JSON.stringify({ room: 'Pas Un Identifiant', count: 3 }) });
       t.check(bad.status === 400, 'annonce invalide : refusée');
-      // Porte des espaces : la section « Espaces actifs » n'existe que pour l'administratrice
-      const active = (p) => p.$$eval('#spacesActive:not([hidden]) li', (o) => o.map((li) => li.innerText.replace(/\s+/g, ' ').trim()));
-      const atDoor = async (p) => { await place(p, 24, 9); await wait(500); await p.keyboard.press('KeyE'); };
-      await place(b, 30, 10);
+      // Téléphone : l'entrée « Espaces actifs » de l'accueil n'existe que pour l'administratrice.
       // Horloge d'Alice en avance d'une heure : le relais refuse, donne son heure, la demande est refaite
       await a.evaluate(() => { const now = Date.now.bind(Date); Date.now = () => now() + 3600000; });
-      await atDoor(a);
-      t.check(await until(async () => (await active(a)).length === 2), 'administratrice (horloge décalée comprise) : les espaces actifs sont listés dans la porte');
-      const rows = await active(a);
+      const listed = (p) => p.$$eval('#phone .ph-space', (o) => o.map((r) => `${r.querySelector('b').textContent} ${r.querySelector('small').textContent}`));
+      await openPhone(a, 'spaces');
+      t.check(await until(async () => (await listed(a)).length === 2), 'téléphone de l\'administratrice (horloge décalée comprise) : page « Espaces actifs »');
+      const rows = await listed(a);
       t.check(rows[0] === `${t.room} 2 personnes · vous êtes ici` && rows[1] === `${other} 1 personne`, `nombre de personnes par espace, du plus peuplé au moins peuplé (${rows.join(' | ')})`);
-      t.check(await a.$eval('#spacesActiveLabel', (e) => !e.hidden && e.textContent === 'Espaces actifs (2) · 3 personnes'), 'total des espaces et des personnes');
-      if (process.env.SHOT) {
-        await a.screenshot({ path: process.env.SHOT });
-        await a.setViewport({ width: 390, height: 780 }); await wait(400);
-        await a.screenshot({ path: process.env.SHOT.replace(/(\.\w+)$/, '-mobile$1') });
-        await a.setViewport({ width: 1300, height: 820 }); await wait(400);
-      }
-      // Un clic y conduit, comme pour un espace enregistré
-      await a.click('#spacesActive li:nth-child(2) .sp-go');
+      t.check(await a.$eval('#phone .ph-note', (e) => e.textContent === '2 espaces · 3 personnes'), 'total des espaces et des personnes');
+      if (process.env.SHOT) await a.screenshot({ path: process.env.SHOT });
+      await openPhone(b);
+      t.check(await b.$('#phone .ph-nav-contacts') !== null && await b.$('#phone .ph-nav-spaces') === null, 'sans jeton : pas d\'entrée « Espaces actifs » dans le téléphone');
+      // Un clic y conduit, par la porte
+      await a.click('#phone .ph-space:nth-of-type(2) .ph-info');
       await waitPeers([a, c], 2);
-      t.check(!!(await seen(c, 'Alice')), 'clic sur un espace actif : on y va');
-      // Sans jeton : la porte s'ouvre comme d'habitude, sans la section
-      await atDoor(b);
-      await wait(1200);
-      t.check(await b.$eval('#spaces', (e) => !e.hidden) && (await active(b)).length === 0 && await b.$eval('#spacesActiveLabel', (e) => e.hidden), 'sans jeton : pas d\'espaces actifs dans la porte');
+      t.check(!!(await seen(c, 'Alice')) && await a.$eval('#phone', (e) => e.hidden), 'clic sur un espace actif : on y va, téléphone replié');
     } finally { relay.stop(); }
   },
 

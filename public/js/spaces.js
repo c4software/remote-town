@@ -6,7 +6,6 @@ import { banMinutesLeft } from './admin.js';
 import { portalMusic } from './audio.js';
 import { resetBoards } from './board.js';
 import { resetDeskNames } from './desks.js';
-import { fetchRooms } from './directory.js';
 import { resetChat } from './chat.js';
 import { $, toast } from './dom.js';
 import { pushState, setPtt, stopShare } from './media.js';
@@ -29,7 +28,6 @@ export function openSpaces() {
   $('#spacesInput').value = '';
   renderSpaces();
   $('#spaces').hidden = false;
-  renderActive();
   if (!matchMedia('(pointer: coarse)').matches) $('#spacesInput').focus();
 }
 
@@ -53,20 +51,6 @@ function spaceRow(id, note) {
   return li;
 }
 
-// Espaces actifs, pour les administrateurs : ceux que notre relais connaît, avec le nombre de
-// personnes annoncé (annuaire, directory.js). La section reste absente sans jeton, ou si le
-// relais ne répond pas.
-const people = (n) => `${n} personne${n > 1 ? 's' : ''}`;
-async function renderActive() {
-  const ul = $('#spacesActive'), label = $('#spacesActiveLabel');
-  ul.hidden = label.hidden = true;
-  const rooms = await fetchRooms();
-  if (!rooms || !spacesOpen()) return;
-  label.textContent = `Espaces actifs (${rooms.length}) · ${people(rooms.reduce((n, r) => n + r.count, 0))}`;
-  ul.replaceChildren(...rooms.map((r) => spaceRow(r.room, [people(r.count), r.peak > r.count && `pic ${r.peak}`, r.room === S.roomId && 'vous êtes ici'].filter(Boolean).join(' · '))));
-  ul.hidden = label.hidden = false;
-}
-
 function renderSpaces() {
   const ul = $('#spacesList');
   ul.replaceChildren();
@@ -85,6 +69,8 @@ function renderSpaces() {
   }
 }
 
+// Aller dans un espace par la porte (page « Espaces actifs » du téléphone)
+export const goToSpace = (id) => goTo(id);
 function goTo(raw) {
   const id = cleanRoom(raw);
   if (id === S.roomId) return toast(`Vous êtes déjà dans « ${roomName(id)} »`);

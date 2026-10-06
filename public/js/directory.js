@@ -4,7 +4,7 @@
 // envoyé ailleurs : sans notre relais (page hors de NET_HOSTS), pas d'annonce.
 // La liste (GET /rooms) n'est donnée qu'aux administrateurs, sur une demande signée avec leur
 // jeton : le nom d'un espace suffit à y entrer, il n'est donc pas public. Elle s'affiche dans
-// la fenêtre de la porte des espaces (spaces.js).
+// le téléphone (pages/spaces.js, entrée « Espaces actifs » de l'accueil).
 import { signAdmin } from './admin.js';
 import { ROOMS } from './constantes.js';
 import { netUrl } from './net.js';
@@ -27,7 +27,7 @@ export function reportRoom() {
 // (pas administrateur, pas de relais, relais muet). Si le relais refuse, il donne son heure :
 // la demande est refaite une fois avec elle (ordinateur dont l'horloge est décalée).
 export async function fetchRooms() {
-  if (!netUrl() || !S.isAdmin) return null;
+  if (!canListRooms()) return null;
   const ask = async (ts) => {
     const sig = await signAdmin(`remote-town-rooms|${ts}`);
     return sig ? fetch(`${netUrl()}/rooms`, { headers: { Authorization: `RemoteTown ${ts}.${sig}` }, signal: AbortSignal.timeout(TIMEOUT_MS) }) : null;
@@ -46,6 +46,13 @@ export async function fetchRooms() {
       .map((r) => ({ room: r.room, count: people(r.count), peak: people(r.peak) }));
   } catch { return null; }
 }
+
+// Textes de la page « Espaces actifs » du téléphone
+const people = (n) => `${n} personne${n > 1 ? 's' : ''}`;
+export const roomNote = (r) => [people(r.count), r.peak > r.count && `pic ${r.peak}`, r.room === S.roomId && 'vous êtes ici'].filter(Boolean).join(' · ');
+export const roomsSummary = (rooms) => `${rooms.length} espace${rooms.length > 1 ? 's' : ''} · ${people(rooms.reduce((n, r) => n + r.count, 0))}`;
+// Faut-il proposer la liste ? Administrateur, et notre relais utilisé
+export const canListRooms = () => S.isAdmin && !!netUrl();
 
 // Branchement (appelé une fois par main.js) : l'annonce périodique
 export function initDirectory() {
