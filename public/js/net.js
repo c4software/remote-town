@@ -4,7 +4,7 @@ import { customRingRev, neighbourBeep, pttReaches } from './audio.js';
 import { lookBody, lookHead } from './avatar.js';
 import { dropBoardsOf, fetchSavedBoards, onBoardMsg, savedBoards, syncBoardsTo } from './board.js';
 import { fetchHistory, onChat, publicHistory } from './chat.js';
-import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, PHONE, REACTIONS, RELAYS, RING_STYLES, STUN_SERVERS } from './constantes.js';
+import { APP_ID, COLOR, DIR_NAMES, NET_HOSTS, NET_URL, PHONE, REACTIONS, RELAYS, RING_STYLES, SEEN_EVERY_S, SEEN_FRESH_MS, STUN_SERVERS } from './constantes.js';
 import { isBanned, onKick } from './admin.js';
 import { onDeskNames, syncDeskNamesTo } from './desks.js';
 import { $, cleanName, debugMode, sameName, toast } from './dom.js';
@@ -110,6 +110,7 @@ function joinNet() {
     ringfile: S.room.makeAction('ringfile', { onMessage: (d, { peerId, metadata }) => onRingFile(d, peerId, metadata) }),
     vmail: S.room.makeAction('vmail', { onMessage: (d, { peerId, metadata }) => onVmail(d, peerId, metadata) }),
     jingle: S.room.makeAction('jingle', { onMessage: (d, { peerId }) => users.has(peerId) && onJingle(users.get(peerId)) }),
+    seen: S.room.makeAction('seen', { onMessage: (d, { peerId }) => onSeen(d, peerId) }),
     zname: S.room.makeAction('zname', { onMessage: (d, { peerId }) => onDeskNames(d, peerId) }),
     wbsaved: S.room.makeAction('wbsaved', { kind: 'request', onRequest: () => savedBoards() }),
     history: S.room.makeAction('history', { kind: 'request', onRequest: (d) => publicHistory(String(d?.channel)) }),
@@ -225,6 +226,41 @@ function updatePresence() {
 // Diagnostic affiché dans la liste des participants : la connexion avec chaque
 // personne est-elle directe, ou relayée par le serveur TURN ?
 let ticks = 0;
+
+// Recoupement des présences. Le maillage peut rester incomplet sans que rien ne le montre :
+// deux personnes reliées à toutes les autres, mais pas entre elles. Chacun annonce donc à
+// intervalles réguliers les personnes auxquelles il est relié (action `seen`) ; on en déduit
+// celles que les autres voient et pas nous, pour le diagnostic.
+const seenBy = new Map();       // id du pair -> { at, list: Map(id -> nom) }
+const missingSince = new Map(); // id d'une personne vue par d'autres et pas par moi -> depuis quand
+function sendSeen() {
+  const list = [...users.values()].filter((u) => !u.isMe).slice(0, 100).map((u) => [u.id, u.name]);
+  if (list.length) broadcast('seen', list);
+}
+function onSeen(d, peerId) {
+  if (!users.has(peerId) || !Array.isArray(d)) return;
+  const list = new Map();
+  for (const e of d.slice(0, 100)) {
+    if (!Array.isArray(e) || typeof e[0] !== 'string' || e[0].length > 40) continue;
+    list.set(e[0], cleanName(e[1]) || 'Invité');
+  }
+  seenBy.set(peerId, { at: performance.now(), list });
+}
+// Personnes que d'autres voient et pas moi : [{ name, by (combien les voient), ms (depuis) }]
+export function missingPeers() {
+  const now = performance.now(), found = new Map();
+  for (const [from, s] of seenBy) {
+    if (now - s.at > SEEN_FRESH_MS || !users.has(from)) { seenBy.delete(from); continue; }
+    for (const [id, name] of s.list) {
+      if (id === S.myId || myIds.has(id) || users.has(id) || isBanned(id)) continue;
+      const f = found.get(id) || { name, by: 0 };
+      f.by++; found.set(id, f);
+    }
+  }
+  for (const id of missingSince.keys()) if (!found.has(id)) missingSince.delete(id);
+  for (const id of found.keys()) if (!missingSince.has(id)) missingSince.set(id, now);
+  return [...found].map(([id, f]) => ({ ...f, ms: now - missingSince.get(id) }));
+}
 // Types (host / srflx / relay…) de la paire de candidats retenue pour une liaison,
 // [local, distant], ou null tant qu'aucune paire n'est choisie. Jamais d'adresse.
 export async function linkTypes(pc) {
@@ -262,6 +298,7 @@ function watchConnection() {
     }
     if (ice && Date.now() > ice.until) prepareIce(); // pour les prochaines connexions
     if (++ticks % 5 === 0) checkLinks();
+    if (ticks % SEEN_EVERY_S === 0) sendSeen();
     updatePresence();
     // Seul depuis un moment : on rejoint la salle (sans effet si elle est vraiment vide)
     if (users.size <= 1 && aloneSince && performance.now() - aloneSince > 8000 && performance.now() - lastRejoin > 30000) rejoin();

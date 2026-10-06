@@ -4,7 +4,7 @@
 // (POST /diag, journalisé côté serveur) quand l'application l'utilise.
 import { zoneName } from './desks.js';
 import { $, toast } from './dom.js';
-import { iceServers, linkTypes, netUrl, onBackupRelays } from './net.js';
+import { iceServers, linkTypes, missingPeers, netUrl, onBackupRelays } from './net.js';
 import { S, users } from './state.js';
 
 const MAX_LOGS = 30;
@@ -123,6 +123,11 @@ export async function diagnostic() {
   // Fantômes : annoncés (hello reçu) mais sans liaison WebRTC vivante
   const ghosts = others.filter((u) => !peers.some(([id]) => id === u.id));
   if (ghosts.length) add('Vus sans liaison (fantômes)', ghosts.map((u) => u.name).join(', '));
+
+  // Recoupement : personnes que les autres annoncent voir, et pas moi (maillage incomplet)
+  const missing = missingPeers();
+  add('Vus par les autres, pas par moi', missing.length
+    ? missing.map((m) => `${m.name} (par ${m.by}, depuis ${duration(m.ms)})`).join(', ') : 'personne');
 
   const ice = await iceTest();
   add('Test ICE (4 s)', `host ${ice.host}, srflx ${ice.srflx}, relay ${ice.relay}${ice.srflx ? '' : ' — aucun srflx : UDP probablement bloqué'}`);

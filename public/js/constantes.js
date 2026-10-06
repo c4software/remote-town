@@ -54,6 +54,10 @@ export const RELAYS = [
 // connexion directe est impossible ; sinon on s'en passe. Utilisé seulement depuis les
 // pages de NET_HOSTS (le relais refuse les autres) ; ailleurs, relais publics seuls.
 export const NET_URL = 'https://relay.brosseau.ovh';
+// Recoupement des présences (net.js) : chacun annonce toutes les SEEN_EVERY_S secondes les
+// personnes auxquelles il est relié ; une annonce vaut SEEN_FRESH_MS
+export const SEEN_EVERY_S = 10;
+export const SEEN_FRESH_MS = 25000;
 export const NET_HOSTS = ['distance.brosseau.ovh', 'c4software.github.io'];
 // Serveurs STUN publics gratuits (sans identifiants) : secours pour trouver son adresse
 // publique quand /turn ne répond pas. Trystero en inclut déjà (Google et Cloudflare) ;

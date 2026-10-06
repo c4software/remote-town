@@ -584,6 +584,18 @@ const scenarios = {
     t.check(await aliceEmote() === null, 'une chaise ordinaire : pas de sieste');
   },
 
+  async 'maillage incomplet'(t) {
+    const [a, b] = [await join(t, 'Alice'), await join(t, 'Bob')];
+    await waitPeers([a, b]);
+    await wait(11000); // au moins une annonce de présences échangée
+    t.check((await a.evaluate(() => rt.diag())).includes('Vus par les autres, pas par moi : personne'), 'tout le monde relié : personne ne manque');
+    // Bob annonce quelqu'un qu'Alice ne voit pas (et des entrées invalides, ignorées)
+    await b.evaluate(() => import('/js/net.js').then((n) => n.broadcast('seen', [['pair-absent', '  Fantôme  '], [42, 'x'], 'n\'importe quoi', [rt.me.id, 'Bob']])));
+    await wait(800);
+    const text = await a.evaluate(() => rt.diag());
+    t.check(/Vus par les autres, pas par moi : Fantôme \(par 1, depuis \d+ s\)/.test(text), 'personne vue par un autre et pas par moi : signalée dans le diagnostic');
+  },
+
   async 'chat du couloir'(t) {
     const [a, b, c] = [await join(t, 'Alice'), await join(t, 'Bob'), await join(t, 'Chloé')];
     await waitPeers([a, b, c]);
@@ -816,7 +828,7 @@ const scenarios = {
     const toasts = await a.evaluate(() => document.querySelector('#toasts').innerText);
     // Presse-papiers refusé (Chrome sans interface) : la fenêtre de secours montre le texte
     const shown = await a.evaluate(() => !document.querySelector('#diagBox').hidden && document.querySelector('#diagText').value === rt.lastDiag);
-    for (const h of ['Page modifiée le', 'Navigateur', 'Salle : ', 'Nom : Alice', 'Relais de mise en relation', 'Messages ignorés par le relais : aucun', 'Personnes vues : 0', 'Liaisons WebRTC', 'Test ICE', 'Micro : ', 'Console Trystero']) {
+    for (const h of ['Page modifiée le', 'Navigateur', 'Salle : ', 'Nom : Alice', 'Relais de mise en relation', 'Messages ignorés par le relais : aucun', 'Personnes vues : 0', 'Vus par les autres, pas par moi : personne', 'Liaisons WebRTC', 'Test ICE', 'Micro : ', 'Console Trystero']) {
       t.check(text.includes(h), `diagnostic : rubrique « ${h.trim()} »`);
     }
     // Pas d'adresse IP (un numéro de version « Chrome/141.0.0.0 » n'en est pas une)
