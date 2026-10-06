@@ -308,6 +308,20 @@ const scenarios = {
     await a.keyboard.press('KeyE');
     await wait(800);
     t.check(await aliceEmote() === null, 'E à nouveau : fin de la pause café');
+    // Absence : onglet quitté sans action depuis plus de 10 minutes, « Travail » d'office
+    await a.evaluate(() => rt.checkAway(11 * 60000)); await wait(600);
+    t.check(await aliceEmote() === null, 'onglet visible : pas d\'émote d\'absence');
+    const other = await a.browserContext().newPage();
+    await other.bringToFront();
+    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
+    await a.evaluate(() => rt.checkAway(9 * 60000)); await wait(600);
+    t.check(await aliceEmote() === null, 'onglet quitté depuis moins de 10 minutes : rien');
+    await a.evaluate(() => rt.checkAway(11 * 60000)); await wait(800);
+    t.check(await aliceEmote() === 'work', 'onglet quitté, 10 minutes sans action : émote « Travail » vue par Bob');
+    await a.bringToFront();
+    await other.close();
+    await wait(800);
+    t.check(await aliceEmote() === null, 'retour sur l\'onglet : l\'émote d\'absence est retirée');
   },
 
   async 'porte des espaces'(t) {
@@ -546,6 +560,19 @@ const scenarios = {
     await a.keyboard.press('KeyE'); await wait(800);
     const sofa = await seen(b, 'Alice');
     t.check(sofa.seated && sofa.x === 6 && sofa.y === 15, 'E près d\'un canapé : assis sur le canapé');
+    // Canapés et banc du couloir : places de repos, la sieste s'affiche toute seule
+    const aliceEmote = () => b.evaluate(() => [...rt.users.values()].find((u) => u.name === 'Alice').emote || null);
+    t.check(await aliceEmote() === 'sleep', 'assise sur un canapé : sieste affichée, vue par Bob');
+    await a.keyboard.press('KeyE'); await wait(800);
+    t.check(await aliceEmote() === null && !(await seen(b, 'Alice')).seated, 'se lever : fin de la sieste');
+    await place(a, 24, 11); await a.keyboard.press('ArrowDown'); await wait(100);
+    await a.keyboard.press('KeyE'); await wait(800);
+    const bench = await seen(b, 'Alice');
+    t.check(bench.seated && bench.x === 24 && bench.y === 12 && await aliceEmote() === 'sleep', 'banc du couloir : on s\'y assoit, sieste affichée');
+    await a.keyboard.down('ArrowUp'); await wait(400); await a.keyboard.up('ArrowUp'); await wait(800);
+    t.check(await aliceEmote() === null, 's\'éloigner du banc : fin de la sieste');
+    await a.evaluate(() => rt.sitOn(21, 3)); await wait(800);
+    t.check(await aliceEmote() === null, 'une chaise ordinaire : pas de sieste');
   },
 
   async 'tableau blanc'(t) {

@@ -126,6 +126,12 @@ export const EMOTES = [
   { id: 'think', icon: '🤔', label: 'Réflexion' },
 ];
 export const COOLER_EMOTE = 'coffee'; // émote prise à la machine à eau (E à côté d'elle)
+export const REST_EMOTE = 'sleep';    // émote prise en s'asseyant sur un canapé ou le banc du couloir
+// Onglet quitté et aucune action depuis AWAY_MS : émote « Travail » mise d'office (emotes.js),
+// retirée au retour ; vérifié toutes les AWAY_CHECK_MS
+export const AWAY_EMOTE = 'work';
+export const AWAY_MS = 10 * 60 * 1000;
+export const AWAY_CHECK_MS = 30000;
 export const REACTIONS = ['👍', '❤️', '😂', '🎉', '👏', '😮'];
 export const REACT_MS = 3000;    // durée d'affichage d'une réaction
 export const JINGLE_GAP = 3000;  // ms entre deux jingles d'une même personne (le carillon dure ~2,3 s)

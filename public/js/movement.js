@@ -3,7 +3,7 @@
 import { initMic } from './audio.js';
 import { atTeacherDesk, boards } from './board.js';
 import { phoneClose } from './phone.js';
-import { COOLER_EMOTE, CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STAMINA, STEP_MS } from './constantes.js';
+import { COOLER_EMOTE, CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, REST_EMOTE, SPRINT_MS, STAMINA, STEP_MS } from './constantes.js';
 import { $, toast, typing } from './dom.js';
 import { clearEmoteOnMove, setEmote } from './emotes.js';
 import { onZoneChange } from './hud.js';
@@ -12,7 +12,7 @@ import { pushState, updateRouting } from './media.js';
 import { broadcast } from './net.js';
 import { openSpaces } from './spaces.js';
 import { S, users } from './state.js';
-import { COOLER, LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, zoneAt } from './world.js';
+import { COOLER, LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, restSeat, zoneAt } from './world.js';
 
 // ============================================================
 // Pas à pas et trajets
@@ -44,7 +44,19 @@ function spendStamina(now) {
   }
 }
 
+// Canapés et banc du couloir : s'y asseoir affiche la sieste, se lever la retire (si on
+// n'a pas choisi une autre émote entre-temps)
+let resting = false;
+function syncRest() {
+  const on = !!S.me.seated && restSeat(S.me.x, S.me.y);
+  if (on === resting) return;
+  resting = on;
+  if (on) setEmote(REST_EMOTE);
+  else if (S.me.emote === REST_EMOTE) setEmote(null);
+}
+
 export function sendMove(extra) {
+  syncRest();
   broadcast('move', { x: S.me.x, y: S.me.y, dir: S.me.dir, seated: !!S.me.seated, sitAt: S.me.sitAt || 0, crouch: !!S.me.crouch, ...extra });
 }
 

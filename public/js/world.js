@@ -54,7 +54,7 @@ function build() {
   fill(15, 10, 1, 2, T.HALL); // porte vers le bureau principal
   for (const [x, y] of [[16, 9], [16, 12], [59, 9], [59, 12], [32, 12], [50, 12]]) obj('plant', x, y);
   obj('cooler', COOLER.x, COOLER.y);
-  obj('bench', 23, 12, 3, 1, { color: '#7d5a3c' });
+  obj('bench', 23, 12, 3, 1, { dir: 'down', color: '#7d5a3c', block: false }); // dos au mur : on s'y assoit face au couloir
   // Porte vers les autres espaces de travail, dans le mur entre les bureaux 1 et 2
   obj('portal', PORTAL.x, PORTAL.y, 1, 1, { block: false });
 
@@ -120,12 +120,13 @@ function build() {
     for (let j = z.y; j < z.y + z.h; j++) for (let i = z.x; i < z.x + z.w; i++) zoneGrid[j * MAP_W + i] = z.id;
   }
 
-  // Places assises : les chaises, et chaque case des canapés
+  // Places assises : les chaises, et chaque case des canapés et du banc du couloir. Ces
+  // dernières sont des places de repos (`rest`) : s'y asseoir affiche la sieste (movement.js)
   const chairs = new Map();
   for (const o of objects) {
     if (o.kind === 'chair') chairs.set(o.y * MAP_W + o.x, o);
-    if (o.kind === 'sofa') {
-      for (let i = 0; i < o.w; i++) chairs.set(o.y * MAP_W + o.x + i, { kind: 'sofa', x: o.x + i, y: o.y, dir: o.dir, color: o.color, sofa: o });
+    if (o.kind === 'sofa' || o.kind === 'bench') {
+      for (let i = 0; i < o.w; i++) chairs.set(o.y * MAP_W + o.x + i, { kind: o.kind, x: o.x + i, y: o.y, dir: o.dir, color: o.color, sofa: o, rest: true });
     }
   }
 
@@ -151,6 +152,8 @@ export const tileAt = (x, y) => (inside(x, y) ? MAP.tiles[y * MAP_W + x] : T.WAL
 export const isBlocked = (x, y) => !inside(x, y) || MAP.blocked[y * MAP_W + x] === 1;
 export const zoneAt = (x, y) => (inside(x, y) ? MAP.zoneGrid[y * MAP_W + x] : null);
 export const chairAt = (x, y) => (inside(x, y) ? MAP.chairs.get(y * MAP_W + x) : undefined);
+// Place de repos (canapé, banc) : on y fait la sieste
+export const restSeat = (x, y) => !!chairAt(x, y)?.rest;
 export const zoneType = (id) => MAP.zoneById[id]?.type || 'open';
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, COOLER, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, COOLER, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, restSeat, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -58,6 +58,17 @@ test('canapés : chaque case est une place assise, orientée', () => {
     assert.equal(chairAt(x, 19)?.dir, 'up', `canapé du bas, case ${x}`);
     assert.equal(isBlocked(x, 15), false);
   }
+});
+
+test('places de repos : canapés et banc du couloir, pas les chaises', () => {
+  for (let x = 5; x <= 8; x++) assert.ok(restSeat(x, 15) && restSeat(x, 19), `canapés, case ${x}`);
+  for (let x = 23; x <= 25; x++) {
+    assert.equal(chairAt(x, 12)?.dir, 'down', `banc, case ${x}`);
+    assert.ok(restSeat(x, 12) && !isBlocked(x, 12) && zoneAt(x, 12) === 'hall');
+  }
+  const chair = [...MAP.chairs.values()].find((c) => c.kind === 'chair');
+  assert.ok(chair && !restSeat(chair.x, chair.y), 'une chaise n\'est pas une place de repos');
+  assert.ok(!restSeat(30, 10), 'une case vide non plus');
 });
 
 test('micro (M) : entendu seulement dans la même pièce', () => {

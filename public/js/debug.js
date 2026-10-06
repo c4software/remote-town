@@ -5,6 +5,7 @@ import { loadToken, setTestKey } from './admin.js';
 import { nearRingInfo } from './audio.js';
 import { boards } from './board.js';
 import { diagnostic, lastDiag } from './diag.js';
+import { checkAway } from './emotes.js';
 import { debugMode } from './dom.js';
 import { links } from './media.js';
 import { bfs, onMyMove, sendMove, sitOn, toggleSit } from './movement.js';
@@ -35,6 +36,7 @@ export function initDebug() {
     relaunch: () => relaunch(),
     get nearRing() { return nearRingInfo(); }, // sonnerie d'un voisin en cours (tests)
     diag: () => diagnostic(),
+    checkAway: (idleMs) => checkAway(idleMs), // absence : comme si rien n'avait été fait depuis idleMs (tests)
     openChat: (key) => openChat(key),     // téléphone : conversation 'global', 'zone' ou 'dm:<pseudo>'
     openPerson: (id) => openPerson(id),   // téléphone : fiche d'une personne
     setAdminTestKey: setTestKey, // tests de l'expulsion avec une clé jetable

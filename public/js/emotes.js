@@ -1,7 +1,7 @@
 // Émotes (statuts animés, en boucle) choisies dans une roue au clic droit maintenu :
 // travail, AFK, sieste, café, réflexion. Partagées dans le message `state` (champ `emote`),
 // dessinées au-dessus de l'étiquette du nom. Se déplacer retire l'émote.
-import { EMOTES } from './constantes.js';
+import { AWAY_CHECK_MS, AWAY_EMOTE, AWAY_MS, EMOTES } from './constantes.js';
 import { $ } from './dom.js';
 import { pushState } from './media.js';
 import { renderPeople } from './panel.js';
@@ -24,6 +24,28 @@ export function setEmote(e) {
 // Appelé quand je change de case (pas, dash) : on n'est plus au café ni en sieste
 export function clearEmoteOnMove() {
   if (S.me?.emote) setEmote(null);
+}
+
+// ============================================================
+// Absence : onglet quitté et plus aucune action depuis AWAY_MS, l'émote « Travail » se met
+// toute seule (on travaille ailleurs), sans remplacer une émote choisie. Elle est retirée
+// au retour sur l'onglet ou à la première action.
+// ============================================================
+let lastActionAt = 0;
+let autoAway = false;
+
+function onAction() {
+  lastActionAt = performance.now();
+  if (!autoAway) return;
+  autoAway = false;
+  if (S.me?.emote === AWAY_EMOTE) setEmote(null);
+}
+
+// `idle` : temps écoulé sans action (paramètre pour les tests)
+export function checkAway(idle = performance.now() - lastActionAt) {
+  if (!S.me || !document.hidden || S.me.emote || idle < AWAY_MS) return;
+  autoAway = true;
+  setEmote(AWAY_EMOTE);
 }
 
 // ============================================================
@@ -98,6 +120,10 @@ function buildWheel() {
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initEmotes() {
   buildWheel();
+  lastActionAt = performance.now();
+  for (const ev of ['keydown', 'pointerdown', 'pointermove', 'wheel']) addEventListener(ev, onAction, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) onAction(); });
+  setInterval(checkAway, AWAY_CHECK_MS);
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button === 2 && e.pointerType === 'mouse') openWheel(e.clientX, e.clientY, true);
   });
