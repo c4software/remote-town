@@ -721,6 +721,31 @@ const scenarios = {
     t.check(await a.evaluate(() => rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === true), 'activable dans les réglages du téléphone, mémorisé');
     await a.click('#phone .ph-pip');
     t.check(await a.evaluate(() => !rt.pipOn && JSON.parse(localStorage.getItem('rt-prefs')).pipAuto === false), 'puis désactivable');
+    // Partage d'écran suivi en grand : onglet quitté, la vue montre le partage et non la carte
+    await a.click('#phone .ph-close').catch(() => {});
+    await a.keyboard.press('Escape');
+    await place(a, 10, 8); await place(b, 9, 8);
+    await wait(600);
+    await b.click('#shareBtn');
+    await a.waitForFunction(() => !document.querySelector('#focus').hidden, { timeout: 10000 });
+    await a.keyboard.press('KeyP');
+    await a.waitForFunction(() => documentPictureInPicture.window, { timeout: 5000 });
+    await wait(500);
+    const pipView = () => a.evaluate(() => {
+      const d = documentPictureInPicture.window.document, v = d.querySelector('video');
+      return { video: v.style.display !== 'none' && v.videoWidth > 0, map: d.querySelector('canvas').style.display !== 'none', label: d.querySelector('div').textContent };
+    });
+    t.check((await pipView()).map, 'partage en grand, onglet visible : la vue garde la carte');
+    const away = await a.browserContext().newPage();
+    await away.bringToFront();
+    await a.waitForFunction(() => document.hidden, { timeout: 5000 });
+    await wait(2500);
+    const pv = await pipView();
+    t.check(pv.video && !pv.map && pv.label.includes('Bob'), 'onglet quitté : la vue montre le partage suivi en grand');
+    await a.bringToFront();
+    await away.close();
+    await wait(500);
+    t.check((await pipView()).map, 'retour sur l\'onglet : la carte revient dans la vue');
   },
 
   async 'reconnexion'(t) {

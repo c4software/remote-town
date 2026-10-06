@@ -1,5 +1,6 @@
 // Vue en incrustation (Document Picture-in-Picture, Chrome / Edge) : un petit morceau de la
-// carte autour de son personnage, pour voir qui s'approche depuis un autre onglet.
+// carte autour de son personnage, pour voir qui s'approche depuis un autre onglet. Si un
+// partage d'écran est affiché en grand, c'est lui qu'elle montre une fois l'onglet quitté.
 // Ouverte avec P, ou automatiquement en changeant d'onglet si on l'a activé dans l'écran du
 // personnage (action « enterpictureinpicture » de Media Session, réservée par Chrome aux pages
 // qui utilisent le micro).
@@ -7,6 +8,7 @@ import { toast } from './dom.js';
 import { canvas, frame } from './render.js';
 import { roomName } from './rooms.js';
 import { S, users } from './state.js';
+import { focusedShare } from './videos.js';
 import { TILE } from './world.js';
 
 const supported = () => 'documentPictureInPicture' in window;
@@ -50,7 +52,14 @@ async function openPip(isAuto) {
   doc.body.style.cssText = 'margin:0;background:#191d33;overflow:hidden';
   const c = doc.createElement('canvas');
   c.style.cssText = 'display:block;width:100vw;height:100vh';
-  doc.body.append(c);
+  // Partage d'écran suivi en grand : une vraie vidéo dans la fenêtre (nette, et toujours
+  // lue puisque visible), avec le nom de la personne en bas
+  const video = doc.createElement('video');
+  video.autoplay = true; video.muted = true; video.playsInline = true;
+  video.style.cssText = 'display:none;width:100vw;height:100vh;object-fit:contain;background:#0d1020';
+  const label = doc.createElement('div');
+  label.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;padding:4px 8px;background:rgba(20,23,45,.8);color:#fff;font:600 12px "DM Sans",sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  doc.body.append(c, video, label);
   const w = win;
   w.addEventListener('pagehide', () => { if (win === w) win = null; });
   // La boucle de rendu de la page s'arrête quand l'onglet est caché : la fenêtre, toujours
@@ -59,7 +68,18 @@ async function openPip(isAuto) {
     if (win !== w) return;
     if (!S.me || S.kicked) return closePip();
     if (document.hidden) frame(now);
-    draw(c, w);
+    // Onglet quitté pendant qu'on regarde un partage en grand : la fenêtre le montre à la
+    // place de la carte. Onglet visible, le partage y est déjà : la carte reste utile ici.
+    const share = document.hidden ? focusedShare() : null;
+    if (video.srcObject !== (share?.stream || null)) {
+      video.srcObject = share?.stream || null;
+      if (share) video.play().catch(() => {});
+      c.style.display = share ? 'none' : 'block';
+      video.style.display = share ? 'block' : 'none';
+      label.style.display = share ? 'block' : 'none';
+    }
+    if (share) label.textContent = share.name;
+    else draw(c, w);
     w.requestAnimationFrame(tick);
   };
   w.requestAnimationFrame(tick);

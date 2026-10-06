@@ -98,6 +98,9 @@ export function closeFocus() {
   renderVideos(); // l'écran du pupitre revient en PiP
 }
 
+// Partage d'un autre affiché en grand, ou null : repris par la vue en incrustation (pip.js)
+export const focusedShare = () => (S.focusKey && S.focusKey !== 'me' && shown.get(S.focusKey)) || null;
+
 // Branchement des événements de la page (appelé une fois par main.js)
 export function initVideos() {
   $('#focus button').onclick = closeFocus;
