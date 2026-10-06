@@ -632,6 +632,7 @@ div.notif-face { height: 36px; }
 }
 #watermark b { font-size: 17px; font-weight: 500; }
 #watermark span { font-size: 13px; }
+#watermark i { font-style: normal; }
 @media (max-width: 560px) {
   #phone { left: 10px; bottom: calc(112px + env(safe-area-inset-bottom)); width: min(300px, calc(100vw - 20px)); }
   #watermark { left: 10px; bottom: calc(72px + env(safe-area-inset-bottom)); }

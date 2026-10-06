@@ -136,7 +136,7 @@ Volontairement absente de l'aide et du README.
 
 **Ajouter une route HTTP au relais** (`relay/server.mjs`, comme `/turn` et `/diag`) : vérifier l'origine (`allowed`), répondre avec les en-têtes CORS, borner la taille et la fréquence, ne rien écrire ailleurs que sur la sortie standard (conteneur en lecture seule), puis redéployer **seulement ce service** (voir `relay/README.md`).
 
-**Filigrane** : `#watermark` (`index.html`, hors de `#app` pour rester visible pendant les transitions ; style à la fin de `style.css`), deux lignes en bas à gauche, toujours au-dessus de tout, sans capter les clics.
+**Filigrane** : `#watermark` (`index.html`, hors de `#app` pour rester visible pendant les transitions ; style à la fin de `style.css`), deux lignes en bas à gauche, toujours au-dessus de tout, sans capter les clics. À la suite de la seconde ligne, la version publiée (`#appVersion`, `showVersion` dans `hud.js`, `S.version`) : le dernier tag, écrit dans `public/version.json` par le workflow de déploiement (`git describe`), fichier absent du dépôt et en local (rien n'est alors affiché). Le diagnostic la reprend (« Version »).
 
 **Ajouter une constante, une liste de choix ou une énumération** : dans `constantes.js`, jamais en dur dans un module ni dans `index.html` (les écrans construisent leurs choix depuis ces listes). Seules exceptions : `world.js` (module pur, qui ne peut pas importer `constantes.js`) et les données de dessin (pixel-art, icônes), qui restent près du code qui les dessine.
 

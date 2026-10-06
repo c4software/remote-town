@@ -98,7 +98,19 @@ export function updateUI() {
 }
 
 // Branchement des événements de la page (appelé une fois par main.js)
+// Version publiée, à côté du filigrane : le dernier tag, écrit dans version.json par le
+// déploiement (.github/workflows). En local le fichier n'existe pas : rien n'est affiché.
+async function showVersion() {
+  try {
+    const { version } = await (await fetch('version.json', { cache: 'no-store' })).json();
+    if (!/^v\d+\.\d+\.\d+$/.test(version)) return;
+    S.version = version;
+    $('#appVersion').textContent = ` · ${version}`;
+  } catch {}
+}
+
 export function initHud() {
+  showVersion();
   $('#micBtn').onclick = toggleMic;
   REACTIONS.forEach((e, i) => {
     const b = document.createElement('button');

@@ -59,4 +59,5 @@ export const S = {
   focusKey: null,   // partage d'écran affiché en grand
   pipOn: false,     // vue en incrustation ouverte en changeant d'onglet (pip.js), réglée dans l'écran du personnage
   globalHistoryLoaded: false,
+  version: '',      // version publiée (« v2.38.2 », lue dans version.json), vide en local
 };

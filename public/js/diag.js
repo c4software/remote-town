@@ -90,6 +90,7 @@ export async function diagnostic() {
   const q = new URLSearchParams(location.search);
   add('Date', new Date().toLocaleString('fr-FR'));
   add('Page', `${location.origin}${location.pathname}${q.has('room') ? `?room=${q.get('room')}` : ''}`);
+  add('Version', S.version || 'inconnue (page locale, ou version.json absent)');
   add('Page modifiée le', document.lastModified); // une vieille date = page servie depuis le cache
   add('Navigateur', navigator.userAgent);
   const c = navigator.connection;
