@@ -45,6 +45,7 @@ export const S = {
   sitTarget: null,  // chaise visée par le trajet : on s'y assoit en arrivant
   airTarget: false, // pupitre visé par le trajet : on prend la parole en arrivant
   portalTarget: false, // porte des espaces visée par le trajet : on l'ouvre en arrivant
+  coolerTarget: false, // machine à eau visée par le trajet : pause café en arrivant
   warp: null,       // passage de la porte en cours : { phase: 'out' | 'wait' | 'in', at, name }
   nextStepAt: 0,
   nextDashAt: 0,

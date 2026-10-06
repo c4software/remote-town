@@ -125,6 +125,7 @@ export const EMOTES = [
   { id: 'coffee', icon: '☕', label: 'Café' },
   { id: 'think', icon: '🤔', label: 'Réflexion' },
 ];
+export const COOLER_EMOTE = 'coffee'; // émote prise à la machine à eau (E à côté d'elle)
 export const REACTIONS = ['👍', '❤️', '😂', '🎉', '👏', '😮'];
 export const REACT_MS = 3000;    // durée d'affichage d'une réaction
 export const JINGLE_GAP = 3000;  // ms entre deux jingles d'une même personne (le carillon dure ~2,3 s)

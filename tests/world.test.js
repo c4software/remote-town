@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  MAP, MAP_H, MAP_W, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
+  MAP, MAP_H, MAP_W, COOLER, LECTERN_SPOTS, PORTAL, PORTAL_SPOT, canCallIn, canTalkieIn, chairAt, hearsRing, ringVolume, speakerHolder, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, sendsAudio, sendsVideo, sideBySide, zoneAt,
 } from '../public/js/world.js';
 
 let n = 0;
@@ -32,6 +32,14 @@ test('toutes les zones et toutes les chaises sont accessibles depuis le couloir'
   for (const z of MAP.zones) assert.ok(zones.has(z.id), `zone ${z.id} accessible`);
   for (const [k] of MAP.chairs) assert.ok(seen.has(k), `chaise ${k % MAP_W},${Math.floor(k / MAP_W)} accessible`);
   assert.ok(MAP_H > 0);
+});
+
+test('machine à eau : dans le couloir, accessible par une case voisine', () => {
+  assert.ok(isBlocked(COOLER.x, COOLER.y), 'la machine occupe sa case');
+  const around = [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) => [COOLER.x + dx, COOLER.y + dy]);
+  assert.ok(around.every(([x, y]) => nearCooler(x, y)));
+  assert.ok(around.some(([x, y]) => !isBlocked(x, y) && zoneAt(x, y) === 'hall'), 'une case voisine praticable, dans le couloir');
+  assert.ok(!nearCooler(COOLER.x, COOLER.y) && !nearCooler(COOLER.x + 1, COOLER.y + 1) && !nearCooler(COOLER.x + 2, COOLER.y));
 });
 
 test('porte des espaces : dans le mur du couloir, la case devant est libre', () => {

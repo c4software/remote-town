@@ -298,6 +298,16 @@ const scenarios = {
     await a.keyboard.down('ArrowDown'); await wait(250); await a.keyboard.up('ArrowDown');
     await wait(800);
     t.check(await aliceEmote() === null, 'se déplacer retire l\'émote');
+    // Machine à eau du couloir (41, 12) : E à côté d'elle = pause café
+    await place(a, 41, 11);
+    await wait(400);
+    await a.keyboard.press('KeyE');
+    await wait(800);
+    t.check(await aliceEmote() === 'coffee' && (await seen(b, 'Alice')).x === 41, 'E à côté de la machine à eau : pause café, vue par Bob');
+    t.check((await me(a)).dir === 'down' && !(await me(a)).seated, 'tournée vers la machine, sans s\'asseoir');
+    await a.keyboard.press('KeyE');
+    await wait(800);
+    t.check(await aliceEmote() === null, 'E à nouveau : fin de la pause café');
   },
 
   async 'porte des espaces'(t) {
@@ -429,6 +439,15 @@ const scenarios = {
     await m.touchscreen.tap(p.x, p.y);
     await pathDone(m);
     t.check((await me(m)).x === 32, 'toucher la carte : on s\'y rend');
+    // Toucher la machine à eau (41, 12) : on va à côté d'elle, puis pause café
+    await place(m, 38, 11);
+    await wait(500);
+    const c = await m.evaluate(() => ({ x: (41 * 32 + 16 - rt.cam.x) * rt.cam.zoom, y: (12 * 32 + 16 - rt.cam.y) * rt.cam.zoom }));
+    await m.touchscreen.tap(c.x, c.y);
+    await pathDone(m);
+    await wait(400);
+    const at = await me(m);
+    t.check(Math.abs(at.x - 41) + Math.abs(at.y - 12) === 1 && await m.evaluate(() => rt.me.emote === 'coffee'), 'toucher la machine à eau : on s\'y rend, pause café');
   },
 
   async 'pupitre'(t) {

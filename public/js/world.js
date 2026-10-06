@@ -19,6 +19,10 @@ export const PORTAL = { x: 24, y: 8 };
 export const PORTAL_SPOT = [24, 9];
 export const nearPortal = (x, y) => y === PORTAL_SPOT[1] && Math.abs(x - PORTAL_SPOT[0]) <= 1;
 
+// Machine à eau du couloir : à côté d'elle, E (ou la toucher, sur mobile) pour la pause café
+export const COOLER = { x: 41, y: 12 };
+export const nearCooler = (x, y) => Math.abs(x - COOLER.x) + Math.abs(y - COOLER.y) === 1;
+
 function build() {
   const tiles = new Uint8Array(MAP_W * MAP_H).fill(T.WALL);
   const objects = [];
@@ -49,7 +53,7 @@ function build() {
   fill(16, 9, 44, 4, T.HALL);
   fill(15, 10, 1, 2, T.HALL); // porte vers le bureau principal
   for (const [x, y] of [[16, 9], [16, 12], [59, 9], [59, 12], [32, 12], [50, 12]]) obj('plant', x, y);
-  obj('cooler', 41, 12);
+  obj('cooler', COOLER.x, COOLER.y);
   obj('bench', 23, 12, 3, 1, { color: '#7d5a3c' });
   // Porte vers les autres espaces de travail, dans le mur entre les bureaux 1 et 2
   obj('portal', PORTAL.x, PORTAL.y, 1, 1, { block: false });

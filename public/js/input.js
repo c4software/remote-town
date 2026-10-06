@@ -2,7 +2,7 @@
 import { DIRS, REACTIONS } from './constantes.js';
 import { $, toast, typing } from './dom.js';
 import { setPtt, toggleMic } from './media.js';
-import { bfs, chairBusy, dash, freeLecternSpot, interact, jump, sendMove, sitOn, startOnAir, stopOnAir, toggleCrouch } from './movement.js';
+import { bfs, chairBusy, coffeeBreak, dash, freeLecternSpot, interact, jump, sendMove, sitOn, startOnAir, stopOnAir, toggleCrouch } from './movement.js';
 import { openChat } from './phone.js';
 import { togglePip } from './pip.js';
 import { closeProfile } from './profile.js';
@@ -11,7 +11,7 @@ import { sendJingle, sendReaction, setDab, setSixSeven, toggleHand } from './soc
 import { openSpaces, spacesOpen } from './spaces.js';
 import { S, keys } from './state.js';
 import { closeFocus } from './videos.js';
-import { LECTERN, PORTAL, PORTAL_SPOT, TILE, chairAt, nearPortal } from './world.js';
+import { COOLER, LECTERN, PORTAL, PORTAL_SPOT, TILE, chairAt, nearCooler, nearPortal } from './world.js';
 
 export function heldDir() {
   const order = ['up', 'down', 'left', 'right'];
@@ -91,7 +91,7 @@ export function initInput() {
     if ((pointer ?? e.pointerType) === 'mouse') return;
     const tx = Math.floor((e.clientX / S.cam.zoom + S.cam.x) / TILE);
     const ty = Math.floor((e.clientY / S.cam.zoom + S.cam.y) / TILE);
-    S.airTarget = false; S.portalTarget = false;
+    S.airTarget = false; S.portalTarget = false; S.coolerTarget = false;
     if (S.warp) return;
     // Porte des espaces : on s'y rend, puis la fenêtre de choix s'ouvre
     if (tx === PORTAL.x && ty === PORTAL.y) {
@@ -99,6 +99,15 @@ export function initInput() {
       if (nearPortal(S.me.x, S.me.y)) { S.path = null; return openSpaces(); }
       S.portalTarget = true;
       S.path = bfs(S.me.x, S.me.y, PORTAL_SPOT[0], PORTAL_SPOT[1]);
+      return;
+    }
+    // Machine à eau : on s'y rend (case libre la plus proche à côté d'elle), puis pause café
+    if (tx === COOLER.x && ty === COOLER.y) {
+      S.sitTarget = null;
+      if (nearCooler(S.me.x, S.me.y)) { S.path = null; return coffeeBreak(); }
+      const paths = [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) => bfs(S.me.x, S.me.y, tx + dx, ty + dy)).filter((p) => p?.length);
+      S.path = paths.sort((a, b) => a.length - b.length)[0] || null;
+      S.coolerTarget = !!S.path;
       return;
     }
     if (ty === LECTERN.y && tx >= LECTERN.x && tx < LECTERN.x + LECTERN.w) {

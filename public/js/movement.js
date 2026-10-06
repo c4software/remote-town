@@ -3,16 +3,16 @@
 import { initMic } from './audio.js';
 import { atTeacherDesk, boards } from './board.js';
 import { phoneClose } from './phone.js';
-import { CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STAMINA, STEP_MS } from './constantes.js';
+import { COOLER_EMOTE, CROUCH_MS, DASH_COOLDOWN, DASH_TILES, DELTA, DIR_NAMES, HOP_MS, SPRINT_MS, STAMINA, STEP_MS } from './constantes.js';
 import { $, toast, typing } from './dom.js';
-import { clearEmoteOnMove } from './emotes.js';
+import { clearEmoteOnMove, setEmote } from './emotes.js';
 import { onZoneChange } from './hud.js';
 import { heldDir } from './input.js';
 import { pushState, updateRouting } from './media.js';
 import { broadcast } from './net.js';
 import { openSpaces } from './spaces.js';
 import { S, users } from './state.js';
-import { LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearLectern, nearPortal, zoneAt } from './world.js';
+import { COOLER, LECTERN_SPOTS, MAP_H, MAP_W, chairAt, isBlocked, isOnAir, nearCooler, nearLectern, nearPortal, zoneAt } from './world.js';
 
 // ============================================================
 // Pas à pas et trajets
@@ -84,7 +84,7 @@ export function step(now) {
     dir = nx > S.me.x ? 'right' : nx < S.me.x ? 'left' : ny > S.me.y ? 'down' : 'up';
   }
   if (!dir) return;
-  if (heldDir()) { S.sitTarget = null; S.airTarget = false; S.portalTarget = false; joinTarget = null; }
+  if (heldDir()) { S.sitTarget = null; S.airTarget = false; S.portalTarget = false; S.coolerTarget = false; joinTarget = null; }
   const [dx, dy] = DELTA[dir];
   const nx = S.me.x + dx, ny = S.me.y + dy;
   const changed = S.me.dir !== dir || S.me.seated;
@@ -114,6 +114,7 @@ export function step(now) {
   if (joinTarget && !S.path?.length) faceUser(joinTarget);
   if (S.portalTarget && !S.path?.length) { S.portalTarget = false; if (nearPortal(nx, ny)) openSpaces(); }
   if (S.airTarget && !S.path?.length) { S.airTarget = false; if (LECTERN_SPOTS.some(([x, y]) => x === nx && y === ny)) startOnAir(); }
+  if (S.coolerTarget && !S.path?.length) { S.coolerTarget = false; if (nearCooler(nx, ny)) coffeeBreak(true); }
 }
 
 // Après chacun de mes déplacements : zone, pupitre, bureau du prof, routage audio
@@ -207,6 +208,16 @@ function nearestFree(sx, sy) {
 }
 
 // ============================================================
+// Machine à eau : E à côté d'elle (ou la toucher) pour la pause café, E à nouveau pour la finir
+// ============================================================
+export function coffeeBreak(on = S.me.emote !== COOLER_EMOTE) {
+  // On se tourne vers la machine ; l'émote part au premier pas, comme les autres
+  const dir = COOLER.x > S.me.x ? 'right' : COOLER.x < S.me.x ? 'left' : COOLER.y > S.me.y ? 'down' : 'up';
+  if (on && S.me.dir !== dir) { S.me.dir = dir; sendMove(); }
+  setEmote(on ? COOLER_EMOTE : null);
+}
+
+// ============================================================
 // Pupitre : E (ou clic dessus) pour parler à tout le monde
 // ============================================================
 export function freeLecternSpot() {
@@ -244,6 +255,7 @@ export function interact() {
   if (S.me.onAir) return stopOnAir();
   if (nearLectern(S.me.x, S.me.y) && !S.me.seated) return startOnAir();
   if (nearPortal(S.me.x, S.me.y) && !S.me.seated) return openSpaces();
+  if (nearCooler(S.me.x, S.me.y) && !S.me.seated) return coffeeBreak();
   toggleSit();
 }
 
